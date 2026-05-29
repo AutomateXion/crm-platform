@@ -1,0 +1,2689 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, Like, IsNull } from 'typeorm';
+import {
+  ProductEntity, StockMovementEntity, ExchangeRateEntity,
+  QuotationEntity, QuotationItemEntity,
+  DeliveryNoteEntity, DeliveryNoteItemEntity,
+  SalesInvoiceEntity, SalesInvoiceItemEntity,
+  ReceiptEntity, SalesReturnEntity, SalesReturnItemEntity,
+  ChartOfAccountEntity,
+  SupplierEntity,
+  PurchaseOrderEntity, PurchaseOrderItemEntity,
+  GoodsReceiptNoteEntity, GoodsReceiptNoteItemEntity,
+  PurchaseInvoiceEntity, PurchaseInvoiceItemEntity,
+  PaymentVoucherEntity,
+  PurchaseReturnEntity, PurchaseReturnItemEntity,
+  JournalVoucherEntity, JournalVoucherLineEntity,
+  WarehouseEntity, WarehouseLocationEntity,
+  StockTransferEntity, StockTransferItemEntity,
+  StockAdjustmentEntity, StockAdjustmentItemEntity,
+  FixedAssetEntity, AssetDepreciationEntity, AssetMaintenanceEntity, AssetTransferEntity,
+} from './sales.entities';
+
+@Injectable()
+export class SalesService {
+
+  constructor(
+    @InjectRepository(ChartOfAccountEntity) private coaRepo: Repository<ChartOfAccountEntity>,
+    @InjectRepository(SupplierEntity) private supplierRepo: Repository<SupplierEntity>,
+    @InjectRepository(PurchaseOrderEntity) private poRepo: Repository<PurchaseOrderEntity>,
+    @InjectRepository(PurchaseOrderItemEntity) private poItemRepo: Repository<PurchaseOrderItemEntity>,
+    @InjectRepository(GoodsReceiptNoteEntity) private grnRepo: Repository<GoodsReceiptNoteEntity>,
+    @InjectRepository(GoodsReceiptNoteItemEntity) private grnItemRepo: Repository<GoodsReceiptNoteItemEntity>,
+    @InjectRepository(PurchaseInvoiceEntity) private purchaseInvoiceRepo: Repository<PurchaseInvoiceEntity>,
+    @InjectRepository(PurchaseInvoiceItemEntity) private purchaseInvoiceItemRepo: Repository<PurchaseInvoiceItemEntity>,
+    @InjectRepository(PaymentVoucherEntity) private voucherRepo: Repository<PaymentVoucherEntity>,
+    @InjectRepository(PurchaseReturnEntity) private purchaseReturnRepo: Repository<PurchaseReturnEntity>,
+    @InjectRepository(PurchaseReturnItemEntity) private purchaseReturnItemRepo: Repository<PurchaseReturnItemEntity>,
+    @InjectRepository(JournalVoucherEntity) private jvRepo: Repository<JournalVoucherEntity>,
+    @InjectRepository(JournalVoucherLineEntity) private jvLineRepo: Repository<JournalVoucherLineEntity>,
+    @InjectRepository(WarehouseEntity) private warehouseRepo: Repository<WarehouseEntity>,
+    @InjectRepository(WarehouseLocationEntity) private locationRepo: Repository<WarehouseLocationEntity>,
+    @InjectRepository(StockTransferEntity) private transferRepo: Repository<StockTransferEntity>,
+    @InjectRepository(StockTransferItemEntity) private transferItemRepo: Repository<StockTransferItemEntity>,
+    @InjectRepository(StockAdjustmentEntity) private adjustmentRepo: Repository<StockAdjustmentEntity>,
+    @InjectRepository(FixedAssetEntity) private fixedAssetRepo: Repository<FixedAssetEntity>,
+    @InjectRepository(AssetDepreciationEntity) private assetDeprRepo: Repository<AssetDepreciationEntity>,
+    @InjectRepository(AssetMaintenanceEntity) private assetMaintRepo: Repository<AssetMaintenanceEntity>,
+    @InjectRepository(AssetTransferEntity) private assetTransferRepo: Repository<AssetTransferEntity>,
+    @InjectRepository(StockAdjustmentItemEntity) private adjustmentItemRepo: Repository<StockAdjustmentItemEntity>,
+    @InjectRepository(ProductEntity) private productRepo: Repository<ProductEntity>,
+    @InjectRepository(StockMovementEntity) private stockRepo: Repository<StockMovementEntity>,
+    @InjectRepository(ExchangeRateEntity) private rateRepo: Repository<ExchangeRateEntity>,
+    @InjectRepository(QuotationEntity) private quotationRepo: Repository<QuotationEntity>,
+    @InjectRepository(QuotationItemEntity) private quotationItemRepo: Repository<QuotationItemEntity>,
+    @InjectRepository(DeliveryNoteEntity) private dnRepo: Repository<DeliveryNoteEntity>,
+    @InjectRepository(DeliveryNoteItemEntity) private dnItemRepo: Repository<DeliveryNoteItemEntity>,
+    @InjectRepository(SalesInvoiceEntity) private invoiceRepo: Repository<SalesInvoiceEntity>,
+    @InjectRepository(SalesInvoiceItemEntity) private invoiceItemRepo: Repository<SalesInvoiceItemEntity>,
+    @InjectRepository(ReceiptEntity) private receiptRepo: Repository<ReceiptEntity>,
+    @InjectRepository(SalesReturnEntity) private returnRepo: Repository<SalesReturnEntity>,
+    @InjectRepository(SalesReturnItemEntity) private returnItemRepo: Repository<SalesReturnItemEntity>,
+  ) {}
+
+  // ── Document Number Generator ─────────────────────────────────
+  private async generateNumber(prefix: string, repo: Repository<any>, field: string): Promise<string> {
+    const year = new Date().getFullYear();
+    const pattern = `${prefix}-${year}-%`;
+    const result = await repo.createQueryBuilder('e')
+      .select(`MAX(e.${field})`, 'maxNum')
+      .where(`e.${field} LIKE :pattern`, { pattern })
+      .getRawOne();
+    const maxNum = result?.maxNum;
+    let next = 1;
+    if (maxNum) {
+      const parts = maxNum.split('-');
+      const last = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(last)) next = last + 1;
+    }
+    return `${prefix}-${year}-${String(next).padStart(4, '0')}`;
+  }
+
+  // ── Products ──────────────────────────────────────────────────
+  async getProducts(tenantId: string, page = 1, limit = 20, search?: string, category?: string) {
+    const qb = this.productRepo.createQueryBuilder('p')
+      .where('p.tenantId = :tenantId', { tenantId })
+      .andWhere('p.isActive = true');
+    if (search) qb.andWhere('(p.productName ILIKE :s OR p.productCode ILIKE :s)', { s: `%${search}%` });
+    if (category) qb.andWhere('p.category = :category', { category });
+    qb.orderBy('p.productName', 'ASC').skip((page - 1) * limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+
+  async getProduct(tenantId: string, id: string) {
+    const p = await this.productRepo.findOne({ where: { productId: id, tenantId } });
+    if (!p) throw new NotFoundException('Product not found');
+    return p;
+  }
+
+  async createProduct(tenantId: string, dto: any, userId: string) {
+    const p = this.productRepo.create({ ...dto, tenantId, createdBy: userId });
+    return this.productRepo.save(p);
+  }
+
+  async updateProduct(tenantId: string, id: string, dto: any) {
+    await this.productRepo.update({ productId: id, tenantId }, dto);
+    return this.getProduct(tenantId, id);
+  }
+
+  async deleteProduct(tenantId: string, id: string) {
+    await this.productRepo.update({ productId: id, tenantId }, { isActive: false });
+    return { success: true };
+  }
+
+  async adjustStock(tenantId: string, productId: string, qty: number, type: string, ref: string, userId: string) {
+    const product = await this.getProduct(tenantId, productId);
+    const movement = this.stockRepo.create({
+      tenantId, productId, movementType: type, quantity: qty,
+      referenceNumber: ref, createdBy: userId,
+    });
+    await this.stockRepo.save(movement);
+    const newQty = type === 'IN' || type === 'RETURN'
+      ? Number(product.stockQty) + qty
+      : Number(product.stockQty) - qty;
+    await this.productRepo.update({ productId }, { stockQty: newQty });
+    return movement;
+  }
+
+  async getStockMovements(tenantId: string, productId?: string) {
+    const where: any = { tenantId };
+    if (productId) where.productId = productId;
+    return this.stockRepo.find({ where, order: { createdAt: 'DESC' }, take: 100 });
+  }
+
+  // ── Exchange Rates ─────────────────────────────────────────────
+  async getExchangeRates(tenantId: string) {
+    return this.rateRepo.find({ where: { tenantId, isActive: true }, order: { fromCurrency: 'ASC', effectiveDate: 'DESC' } });
+  }
+
+  async createExchangeRate(tenantId: string, dto: any, userId: string) {
+    const r = this.rateRepo.create({ ...dto, tenantId, createdBy: userId });
+    return this.rateRepo.save(r);
+  }
+
+  async updateExchangeRate(tenantId: string, id: string, dto: any) {
+    await this.rateRepo.update({ rateId: id, tenantId }, dto);
+    return this.rateRepo.findOne({ where: { rateId: id } });
+  }
+
+  async deleteExchangeRate(tenantId: string, id: string) {
+    await this.rateRepo.update({ rateId: id, tenantId }, { isActive: false });
+    return { success: true };
+  }
+
+  // ── Quotations ────────────────────────────────────────────────
+  async getQuotations(tenantId: string, page = 1, limit = 20, search?: string, status?: string, excludeConverted = false) {
+    const qb = this.quotationRepo.createQueryBuilder('q')
+      .where('q.tenantId = :tenantId', { tenantId });
+    if (search) qb.andWhere('(q.customerName ILIKE :s OR q.quotationNumber ILIKE :s OR q.subject ILIKE :s)', { s: `%${search}%` });
+    if (status) qb.andWhere('q.status = :status', { status });
+    if (excludeConverted) qb.andWhere("q.status NOT IN ('CONVERTED', 'CANCELLED')");
+    qb.orderBy('q.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+
+  async getQuotation(tenantId: string, id: string) {
+    const q = await this.quotationRepo.findOne({ where: { quotationId: id, tenantId }, relations: ['items'] });
+    if (!q) throw new NotFoundException('Quotation not found');
+    return q;
+  }
+
+  async createQuotation(tenantId: string, dto: any, userId: string) {
+    const number = await this.generateNumber('QUO', this.quotationRepo, 'quotationNumber');
+    const { items, quotationNumber: _qn, ...header } = dto;
+    const q = this.quotationRepo.create({ ...header, tenantId, quotationNumber: number, createdBy: userId, status: header.status || 'DRAFT' });
+    const saved = await this.quotationRepo.save(q) as any;
+    if (items?.length) {
+      const lineItems = items.map((item: any, idx: number) =>
+        this.quotationItemRepo.create({ ...item, quotationId: saved.quotationId, lineNumber: idx + 1 })
+      );
+      await this.quotationItemRepo.save(lineItems);
+    }
+    return this.getQuotation(tenantId, saved.quotationId);
+  }
+
+  async updateQuotation(tenantId: string, id: string, dto: any) {
+    const { items, ...header } = dto;
+    await this.quotationRepo.update({ quotationId: id, tenantId }, header);
+    if (items) {
+      await this.quotationItemRepo.delete({ quotationId: id });
+      const lineItems = items.map((item: any, idx: number) =>
+        this.quotationItemRepo.create({ ...item, quotationId: id, lineNumber: idx + 1 })
+      );
+      if (lineItems.length) await this.quotationItemRepo.save(lineItems);
+    }
+    return this.getQuotation(tenantId, id);
+  }
+
+  async deleteQuotation(tenantId: string, id: string) {
+    await this.quotationRepo.delete({ quotationId: id, tenantId });
+    return { success: true };
+  }
+
+  // ── Delivery Notes ────────────────────────────────────────────
+  async getDeliveryNotes(tenantId: string, page = 1, limit = 20, search?: string, status?: string, excludeInvoiced = false) {
+    const qb = this.dnRepo.createQueryBuilder('d')
+      .where('d.tenantId = :tenantId', { tenantId });
+    if (search) qb.andWhere('(d.customerName ILIKE :s OR d.dnNumber ILIKE :s)', { s: `%${search}%` });
+    if (status) qb.andWhere('d.status = :status', { status });
+    if (excludeInvoiced) qb.andWhere("d.status NOT IN ('INVOICED', 'CANCELLED', 'CONVERTED')");
+    qb.orderBy('d.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+
+  async getDeliveryNote(tenantId: string, id: string) {
+    const d = await this.dnRepo.findOne({ where: { dnId: id, tenantId }, relations: ['items'] });
+    if (!d) throw new NotFoundException('Delivery Note not found');
+    return d;
+  }
+
+  async createDeliveryNote(tenantId: string, dto: any, userId: string) {
+    const number = await this.generateNumber('DN', this.dnRepo, 'dnNumber');
+    const { items, dnNumber: _dn, invoiceNumber: _in, quotationNumber: _qn, ...header } = dto;
+    const d = this.dnRepo.create({ ...header, tenantId, dnNumber: number, createdBy: userId });
+    const saved = await this.dnRepo.save(d) as any;
+    if (items?.length) {
+      const lineItems = items.map((item: any, idx: number) =>
+        this.dnItemRepo.create({ ...item, dnId: saved.dnId, lineNumber: idx + 1 })
+      );
+      await this.dnItemRepo.save(lineItems);
+      // Update stock if inventory mode
+      if (dto.isInventory) {
+        for (const item of items) {
+          if (item.productId) {
+            await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'OUT', number, userId);
+          }
+        }
+      }
+    }
+    // Mark linked Quotation as CONVERTED
+    if (header.quotationId) await this.quotationRepo.update({ quotationId: header.quotationId, tenantId }, { status: 'CONVERTED' } as any);
+    return this.getDeliveryNote(tenantId, saved.dnId);
+  }
+
+  async updateDeliveryNote(tenantId: string, id: string, dto: any) {
+    const { items, ...header } = dto;
+    await this.dnRepo.update({ dnId: id, tenantId }, header);
+    if (items) {
+      await this.dnItemRepo.delete({ dnId: id });
+      const lineItems = items.map((item: any, idx: number) =>
+        this.dnItemRepo.create({ ...item, dnId: id, lineNumber: idx + 1 })
+      );
+      if (lineItems.length) await this.dnItemRepo.save(lineItems);
+    }
+    return this.getDeliveryNote(tenantId, id);
+  }
+
+  async deleteDeliveryNote(tenantId: string, id: string) {
+    await this.dnRepo.delete({ dnId: id, tenantId });
+    return { success: true };
+  }
+
+  // Convert Quotation to Delivery Note
+  async convertQuotationToDN(tenantId: string, quotationId: string, userId: string) {
+    const q = await this.getQuotation(tenantId, quotationId);
+    const dto = {
+      quotationId: q.quotationId,
+      customerName: q.customerName,
+      customerAddress: q.customerAddress,
+      accountId: q.accountId,
+      contactId: q.contactId,
+      currencyCode: q.currencyCode,
+      exchangeRate: q.exchangeRate,
+      isInventory: q.isInventory,
+      subtotal: q.subtotal,
+      discountAmount: q.discountAmount,
+      vatRate: q.vatRate,
+      vatAmount: q.vatAmount,
+      totalAmount: q.totalAmount,
+      items: q.items.map(i => ({
+        productId: i.productId,
+        itemCode: i.itemCode,
+        description: i.description,
+        unitOfMeasure: i.unitOfMeasure,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        discountPct: i.discountPct,
+        discountAmount: i.discountAmount,
+        lineTotal: i.lineTotal,
+        isTaxable: i.isTaxable,
+        revenueAccount: i.revenueAccount,
+      })),
+    };
+    const dn = await this.createDeliveryNote(tenantId, dto, userId);
+    // Mark quotation as CONVERTED
+    await this.quotationRepo.update({ quotationId, tenantId }, { status: 'CONVERTED' } as any);
+    return dn;
+  }
+
+  // ── Sales Invoices ────────────────────────────────────────────
+  async getInvoices(tenantId: string, page = 1, limit = 20, search?: string, status?: string, excludePaid = false) {
+    const qb = this.invoiceRepo.createQueryBuilder('i')
+      .where('i.tenantId = :tenantId', { tenantId });
+    if (search) qb.andWhere('(i.customerName ILIKE :s OR i.invoiceNumber ILIKE :s)', { s: `%${search}%` });
+    if (status) qb.andWhere('i.status = :status', { status });
+    if (excludePaid) qb.andWhere("i.status NOT IN ('PAID', 'CANCELLED')");
+    qb.orderBy('i.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+
+  async getInvoice(tenantId: string, id: string) {
+    const i = await this.invoiceRepo.findOne({ where: { invoiceId: id, tenantId }, relations: ['items'] });
+    if (!i) throw new NotFoundException('Invoice not found');
+    return i;
+  }
+
+  async createInvoice(tenantId: string, dto: any, userId: string) {
+    const number = await this.generateNumber('INV', this.invoiceRepo, 'invoiceNumber');
+    const { items, invoiceNumber: _in, dnNumber: _dn, quotationNumber: _qn, receiptNumber: _rn, ...header } = dto;
+    const balanceDue = Number(header.totalAmount) || 0;
+    const i = this.invoiceRepo.create({ ...header, tenantId, invoiceNumber: number, createdBy: userId, balanceDue, paidAmount: 0, status: header.status || 'DRAFT' });
+    const saved = await this.invoiceRepo.save(i) as any;
+    if (items?.length) {
+      const lineItems = items.map((item: any, idx: number) =>
+        this.invoiceItemRepo.create({ ...item, invoiceId: saved.invoiceId, lineNumber: idx + 1 })
+      );
+      await this.invoiceItemRepo.save(lineItems);
+    }
+    // Mark linked DN as INVOICED
+    if (header.dnId) await this.dnRepo.update({ dnId: header.dnId, tenantId }, { status: 'INVOICED' } as any);
+    // Mark linked Quotation as CONVERTED
+    if (header.quotationId) await this.quotationRepo.update({ quotationId: header.quotationId, tenantId }, { status: 'CONVERTED' } as any);
+    // Auto journal: Dr AR / Cr Sales Revenue / Cr VAT
+    const invDate = (header.invoiceDate || new Date().toISOString()).slice(0,10);
+    const vatAmt = Number(header.vatAmount || 0);
+    const netAmt = Number(header.subtotal || 0);
+    const totalAmt = Number(header.totalAmount || 0);
+    await this.createAutoJournalEntry(tenantId, userId, {
+      voucherNumber: number, description: `Sales Invoice ${number} - ${header.customerName}`,
+      voucherDate: invDate, lines: [
+        { accountCode: '1130', description: `AR - ${header.customerName}`, debitAmount: totalAmt, creditAmount: 0 },
+        { accountCode: '4100', description: `Sales - ${number}`, debitAmount: 0, creditAmount: netAmt },
+        ...(vatAmt > 0 ? [{ accountCode: '2121', description: `VAT Output - ${number}`, debitAmount: 0, creditAmount: vatAmt }] : []),
+      ],
+    });
+    return this.getInvoice(tenantId, saved.invoiceId);
+  }
+
+  async updateInvoice(tenantId: string, id: string, dto: any) {
+    const { items, ...header } = dto;
+    await this.invoiceRepo.update({ invoiceId: id, tenantId }, header);
+    if (items) {
+      await this.invoiceItemRepo.delete({ invoiceId: id });
+      const lineItems = items.map((item: any, idx: number) =>
+        this.invoiceItemRepo.create({ ...item, invoiceId: id, lineNumber: idx + 1 })
+      );
+      if (lineItems.length) await this.invoiceItemRepo.save(lineItems);
+    }
+    return this.getInvoice(tenantId, id);
+  }
+
+  async deleteInvoice(tenantId: string, id: string) {
+    await this.invoiceRepo.delete({ invoiceId: id, tenantId });
+    return { success: true };
+  }
+
+  // Convert DN to Invoice
+  async convertDNToInvoice(tenantId: string, dnId: string, userId: string) {
+    const d = await this.getDeliveryNote(tenantId, dnId);
+    const dto = {
+      dnId: d.dnId,
+      customerName: d.customerName,
+      customerAddress: d.customerAddress,
+      accountId: d.accountId,
+      contactId: d.contactId,
+      currencyCode: d.currencyCode,
+      exchangeRate: d.exchangeRate,
+      isInventory: d.isInventory,
+      subtotal: d.subtotal,
+      discountAmount: d.discountAmount,
+      vatRate: d.vatRate,
+      vatAmount: d.vatAmount,
+      totalAmount: d.totalAmount,
+      items: d.items.map(i => ({
+        productId: i.productId,
+        itemCode: i.itemCode,
+        description: i.description,
+        unitOfMeasure: i.unitOfMeasure,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        discountPct: i.discountPct,
+        discountAmount: i.discountAmount,
+        lineTotal: i.lineTotal,
+        isTaxable: i.isTaxable,
+        revenueAccount: i.revenueAccount,
+      })),
+    };
+    const inv = await this.createInvoice(tenantId, dto, userId);
+    await this.dnRepo.update({ dnId, tenantId }, { status: 'INVOICED' } as any);
+    return inv;
+  }
+
+  // ── Receipts ──────────────────────────────────────────────────
+  async getReceipts(tenantId: string, page = 1, limit = 20, search?: string) {
+    const qb = this.receiptRepo.createQueryBuilder('r')
+      .where('r.tenantId = :tenantId', { tenantId });
+    if (search) qb.andWhere('(r.customerName ILIKE :s OR r.receiptNumber ILIKE :s)', { s: `%${search}%` });
+    qb.orderBy('r.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+
+  async createReceipt(tenantId: string, dto: any, userId: string) {
+    const number = await this.generateNumber('RCT', this.receiptRepo, 'receiptNumber');
+    const { invoiceIds, receiptNumber: _rn, ...receiptData } = dto;
+    const r = this.receiptRepo.create({ ...receiptData, tenantId, receiptNumber: number, createdBy: userId });
+    const saved = await this.receiptRepo.save(r);
+    // Update single invoice (backward compat)
+    const invoiceIdList = invoiceIds?.length ? invoiceIds : (dto.invoiceId ? [dto.invoiceId] : []);
+    if (invoiceIdList.length > 0) {
+      const totalAmount = Number(dto.amount) || 0;
+      const perInvoice = invoiceIdList.length > 1 ? null : totalAmount;
+      for (const invoiceId of invoiceIdList) {
+        const invoice = await this.invoiceRepo.findOne({ where: { invoiceId, tenantId } });
+        if (invoice) {
+          const payment = perInvoice ?? Math.min(Number(invoice.balanceDue), totalAmount);
+          const newPaid = Number(invoice.paidAmount) + payment;
+          const newBalance = Number(invoice.totalAmount) - newPaid;
+          const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIALLY_PAID';
+          await this.invoiceRepo.update({ invoiceId }, {
+            paidAmount: newPaid, balanceDue: newBalance, status: newStatus,
+          });
+        }
+      }
+    }
+    // Auto journal: Dr Bank / Cr AR (Receipt from customer)
+    const rcptDate = (dto.receiptDate || new Date().toISOString()).slice(0,10);
+    const rcptCustomer = dto.customerName || "Customer";
+    await this.createAutoJournalEntry(tenantId, userId, {
+      voucherNumber: number, description: `Customer Receipt ${number} - ${rcptCustomer}`,
+      voucherDate: rcptDate, lines: [
+        { accountCode: "1120", description: `Cash/Bank - Receipt from ${rcptCustomer}`, debitAmount: Number(dto.amount || 0), creditAmount: 0 },
+        { accountCode: "1130", description: `AR - ${rcptCustomer}`, debitAmount: 0, creditAmount: Number(dto.amount || 0) },
+      ],
+    });
+    return saved;
+  }
+
+  async deleteReceipt(tenantId: string, id: string) {
+    await this.receiptRepo.delete({ receiptId: id, tenantId });
+    return { success: true };
+  }
+
+  // ── Sales Returns ─────────────────────────────────────────────
+  async getReturns(tenantId: string, page = 1, limit = 20) {
+    const qb = this.returnRepo.createQueryBuilder('r')
+      .where('r.tenantId = :tenantId', { tenantId });
+    qb.orderBy('r.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+
+  async getReturn(tenantId: string, id: string) {
+    const r = await this.returnRepo.findOne({ where: { returnId: id, tenantId }, relations: ['items'] });
+    if (!r) throw new NotFoundException('Return not found');
+    return r;
+  }
+
+  async createReturn(tenantId: string, dto: any, userId: string) {
+    const number = await this.generateNumber('RTN', this.returnRepo, 'returnNumber');
+    const { items, returnNumber: _rn, ...header } = dto;
+    const r = this.returnRepo.create({ ...header, tenantId, returnNumber: number, createdBy: userId });
+    const saved = await this.returnRepo.save(r) as any;
+    if (items?.length) {
+      const lineItems = items.map((item: any, idx: number) =>
+        this.returnItemRepo.create({ ...item, returnId: saved.returnId, lineNumber: idx + 1 })
+      );
+      await this.returnItemRepo.save(lineItems);
+      // 1. Return stock if inventory mode
+      if (dto.isInventory) {
+        for (const item of items) {
+          if (item.productId) {
+            await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'SALES_RETURN', number, userId);
+          }
+        }
+      }
+      // 2. Update linked invoice balance (credit the customer account)
+      if (dto.invoiceId) {
+        const invoice = await this.invoiceRepo.findOne({ where: { invoiceId: dto.invoiceId } });
+        if (invoice) {
+          const returnAmount = Number(dto.totalAmount || 0);
+          const currentBalance = Number((invoice as any).balanceDue);
+          const currentPaid = Number((invoice as any).paidAmount);
+          if (currentBalance > 0) {
+            // Invoice not fully paid - reduce balance
+            const newBalance = Math.max(0, currentBalance - returnAmount);
+            const newPaid = currentPaid + (currentBalance - newBalance);
+            const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIALLY_PAID';
+            await this.invoiceRepo.update({ invoiceId: dto.invoiceId }, {
+              balanceDue: newBalance, paidAmount: newPaid, status: newStatus,
+            } as any);
+          } else {
+            // Invoice already paid - create credit balance (negative balance)
+            const creditAmount = returnAmount;
+            await this.invoiceRepo.update({ invoiceId: dto.invoiceId }, {
+              balanceDue: -creditAmount, status: 'CREDIT_BALANCE',
+            } as any);
+          }
+        }
+      }
+    }
+        // Auto journal: Dr Sales Returns / Cr AR
+    const srDate = (dto.returnDate || new Date().toISOString()).slice(0,10);
+    const srTotal = Number(dto.totalAmount || 0);
+    if (srTotal > 0) {
+      const srLines: any[] = [
+        { accountCode: "4010", description: `Sales Return ${number} - ${dto.customerName || "Customer"}`, debitAmount: srTotal, creditAmount: 0 },
+        { accountCode: "1130", description: `AR - ${dto.customerName || "Customer"}`, debitAmount: 0, creditAmount: srTotal },
+      ];
+      if (dto.isInventory) {
+        const inventoryValue = Number(dto.subtotal || srTotal);
+        srLines.push({ accountCode: "1140", description: `Inventory Return - ${number}`, debitAmount: inventoryValue, creditAmount: 0 });
+        srLines.push({ accountCode: "5001", description: `COGS Reversal - ${number}`, debitAmount: 0, creditAmount: inventoryValue });
+      }
+      await this.createAutoJournalEntry(tenantId, userId, {
+        voucherNumber: number, description: `Sales Return ${number} - ${dto.customerName || "Customer"}`,
+        voucherDate: srDate, lines: srLines,
+      });
+    }
+    return this.getReturn(tenantId, saved.returnId);
+  }
+
+  async updateReturn(tenantId: string, id: string, dto: any) {
+    const { items, ...header } = dto;
+    await this.returnRepo.update({ returnId: id, tenantId }, header);
+    if (items) {
+      await this.returnItemRepo.delete({ returnId: id });
+      const lineItems = items.map((item: any, idx: number) =>
+        this.returnItemRepo.create({ ...item, returnId: id, lineNumber: idx + 1 })
+      );
+      if (lineItems.length) await this.returnItemRepo.save(lineItems);
+    }
+    return this.getReturn(tenantId, id);
+  }
+
+  async deleteReturn(tenantId: string, id: string) {
+    await this.returnRepo.delete({ returnId: id, tenantId });
+    return { success: true };
+  }
+
+  // ── Chart of Accounts ────────────────────────────────────────
+  async getAccounts(tenantId: string, type?: string, search?: string) {
+    const qb = this.coaRepo.createQueryBuilder('a')
+      .where('a.tenantId = :tenantId', { tenantId })
+      .andWhere('a.isActive = true');
+    if (type) qb.andWhere('a.accountType = :type', { type });
+    if (search) qb.andWhere('(a.accountName ILIKE :s OR a.accountCode ILIKE :s)', { s: `%${search}%` });
+    qb.orderBy('a.accountCode', 'ASC');
+    return qb.getMany();
+  }
+
+  async createAccount(tenantId: string, dto: any) {
+    const a = this.coaRepo.create({ ...dto, tenantId });
+    return this.coaRepo.save(a);
+  }
+
+  async updateAccount(tenantId: string, id: string, dto: any) {
+    await this.coaRepo.update({ accountId: id, tenantId }, dto);
+    return this.coaRepo.findOne({ where: { accountId: id } });
+  }
+
+  async deleteAccount(tenantId: string, id: string) {
+    const acc = await this.coaRepo.findOne({ where: { accountId: id, tenantId } });
+    if (acc?.isSystem) throw new Error('Cannot delete system accounts');
+    await this.coaRepo.update({ accountId: id, tenantId }, { isActive: false });
+    return { success: true };
+  }
+
+  // ── Dashboard Summary ─────────────────────────────────────────
+  async getDashboard(tenantId: string) {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const [
+      totalQuotations, totalInvoices, totalReceipts, totalReturns,
+      totalPurchaseOrders, totalGRNs, totalPurchaseInvoices, totalSuppliers, lowStockProducts,
+    ] = await Promise.all([
+      this.quotationRepo.count({ where: { tenantId } }),
+      this.invoiceRepo.count({ where: { tenantId } }),
+      this.receiptRepo.count({ where: { tenantId } }),
+      this.returnRepo.count({ where: { tenantId } }),
+      this.poRepo.count({ where: { tenantId } }),
+      this.grnRepo.count({ where: { tenantId } }),
+      this.purchaseInvoiceRepo.count({ where: { tenantId } }),
+      this.supplierRepo.count({ where: { tenantId } }),
+      this.productRepo.createQueryBuilder('p')
+        .where('p.tenantId = :tenantId', { tenantId })
+        .andWhere('p.trackStock = true')
+        .andWhere('p.stockQty <= p.minStockQty')
+        .getCount(),
+    ]);
+
+    // Revenue stats
+    const revenueThisMonth = await this.invoiceRepo.createQueryBuilder('i')
+      .select('SUM(i.totalAmount)', 'total')
+      .where('i.tenantId = :tid AND i.createdAt >= :start', { tid: tenantId, start: startOfMonth })
+      .getRawOne();
+    const revenueLastMonth = await this.invoiceRepo.createQueryBuilder('i')
+      .select('SUM(i.totalAmount)', 'total')
+      .where('i.tenantId = :tid AND i.createdAt >= :start AND i.createdAt <= :end',
+        { tid: tenantId, start: startOfLastMonth, end: endOfLastMonth })
+      .getRawOne();
+    const totalRevenueResult = await this.invoiceRepo.createQueryBuilder('i')
+      .select('SUM(i.totalAmount)', 'total')
+      .where('i.tenantId = :tid', { tid: tenantId })
+      .getRawOne();
+    const outstandingResult = await this.invoiceRepo.createQueryBuilder('i')
+      .select('SUM(i.balanceDue)', 'total')
+      .where('i.tenantId = :tid AND i.status NOT IN (:...paid)', { tid: tenantId, paid: ['PAID', 'CANCELLED'] })
+      .getRawOne();
+
+    // Invoice by status
+    const invoicesByStatus = await this.invoiceRepo.createQueryBuilder('i')
+      .select('i.status', 'status').addSelect('COUNT(*)', 'count').addSelect('SUM(i.totalAmount)', 'value')
+      .where('i.tenantId = :tid', { tid: tenantId })
+      .groupBy('i.status').getRawMany();
+
+    // Quotation by status
+    const quotationsByStatus = await this.quotationRepo.createQueryBuilder('q')
+      .select('q.status', 'status').addSelect('COUNT(*)', 'count').addSelect('SUM(q.totalAmount)', 'value')
+      .where('q.tenantId = :tid', { tid: tenantId })
+      .groupBy('q.status').getRawMany();
+
+    // PO by status
+    const posByStatus = await this.poRepo.createQueryBuilder('p')
+      .select('p.status', 'status').addSelect('COUNT(*)', 'count').addSelect('SUM(p.totalAmount)', 'value')
+      .where('p.tenantId = :tid', { tid: tenantId })
+      .groupBy('p.status').getRawMany();
+
+    // GRN by status
+    const grnsByStatus = await this.grnRepo.createQueryBuilder('g')
+      .select('g.status', 'status').addSelect('COUNT(*)', 'count').addSelect('SUM(g.totalAmount)', 'value')
+      .where('g.tenantId = :tid', { tid: tenantId })
+      .groupBy('g.status').getRawMany();
+
+    // Purchase Invoice by status
+    const purchaseInvoicesByStatus = await this.purchaseInvoiceRepo.createQueryBuilder('i')
+      .select('i.status', 'status').addSelect('COUNT(*)', 'count').addSelect('SUM(i.totalAmount)', 'value')
+      .where('i.tenantId = :tid', { tid: tenantId })
+      .groupBy('i.status').getRawMany();
+
+    // Pending counts
+    const pendingQuotations = await this.quotationRepo.count({ where: { tenantId, status: 'DRAFT' } as any });
+    const pendingInvoices = await this.invoiceRepo.count({ where: { tenantId, status: 'DRAFT' } as any });
+    const pendingGRNs = await this.grnRepo.count({ where: { tenantId, status: 'DRAFT' } as any });
+
+    // Total purchases
+    const totalPurchasesResult = await this.purchaseInvoiceRepo.createQueryBuilder('i')
+      .select('SUM(i.totalAmount)', 'total').where('i.tenantId = :tid', { tid: tenantId }).getRawOne();
+    const outstandingPayablesResult = await this.purchaseInvoiceRepo.createQueryBuilder('i')
+      .select('SUM(i.balanceDue)', 'total')
+      .where('i.tenantId = :tid AND i.status NOT IN (:...paid)', { tid: tenantId, paid: ['PAID', 'CANCELLED'] })
+      .getRawOne();
+
+    return {
+      totalQuotations, totalInvoices, totalReceipts, totalReturns,
+      totalPurchaseOrders, totalGRNs, totalPurchaseInvoices, totalSuppliers, lowStockProducts,
+      revenueThisMonth: revenueThisMonth?.total || 0,
+      revenueLastMonth: revenueLastMonth?.total || 0,
+      totalRevenue: totalRevenueResult?.total || 0,
+      outstandingReceivables: outstandingResult?.total || 0,
+      totalPurchases: totalPurchasesResult?.total || 0,
+      outstandingPayables: outstandingPayablesResult?.total || 0,
+      invoicesByStatus, quotationsByStatus, posByStatus, grnsByStatus, purchaseInvoicesByStatus,
+      pendingQuotations, pendingInvoices, pendingGRNs,
+    };
+  }
+
+  // ── Suppliers ─────────────────────────────────────────────────
+  async getSuppliers(tenantId: string, page = 1, limit = 20, search?: string) {
+    const qb = this.supplierRepo.createQueryBuilder('s')
+      .where('s.tenantId = :tenantId', { tenantId })
+      .andWhere('s.isActive = true');
+    if (search) qb.andWhere('(s.supplierName ILIKE :s OR s.supplierCode ILIKE :s)', { s: `%${search}%` });
+    qb.orderBy('s.supplierName', 'ASC').skip((page - 1) * limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+  async getSupplier(tenantId: string, id: string) {
+    const s = await this.supplierRepo.findOne({ where: { supplierId: id, tenantId } });
+    if (!s) throw new NotFoundException('Supplier not found');
+    return s;
+  }
+  async createSupplier(tenantId: string, dto: any, userId: string) {
+    const s = this.supplierRepo.create({ ...dto, tenantId, createdBy: userId });
+    return this.supplierRepo.save(s);
+  }
+  async updateSupplier(tenantId: string, id: string, dto: any) {
+    await this.supplierRepo.update({ supplierId: id, tenantId }, dto);
+    return this.getSupplier(tenantId, id);
+  }
+  async deleteSupplier(tenantId: string, id: string) {
+    await this.supplierRepo.update({ supplierId: id, tenantId }, { isActive: false });
+    return { success: true };
+  }
+
+  // ── Purchase Orders ───────────────────────────────────────────
+  async getPurchaseOrders(tenantId: string, page = 1, limit = 20, search?: string, status?: string, excludeReceived = false) {
+    const qb = this.poRepo.createQueryBuilder('p').where('p.tenantId = :tenantId', { tenantId });
+    if (search) qb.andWhere('(p.supplierName ILIKE :s OR p.poNumber ILIKE :s)', { s: `%${search}%` });
+    if (status) qb.andWhere('p.status = :status', { status });
+    if (excludeReceived) qb.andWhere("p.status NOT IN ('RECEIVED', 'CANCELLED')");
+    qb.orderBy('p.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+  async getPurchaseOrder(tenantId: string, id: string) {
+    const p = await this.poRepo.findOne({ where: { poId: id, tenantId }, relations: ['items'] });
+    if (!p) throw new NotFoundException('Purchase Order not found');
+    return p;
+  }
+  async createPurchaseOrder(tenantId: string, dto: any, userId: string) {
+    const number = await this.generateNumber('PO', this.poRepo, 'poNumber');
+    const { items, poNumber: _pn, grnNumber: _gn, invoiceNumber: _in, ...header } = dto;
+    const p = this.poRepo.create({ ...header, tenantId, poNumber: number, createdBy: userId });
+    const saved = await this.poRepo.save(p) as any;
+    if (items?.length) {
+      const lineItems = items.map((item: any, idx: number) =>
+        this.poItemRepo.create({ ...item, poId: saved.poId, lineNumber: idx + 1 })
+      );
+      await this.poItemRepo.save(lineItems);
+    }
+    return this.getPurchaseOrder(tenantId, saved.poId);
+  }
+  async updatePurchaseOrder(tenantId: string, id: string, dto: any) {
+    const { items, ...header } = dto;
+    await this.poRepo.update({ poId: id, tenantId }, header);
+    if (items) {
+      await this.poItemRepo.delete({ poId: id });
+      const lineItems = items.map((item: any, idx: number) =>
+        this.poItemRepo.create({ ...item, poId: id, lineNumber: idx + 1 })
+      );
+      if (lineItems.length) await this.poItemRepo.save(lineItems);
+    }
+    return this.getPurchaseOrder(tenantId, id);
+  }
+  async deletePurchaseOrder(tenantId: string, id: string) {
+    await this.poRepo.delete({ poId: id, tenantId });
+    return { success: true };
+  }
+
+  // ── GRN ──────────────────────────────────────────────────────
+  async getGRNs(tenantId: string, page = 1, limit = 20, search?: string, status?: string, excludeInvoiced = false) {
+    const qb = this.grnRepo.createQueryBuilder('g').where('g.tenantId = :tenantId', { tenantId });
+    if (search) qb.andWhere('(g.supplierName ILIKE :s OR g.grnNumber ILIKE :s)', { s: `%${search}%` });
+    if (status) qb.andWhere('g.status = :status', { status });
+    if (excludeInvoiced) qb.andWhere("g.status NOT IN ('INVOICED', 'CANCELLED')");
+    qb.orderBy('g.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+  async getGRN(tenantId: string, id: string) {
+    const g = await this.grnRepo.findOne({ where: { grnId: id, tenantId }, relations: ['items'] });
+    if (!g) throw new NotFoundException('GRN not found');
+    return g;
+  }
+  async createGRN(tenantId: string, dto: any, userId: string) {
+    const number = await this.generateNumber('GRN', this.grnRepo, 'grnNumber');
+    const { items, grnNumber: _gn, invoiceNumber: _in, poNumber: _pn, ...header } = dto;
+    const g = this.grnRepo.create({ ...header, tenantId, grnNumber: number, createdBy: userId });
+    const saved = await this.grnRepo.save(g) as any;
+    if (items?.length) {
+      const lineItems = items.map((item: any, idx: number) =>
+        this.grnItemRepo.create({ ...item, grnId: saved.grnId, lineNumber: idx + 1 })
+      );
+      await this.grnItemRepo.save(lineItems);
+      if (dto.isInventory) {
+        for (const item of items) {
+          if (item.productId) {
+            await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'IN', number, userId);
+          }
+        }
+      }
+    }
+    // Mark linked PO as RECEIVED
+    if (header.poId) await this.poRepo.update({ poId: header.poId, tenantId }, { status: 'RECEIVED' } as any);
+    // Auto journal: Dr Inventory / Cr GRNI
+    const grnDate = (header.grnDate || new Date().toISOString()).slice(0,10);
+    const grnTotal = Number(header.totalAmount || 0);
+    if (grnTotal > 0) {
+      await this.createAutoJournalEntry(tenantId, userId, {
+        voucherNumber: number, description: `GRN ${number} - ${header.supplierName}`,
+        voucherDate: grnDate, lines: [
+          { accountCode: '1140', description: `Inventory - ${header.supplierName}`, debitAmount: grnTotal, creditAmount: 0 },
+          { accountCode: '1141', description: `GRNI - ${number}`, debitAmount: 0, creditAmount: grnTotal },
+        ],
+      });
+    }
+    return this.getGRN(tenantId, saved.grnId);
+  }
+  async updateGRN(tenantId: string, id: string, dto: any) {
+    const { items, ...header } = dto;
+    await this.grnRepo.update({ grnId: id, tenantId }, header);
+    if (items) {
+      await this.grnItemRepo.delete({ grnId: id });
+      const lineItems = items.map((item: any, idx: number) =>
+        this.grnItemRepo.create({ ...item, grnId: id, lineNumber: idx + 1 })
+      );
+      if (lineItems.length) await this.grnItemRepo.save(lineItems);
+    }
+    return this.getGRN(tenantId, id);
+  }
+  async deleteGRN(tenantId: string, id: string) {
+    await this.grnRepo.delete({ grnId: id, tenantId });
+    return { success: true };
+  }
+  async convertGRNToInvoice(tenantId: string, grnId: string, userId: string) {
+    const g = await this.getGRN(tenantId, grnId);
+    const number = await this.generateNumber('PINV', this.purchaseInvoiceRepo, 'invoiceNumber');
+    const { items: grnItems, ...grnHeader } = g as any;
+    const inv = this.purchaseInvoiceRepo.create({
+      ...grnHeader, tenantId, invoiceNumber: number, createdBy: userId,
+      balanceDue: grnHeader.totalAmount, grnId: g.grnId,
+    });
+    const saved = await this.purchaseInvoiceRepo.save(inv) as any;
+    if (grnItems?.length) {
+      const lineItems = grnItems.map((item: any, idx: number) =>
+        this.purchaseInvoiceItemRepo.create({ ...item, invoiceId: saved.invoiceId, lineNumber: idx + 1 })
+      );
+      await this.purchaseInvoiceItemRepo.save(lineItems);
+    }
+    // Mark GRN as INVOICED so it doesn't appear in dropdowns again
+    await this.grnRepo.update({ grnId, tenantId }, { status: 'INVOICED' } as any);
+    return this.getPurchaseInvoice(tenantId, saved.invoiceId);
+  }
+
+  // ── Purchase Invoices ─────────────────────────────────────────
+  async getPurchaseInvoices(tenantId: string, page = 1, limit = 20, search?: string, status?: string, excludePaid = false) {
+    const qb = this.purchaseInvoiceRepo.createQueryBuilder('i').where('i.tenantId = :tenantId', { tenantId });
+    if (search) qb.andWhere('(i.supplierName ILIKE :s OR i.invoiceNumber ILIKE :s)', { s: `%${search}%` });
+    if (status) qb.andWhere('i.status = :status', { status });
+    if (excludePaid) qb.andWhere("i.status NOT IN ('PAID', 'CANCELLED')");
+    qb.orderBy('i.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+  async getPurchaseInvoice(tenantId: string, id: string) {
+    const i = await this.purchaseInvoiceRepo.findOne({ where: { invoiceId: id, tenantId }, relations: ['items'] });
+    if (!i) throw new NotFoundException('Purchase Invoice not found');
+    return i;
+  }
+  async createPurchaseInvoice(tenantId: string, dto: any, userId: string) {
+    const number = await this.generateNumber('PINV', this.purchaseInvoiceRepo, 'invoiceNumber');
+    const { items, invoiceNumber: _ignoreNum, grnNumber: _ignoreGrn, poNumber: _ignorePo, ...header } = dto;
+    const i = this.purchaseInvoiceRepo.create({ ...header, tenantId, invoiceNumber: number, createdBy: userId, balanceDue: header.totalAmount });
+    const saved = await this.purchaseInvoiceRepo.save(i) as any;
+    if (items?.length) {
+      const lineItems = items.map((item: any, idx: number) =>
+        this.purchaseInvoiceItemRepo.create({ ...item, invoiceId: saved.invoiceId, lineNumber: idx + 1 })
+      );
+      await this.purchaseInvoiceItemRepo.save(lineItems);
+    }
+    // Mark linked GRN as INVOICED so it doesn't appear in dropdowns again
+    if (header.grnId) {
+      await this.grnRepo.update({ grnId: header.grnId, tenantId }, { status: 'INVOICED' } as any);
+    }
+    // Mark linked PO as RECEIVED so it doesn't appear in dropdowns again
+    if (header.poId) {
+      await this.poRepo.update({ poId: header.poId, tenantId }, { status: 'RECEIVED' } as any);
+    }
+    // Auto journal: Dr GRNI + Dr VAT Receivable / Cr AP
+    const pinvDate = (header.invoiceDate || new Date().toISOString()).slice(0,10);
+    const pvatAmt = Number(header.vatAmount || 0);
+    const pnetAmt = Number(header.subtotal || 0);
+    const ptotalAmt = Number(header.totalAmount || 0);
+    await this.createAutoJournalEntry(tenantId, userId, {
+      voucherNumber: number, description: `Purchase Invoice ${number} - ${header.supplierName}`,
+      voucherDate: pinvDate, lines: [
+        { accountCode: '1141', description: `GRNI - ${header.supplierName}`, debitAmount: pnetAmt, creditAmount: 0 },
+        ...(pvatAmt > 0 ? [{ accountCode: '1160', description: `VAT Input - ${number}`, debitAmount: pvatAmt, creditAmount: 0 }] : []),
+        { accountCode: '2110', description: `AP - ${header.supplierName}`, debitAmount: 0, creditAmount: ptotalAmt },
+      ],
+    });
+    return this.getPurchaseInvoice(tenantId, saved.invoiceId);
+  }
+  async updatePurchaseInvoice(tenantId: string, id: string, dto: any) {
+    const { items, ...header } = dto;
+    await this.purchaseInvoiceRepo.update({ invoiceId: id, tenantId }, header);
+    if (items) {
+      await this.purchaseInvoiceItemRepo.delete({ invoiceId: id });
+      const lineItems = items.map((item: any, idx: number) =>
+        this.purchaseInvoiceItemRepo.create({ ...item, invoiceId: id, lineNumber: idx + 1 })
+      );
+      if (lineItems.length) await this.purchaseInvoiceItemRepo.save(lineItems);
+    }
+    return this.getPurchaseInvoice(tenantId, id);
+  }
+  async deletePurchaseInvoice(tenantId: string, id: string) {
+    await this.purchaseInvoiceRepo.delete({ invoiceId: id, tenantId });
+    return { success: true };
+  }
+
+  // ── Payment Vouchers ──────────────────────────────────────────
+  async getPaymentVouchers(tenantId: string, page = 1, limit = 20, search?: string) {
+    const qb = this.voucherRepo.createQueryBuilder('v').where('v.tenantId = :tenantId', { tenantId });
+    if (search) qb.andWhere('(v.supplierName ILIKE :s OR v.voucherNumber ILIKE :s)', { s: `%${search}%` });
+    qb.orderBy('v.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+  async createPaymentVoucher(tenantId: string, dto: any, userId: string) {
+    const number = await this.generateNumber('PV', this.voucherRepo, 'voucherNumber');
+    const v = this.voucherRepo.create({ ...dto, tenantId, voucherNumber: number, createdBy: userId });
+    const saved = await this.voucherRepo.save(v) as any;
+    if (dto.invoiceId) {
+      const invoice = await this.purchaseInvoiceRepo.findOne({ where: { invoiceId: dto.invoiceId } });
+      if (invoice) {
+        const newPaid = Number(invoice.paidAmount) + Number(dto.amount);
+        const newBalance = Number(invoice.totalAmount) - newPaid;
+        const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIALLY_PAID';
+        await this.purchaseInvoiceRepo.update({ invoiceId: dto.invoiceId }, { paidAmount: newPaid, balanceDue: newBalance, status: newStatus });
+      }
+    }
+    // Auto journal: Dr AP / Cr Bank
+    const pvDate = (dto.voucherDate || new Date().toISOString()).slice(0,10);
+    await this.createAutoJournalEntry(tenantId, userId, {
+      voucherNumber: number, description: `Payment ${number} - ${dto.supplierName}`,
+      voucherDate: pvDate, lines: [
+        { accountCode: '2110', description: `AP - ${dto.supplierName}`, debitAmount: Number(dto.amount || 0), creditAmount: 0 },
+        { accountCode: '1120', description: `Payment to ${dto.supplierName}`, debitAmount: 0, creditAmount: Number(dto.amount || 0) },
+      ],
+    });
+    return saved;
+  }
+  async getPaymentVoucher(tenantId: string, id: string) {
+    const v = await this.voucherRepo.findOne({ where: { voucherId: id, tenantId } });
+    if (!v) throw new NotFoundException('Payment Voucher not found');
+    return v;
+  }
+  async updatePaymentVoucher(tenantId: string, id: string, dto: any) {
+    const { voucherNumber: _vn, ...data } = dto;
+    await this.voucherRepo.update({ voucherId: id, tenantId }, data);
+    return this.getPaymentVoucher(tenantId, id);
+  }
+  async deletePaymentVoucher(tenantId: string, id: string) {
+    await this.voucherRepo.delete({ voucherId: id, tenantId });
+    return { success: true };
+  }
+
+  // ── Purchase Returns ──────────────────────────────────────────
+  async getPurchaseReturns(tenantId: string, page = 1, limit = 20) {
+    const qb = this.purchaseReturnRepo.createQueryBuilder('r').where('r.tenantId = :tenantId', { tenantId });
+    qb.orderBy('r.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+  async getPurchaseReturn(tenantId: string, id: string) {
+    const r = await this.purchaseReturnRepo.findOne({ where: { returnId: id, tenantId }, relations: ['items'] });
+    if (!r) throw new NotFoundException('Purchase Return not found');
+    return r;
+  }
+  async createPurchaseReturn(tenantId: string, dto: any, userId: string) {
+    const number = await this.generateNumber('PRN', this.purchaseReturnRepo, 'returnNumber');
+    const { items, returnNumber: _rn, ...header } = dto;
+    const r = this.purchaseReturnRepo.create({ ...header, tenantId, returnNumber: number, createdBy: userId });
+    const saved = await this.purchaseReturnRepo.save(r) as any;
+    if (items?.length) {
+      const lineItems = items.map((item: any, idx: number) =>
+        this.purchaseReturnItemRepo.create({ ...item, returnId: saved.returnId, lineNumber: idx + 1 })
+      );
+      await this.purchaseReturnItemRepo.save(lineItems);
+      // 1. Reduce stock if inventory mode
+      if (dto.returnToStock === false) {
+        for (const item of items) {
+          if (item.productId) {
+            await this.adjustStock(tenantId, item.productId, -Number(item.quantity), 'PURCHASE_RETURN', number, userId);
+          }
+        }
+      }
+      // 2. Update linked purchase invoice balance
+      if (dto.invoiceId) {
+        const invoice = await this.purchaseInvoiceRepo.findOne({ where: { invoiceId: dto.invoiceId } });
+        if (invoice) {
+          const returnAmount = Number(dto.totalAmount || 0);
+          const currentBalance = Number((invoice as any).balanceDue);
+          if (currentBalance > 0) {
+            // Invoice not fully paid - reduce balance
+            const newBalance = Math.max(0, currentBalance - returnAmount);
+            const newPaid = Number((invoice as any).paidAmount) + (currentBalance - newBalance);
+            const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIALLY_PAID';
+            await this.purchaseInvoiceRepo.update({ invoiceId: dto.invoiceId }, {
+              balanceDue: newBalance, paidAmount: newPaid, status: newStatus,
+            } as any);
+          } else {
+            // Invoice already paid - create debit balance (supplier owes us)
+            const debitAmount = returnAmount;
+            await this.purchaseInvoiceRepo.update({ invoiceId: dto.invoiceId }, {
+              balanceDue: -debitAmount, status: 'DEBIT_BALANCE',
+            } as any);
+          }
+        }
+      }
+    }
+    // Auto journal: Dr AP / Cr Purchase Returns
+    const prDate = (dto.returnDate || new Date().toISOString()).slice(0,10);
+    const prTotal = Number(dto.totalAmount || 0);
+    if (prTotal > 0) {
+      const prLines: any[] = [
+        { accountCode: '2110', description: `AP - ${dto.supplierName}`, debitAmount: prTotal, creditAmount: 0 },
+        { accountCode: '5010', description: `Purchase Return ${number} - ${dto.supplierName}`, debitAmount: 0, creditAmount: prTotal },
+      ];
+      // If stock is being returned to supplier
+      if (dto.returnToStock === false) {
+        const inventoryValue = Number(dto.subtotal || prTotal);
+        prLines.push({ accountCode: '1140', description: `Inventory Out - ${number}`, debitAmount: 0, creditAmount: inventoryValue });
+        prLines.push({ accountCode: '5001', description: `COGS - ${number}`, debitAmount: inventoryValue, creditAmount: 0 });
+      }
+      await this.createAutoJournalEntry(tenantId, userId, {
+        voucherNumber: number, description: `Purchase Return ${number} - ${dto.supplierName}`,
+        voucherDate: prDate, lines: prLines,
+      });
+    }
+    return this.getPurchaseReturn(tenantId, saved.returnId);
+  }
+  async updatePurchaseReturn(tenantId: string, id: string, dto: any) {
+    const { items, ...header } = dto;
+    await this.purchaseReturnRepo.update({ returnId: id, tenantId }, header);
+    if (items) {
+      await this.purchaseReturnItemRepo.delete({ returnId: id });
+      const lineItems = items.map((item: any, idx: number) =>
+        this.purchaseReturnItemRepo.create({ ...item, returnId: id, lineNumber: idx + 1 })
+      );
+      if (lineItems.length) await this.purchaseReturnItemRepo.save(lineItems);
+    }
+    return this.getPurchaseReturn(tenantId, id);
+  }
+  async deletePurchaseReturn(tenantId: string, id: string) {
+    await this.purchaseReturnRepo.delete({ returnId: id, tenantId });
+    return { success: true };
+  }
+
+  // ── Finance Dashboard ─────────────────────────────────────────
+  async getFinanceDashboard(tenantId: string) {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+    // ── Quotations ────────────────────────────────────────────
+    const totalQuotations = await this.quotationRepo.count({ where: { tenantId } });
+    const quotationsThisMonth = await this.quotationRepo.createQueryBuilder('q')
+      .where('q.tenantId = :tid AND q.createdAt >= :start', { tid: tenantId, start: startOfMonth })
+      .getCount();
+    const quotationsByStatus = await this.quotationRepo.createQueryBuilder('q')
+      .select('q.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('SUM(q.totalAmount)', 'value')
+      .where('q.tenantId = :tid', { tid: tenantId })
+      .groupBy('q.status')
+      .getRawMany();
+
+    // ── Invoices ──────────────────────────────────────────────
+    const totalInvoices = await this.invoiceRepo.count({ where: { tenantId } });
+    const invoicesThisMonth = await this.invoiceRepo.createQueryBuilder('i')
+      .where('i.tenantId = :tid AND i.createdAt >= :start', { tid: tenantId, start: startOfMonth })
+      .getCount();
+    const revenueResult = await this.invoiceRepo.createQueryBuilder('i')
+      .select('SUM(i.totalAmount)', 'total')
+      .where('i.tenantId = :tid', { tid: tenantId })
+      .getRawOne();
+    const totalRevenue = Number(revenueResult?.total || 0);
+
+    const revenueThisMonth = await this.invoiceRepo.createQueryBuilder('i')
+      .select('SUM(i.totalAmount)', 'total')
+      .where('i.tenantId = :tid AND i.createdAt >= :start', { tid: tenantId, start: startOfMonth })
+      .getRawOne();
+    const revenueLastMonth = await this.invoiceRepo.createQueryBuilder('i')
+      .select('SUM(i.totalAmount)', 'total')
+      .where('i.tenantId = :tid AND i.createdAt >= :start AND i.createdAt <= :end', 
+        { tid: tenantId, start: startOfLastMonth, end: endOfLastMonth })
+      .getRawOne();
+
+    const outstandingResult = await this.invoiceRepo.createQueryBuilder('i')
+      .select('SUM(i.balanceDue)', 'total')
+      .where('i.tenantId = :tid AND i.status NOT IN (:...paid)', 
+        { tid: tenantId, paid: ['PAID', 'CANCELLED'] })
+      .getRawOne();
+    const totalOutstanding = Number(outstandingResult?.total || 0);
+
+    const overdueResult = await this.invoiceRepo.createQueryBuilder('i')
+      .select('SUM(i.balanceDue)', 'total')
+      .addSelect('COUNT(*)', 'count')
+      .where('i.tenantId = :tid AND i.dueDate < NOW() AND i.status NOT IN (:...paid)',
+        { tid: tenantId, paid: ['PAID', 'CANCELLED'] })
+      .getRawOne();
+
+    const invoicesByStatus = await this.invoiceRepo.createQueryBuilder('i')
+      .select('i.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('SUM(i.totalAmount)', 'value')
+      .where('i.tenantId = :tid', { tid: tenantId })
+      .groupBy('i.status')
+      .getRawMany();
+
+    // ── Receipts ──────────────────────────────────────────────
+    const receiptsResult = await this.receiptRepo.createQueryBuilder('r')
+      .select('SUM(r.amount)', 'total')
+      .addSelect('COUNT(*)', 'count')
+      .where('r.tenantId = :tid', { tid: tenantId })
+      .getRawOne();
+    const totalReceived = Number(receiptsResult?.total || 0);
+
+    const receiptsThisMonth = await this.receiptRepo.createQueryBuilder('r')
+      .select('SUM(r.amount)', 'total')
+      .where('r.tenantId = :tid AND r.createdAt >= :start', { tid: tenantId, start: startOfMonth })
+      .getRawOne();
+
+    // ── Monthly Revenue Trend (last 6 months) ─────────────────
+    const monthlyRevenue = await this.invoiceRepo.createQueryBuilder('i')
+      .select("TO_CHAR(i.createdAt, 'Mon YY')", 'month')
+      .addSelect('SUM(i.totalAmount)', 'revenue')
+      .addSelect('SUM(i.vatAmount)', 'vat')
+      .where('i.tenantId = :tid AND i.createdAt >= :start',
+        { tid: tenantId, start: new Date(now.getFullYear(), now.getMonth() - 5, 1) })
+      .groupBy("TO_CHAR(i.createdAt, 'Mon YY')")
+      .orderBy("MIN(i.createdAt)", 'ASC')
+      .getRawMany();
+
+    // ── Top Customers by Revenue ──────────────────────────────
+    const topCustomers = await this.invoiceRepo.createQueryBuilder('i')
+      .select('i.customerName', 'customerName')
+      .addSelect('COUNT(*)', 'invoiceCount')
+      .addSelect('SUM(i.totalAmount)', 'totalRevenue')
+      .addSelect('SUM(i.balanceDue)', 'outstanding')
+      .where('i.tenantId = :tid', { tid: tenantId })
+      .groupBy('i.customerName')
+      .orderBy('SUM(i.totalAmount)', 'DESC')
+      .limit(5)
+      .getRawMany();
+
+    // ── Purchase Summary ──────────────────────────────────────
+    const purchaseResult = await this.purchaseInvoiceRepo.createQueryBuilder('p')
+      .select('SUM(p.totalAmount)', 'total')
+      .addSelect('SUM(p.balanceDue)', 'outstanding')
+      .addSelect('COUNT(*)', 'count')
+      .where('p.tenantId = :tid', { tid: tenantId })
+      .getRawOne();
+
+    // ── VAT Summary ───────────────────────────────────────────
+    const vatCollected = await this.invoiceRepo.createQueryBuilder('i')
+      .select('SUM(i.vatAmount)', 'total')
+      .where('i.tenantId = :tid AND i.createdAt >= :start', { tid: tenantId, start: startOfYear })
+      .getRawOne();
+    const vatPaid = await this.purchaseInvoiceRepo.createQueryBuilder('p')
+      .select('SUM(p.vatAmount)', 'total')
+      .where('p.tenantId = :tid AND p.createdAt >= :start', { tid: tenantId, start: startOfYear })
+      .getRawOne();
+
+    return {
+      quotations: {
+        total: totalQuotations,
+        thisMonth: quotationsThisMonth,
+        byStatus: quotationsByStatus,
+      },
+      invoices: {
+        total: totalInvoices,
+        thisMonth: invoicesThisMonth,
+        totalRevenue,
+        revenueThisMonth: Number(revenueThisMonth?.total || 0),
+        revenueLastMonth: Number(revenueLastMonth?.total || 0),
+        totalOutstanding,
+        overdueAmount: Number(overdueResult?.total || 0),
+        overdueCount: Number(overdueResult?.count || 0),
+        byStatus: invoicesByStatus,
+        monthlyTrend: monthlyRevenue,
+        topCustomers,
+      },
+      receipts: {
+        total: Number(receiptsResult?.count || 0),
+        totalReceived,
+        thisMonth: Number(receiptsThisMonth?.total || 0),
+      },
+      purchases: {
+        total: Number(purchaseResult?.count || 0),
+        totalAmount: Number(purchaseResult?.total || 0),
+        outstanding: Number(purchaseResult?.outstanding || 0),
+      },
+      vat: {
+        collected: Number(vatCollected?.total || 0),
+        paid: Number(vatPaid?.total || 0),
+        net: Number(vatCollected?.total || 0) - Number(vatPaid?.total || 0),
+      },
+    };
+  }
+
+  // ── Journal Vouchers ──────────────────────────────────────────
+  async getJournalVouchers(tenantId: string, page = 1, limit = 20, search?: string, type?: string, status?: string) {
+    const qb = this.jvRepo.createQueryBuilder('j').where('j.tenantId = :tid', { tid: tenantId });
+    if (search) qb.andWhere('(j.voucherNumber ILIKE :s OR j.description ILIKE :s OR j.reference ILIKE :s)', { s: `%${search}%` });
+    if (type) qb.andWhere('j.voucherType = :type', { type });
+    if (status) qb.andWhere('j.status = :status', { status });
+    qb.orderBy('j.voucherDate', 'DESC').addOrderBy('j.createdAt', 'DESC').skip((page-1)*limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+
+  async getJournalVoucher(tenantId: string, id: string) {
+    const jv = await this.jvRepo.findOne({ where: { voucherId: id, tenantId }, relations: ['lines'] });
+    if (!jv) throw new NotFoundException('Journal Voucher not found');
+    return jv;
+  }
+
+  async createJournalVoucher(tenantId: string, dto: any, userId: string) {
+    const number = await this.generateNumber('JV', this.jvRepo, 'voucherNumber');
+    const { lines, ...header } = dto;
+    const totalDebit = (lines || []).reduce((s: number, l: any) => s + Number(l.debitAmount || 0), 0);
+    const totalCredit = (lines || []).reduce((s: number, l: any) => s + Number(l.creditAmount || 0), 0);
+    const jv = this.jvRepo.create({ ...header, tenantId, voucherNumber: number, createdBy: userId, totalDebit, totalCredit });
+    const saved = await this.jvRepo.save(jv) as any;
+    if (lines?.length) {
+      const lineEntities = lines.map((l: any, idx: number) =>
+        this.jvLineRepo.create({ ...l, voucherId: saved.voucherId, lineNumber: idx + 1 })
+      );
+      await this.jvLineRepo.save(lineEntities);
+    }
+    return this.getJournalVoucher(tenantId, saved.voucherId);
+  }
+
+  async updateJournalVoucher(tenantId: string, id: string, dto: any) {
+    const { lines, ...header } = dto;
+    if (lines) {
+      const totalDebit = lines.reduce((s: number, l: any) => s + Number(l.debitAmount || 0), 0);
+      const totalCredit = lines.reduce((s: number, l: any) => s + Number(l.creditAmount || 0), 0);
+      header.totalDebit = totalDebit;
+      header.totalCredit = totalCredit;
+    }
+    await this.jvRepo.update({ voucherId: id, tenantId }, header);
+    if (lines) {
+      await this.jvLineRepo.delete({ voucherId: id });
+      const lineEntities = lines.map((l: any, idx: number) =>
+        this.jvLineRepo.create({ ...l, voucherId: id, lineNumber: idx + 1 })
+      );
+      if (lineEntities.length) await this.jvLineRepo.save(lineEntities);
+    }
+    return this.getJournalVoucher(tenantId, id);
+  }
+
+  async postJournalVoucher(tenantId: string, id: string, userId: string) {
+    const jv = await this.getJournalVoucher(tenantId, id);
+    if (Math.abs(Number(jv.totalDebit) - Number(jv.totalCredit)) > 0.001) {
+      throw new Error('Debit and Credit must be equal to post the voucher');
+    }
+    await this.jvRepo.update({ voucherId: id, tenantId }, {
+      isPosted: true, status: 'POSTED',
+      postedAt: new Date(), postedBy: userId,
+    });
+    return this.getJournalVoucher(tenantId, id);
+  }
+
+  async deleteJournalVoucher(tenantId: string, id: string) {
+    const jv = await this.jvRepo.findOne({ where: { voucherId: id, tenantId } });
+    if (jv?.isPosted) throw new Error('Cannot delete a posted voucher');
+    await this.jvRepo.delete({ voucherId: id, tenantId });
+    return { success: true };
+  }
+
+  // ── General Ledger ────────────────────────────────────────────
+  async getGeneralLedger(tenantId: string, accountId?: string, fromDate?: string, toDate?: string, page = 1, limit = 50) {
+    // Get all journal voucher lines for the account
+    const qb = this.jvLineRepo.createQueryBuilder('l')
+      .innerJoin('journal_vouchers', 'jv', 'jv.voucher_id = l.voucher_id AND jv.is_posted = true AND jv.tenant_id = :tid', { tid: tenantId })
+      .select([
+        'l.line_id as "lineId"',
+        'l.account_id as "accountId"',
+        'l.account_code as "accountCode"',
+        'l.account_name as "accountName"',
+        'l.description as "description"',
+        'l.debit_amount as "debitAmount"',
+        'l.credit_amount as "creditAmount"',
+        'l.cost_center as "costCenter"',
+        'jv.voucher_number as "voucherNumber"',
+        'jv.voucher_date as "voucherDate"',
+        'jv.voucher_type as "voucherType"',
+        'jv.reference as "reference"',
+        'jv.description as "voucherDescription"',
+      ]);
+
+    if (accountId) qb.andWhere('l.account_id = :accountId', { accountId });
+    if (fromDate) qb.andWhere('jv.voucher_date >= :fromDate', { fromDate });
+    if (toDate) qb.andWhere('jv.voucher_date <= :toDate', { toDate });
+
+    qb.orderBy('jv.voucher_date', 'ASC').addOrderBy('jv.voucher_number', 'ASC');
+
+    const allRows = await qb.getRawMany();
+    const total = allRows.length;
+
+    // Calculate running balance
+    let runningBalance = 0;
+    const rowsWithBalance = allRows.map(row => {
+      runningBalance += Number(row.debitAmount || 0) - Number(row.creditAmount || 0);
+      return { ...row, runningBalance };
+    });
+
+    // Paginate
+    const data = rowsWithBalance.slice((page - 1) * limit, page * limit);
+
+    // Summary
+    const totalDebit = allRows.reduce((s, r) => s + Number(r.debitAmount || 0), 0);
+    const totalCredit = allRows.reduce((s, r) => s + Number(r.creditAmount || 0), 0);
+
+    return { data, total, page, limit, summary: { totalDebit, totalCredit, netBalance: totalDebit - totalCredit } };
+  }
+  // ── Trial Balance ─────────────────────────────────────────────
+  async getTrialBalance(tenantId: string, fromDate?: string, toDate?: string) {
+    const qb = this.jvLineRepo.createQueryBuilder('l')
+      .innerJoin('journal_vouchers', 'jv', 'jv.voucher_id = l.voucher_id AND jv.is_posted = true AND jv.tenant_id = :tid', { tid: tenantId })
+      .select([
+        'l.account_id as "accountId"',
+        'l.account_code as "accountCode"',
+        'l.account_name as "accountName"',
+        'SUM(l.debit_amount) as "totalDebit"',
+        'SUM(l.credit_amount) as "totalCredit"',
+      ])
+      .groupBy('l.account_id, l.account_code, l.account_name');
+
+    if (fromDate) qb.andWhere('jv.voucher_date >= :fromDate', { fromDate });
+    if (toDate) qb.andWhere('jv.voucher_date <= :toDate', { toDate });
+
+    const rows = await qb.orderBy('l.account_code', 'ASC').getRawMany();
+
+    const accounts = rows.map(r => ({
+      accountId: r.accountId,
+      accountCode: r.accountCode,
+      accountName: r.accountName,
+      totalDebit: Number(r.totalDebit || 0),
+      totalCredit: Number(r.totalCredit || 0),
+      balance: Number(r.totalDebit || 0) - Number(r.totalCredit || 0),
+    }));
+
+    const grandTotalDebit = accounts.reduce((s, a) => s + a.totalDebit, 0);
+    const grandTotalCredit = accounts.reduce((s, a) => s + a.totalCredit, 0);
+    const isBalanced = Math.abs(grandTotalDebit - grandTotalCredit) < 0.001;
+
+    return { accounts, grandTotalDebit, grandTotalCredit, isBalanced };
+  }
+
+  // ── Profit & Loss ─────────────────────────────────────────────
+  async getProfitLoss(tenantId: string, fromDate?: string, toDate?: string) {
+    const salesQb = this.invoiceRepo.createQueryBuilder("i")
+      .select("SUM(i.subtotal)", "revenue")
+      .addSelect("SUM(i.vatAmount)", "vat")
+      .where("i.tenantId = :tid", { tid: tenantId });
+    if (fromDate) salesQb.andWhere("i.invoiceDate >= :fromDate", { fromDate });
+    if (toDate) salesQb.andWhere("i.invoiceDate <= :toDate", { toDate });
+    const salesResult = await salesQb.getRawOne();
+
+    const purchaseQb = this.purchaseInvoiceRepo.createQueryBuilder("p")
+      .select("SUM(p.subtotal)", "cost")
+      .where("p.tenantId = :tid", { tid: tenantId });
+    if (fromDate) purchaseQb.andWhere("p.invoiceDate >= :fromDate", { fromDate });
+    if (toDate) purchaseQb.andWhere("p.invoiceDate <= :toDate", { toDate });
+    const purchaseResult = await purchaseQb.getRawOne();
+
+    const revenue = { items: [{ accountCode: "4000", accountName: "Sales Revenue", amount: Number(salesResult?.revenue || 0) }], total: Number(salesResult?.revenue || 0) };
+    const costOfSales = { items: [{ accountCode: "5000", accountName: "Cost of Goods Sold", amount: Number(purchaseResult?.cost || 0) }], total: Number(purchaseResult?.cost || 0) };
+    const grossProfit = revenue.total - costOfSales.total;
+    const expenses = { items: [], total: 0 };
+    const netProfit = grossProfit - expenses.total;
+    return { revenue, costOfSales, grossProfit, expenses, netProfit };
+  }
+
+  // ── Balance Sheet ─────────────────────────────────────────────
+  async getBalanceSheet(tenantId: string, asOfDate?: string) {
+    const assets = { current: { items: [], total: 0 }, nonCurrent: { items: [], total: 0 }, total: 0 } as any;
+    const liabilities = { current: { items: [], total: 0 }, nonCurrent: { items: [], total: 0 }, total: 0 } as any;
+    const equity = { items: [], total: 0 } as any;
+
+    const arResult = await this.invoiceRepo.createQueryBuilder("i")
+      .select("SUM(i.balanceDue)", "total").where("i.tenantId = :tid AND i.status NOT IN (:...s)", { tid: tenantId, s: ["PAID","CANCELLED"] }).getRawOne();
+    const apResult = await this.purchaseInvoiceRepo.createQueryBuilder("p")
+      .select("SUM(p.balanceDue)", "total").where("p.tenantId = :tid AND p.status NOT IN (:...s)", { tid: tenantId, s: ["PAID","CANCELLED"] }).getRawOne();
+
+    if (Number(arResult?.total || 0) > 0) { assets.current.items.push({ accountCode: "1130", accountName: "Accounts Receivable", balance: Number(arResult.total) }); assets.current.total += Number(arResult.total); }
+    if (Number(apResult?.total || 0) > 0) { liabilities.current.items.push({ accountCode: "2110", accountName: "Accounts Payable", balance: Number(apResult.total) }); liabilities.current.total += Number(apResult.total); }
+    assets.total = assets.current.total + assets.nonCurrent.total;
+    liabilities.total = liabilities.current.total + liabilities.nonCurrent.total;
+    return { assets, liabilities, equity, asOfDate };
+  }
+
+  // ── Cash Flow ─────────────────────────────────────────────────
+  async getCashFlow(tenantId: string, fromDate?: string, toDate?: string) {
+    const rQb = this.receiptRepo.createQueryBuilder("r").select("SUM(r.amount)", "total").where("r.tenantId = :tid", { tid: tenantId });
+    if (fromDate) rQb.andWhere("r.receiptDate >= :fromDate", { fromDate });
+    if (toDate) rQb.andWhere("r.receiptDate <= :toDate", { toDate });
+    const receiptsResult = await rQb.getRawOne();
+
+    const pQb = this.voucherRepo.createQueryBuilder("v").select("SUM(v.amount)", "total").where("v.tenantId = :tid", { tid: tenantId });
+    if (fromDate) pQb.andWhere("v.voucherDate >= :fromDate", { fromDate });
+    if (toDate) pQb.andWhere("v.voucherDate <= :toDate", { toDate });
+    const paymentsResult = await pQb.getRawOne();
+
+    const operatingInflow = Number(receiptsResult?.total || 0);
+    const operatingOutflow = Number(paymentsResult?.total || 0);
+    const operatingTotal = operatingInflow - operatingOutflow;
+    return {
+      operating: { items: [{ description: "Cash received from customers", amount: operatingInflow }, { description: "Cash paid to suppliers", amount: -operatingOutflow }], total: operatingTotal },
+      investing: { items: [], total: 0 },
+      financing: { items: [], total: 0 },
+      openingBalance: 0, netCashFlow: operatingTotal, closingBalance: operatingTotal,
+    };
+  }
+
+  // ── AR Aging ──────────────────────────────────────────────────
+  async getARaging(tenantId: string, asOfDate?: string) {
+    const date = asOfDate ? new Date(asOfDate) : new Date();
+    const invoices = await this.invoiceRepo.createQueryBuilder("i")
+      .where("i.tenantId = :tid AND i.status NOT IN (:...s) AND i.balanceDue > 0", { tid: tenantId, s: ["PAID","CANCELLED"] }).getMany();
+    const summary = { current: 0, days1_30: 0, days31_60: 0, days61_90: 0, days91plus: 0 } as any;
+    const result = invoices.map(inv => {
+      const dueDate = inv.dueDate ? new Date(inv.dueDate) : null;
+      const daysOverdue = dueDate ? Math.floor((date.getTime() - dueDate.getTime()) / 86400000) : 0;
+      const balance = Number(inv.balanceDue || 0);
+      if (daysOverdue <= 0) summary.current += balance;
+      else if (daysOverdue <= 30) summary.days1_30 += balance;
+      else if (daysOverdue <= 60) summary.days31_60 += balance;
+      else if (daysOverdue <= 90) summary.days61_90 += balance;
+      else summary.days91plus += balance;
+      return { ...inv, daysOverdue: Math.max(0, daysOverdue) };
+    });
+    return { invoices: result, summary, totalOutstanding: invoices.reduce((s,i) => s + Number(i.balanceDue||0), 0) };
+  }
+
+  // ── AP Aging ──────────────────────────────────────────────────
+  async getAPAging(tenantId: string, asOfDate?: string) {
+    const date = asOfDate ? new Date(asOfDate) : new Date();
+    const invoices = await this.purchaseInvoiceRepo.createQueryBuilder("i")
+      .where("i.tenantId = :tid AND i.status NOT IN (:...s) AND i.balanceDue > 0", { tid: tenantId, s: ["PAID","CANCELLED"] }).getMany();
+    const summary = { current: 0, days1_30: 0, days31_60: 0, days61_90: 0, days91plus: 0 } as any;
+    const result = invoices.map(inv => {
+      const dueDate = inv.dueDate ? new Date(inv.dueDate) : null;
+      const daysOverdue = dueDate ? Math.floor((date.getTime() - dueDate.getTime()) / 86400000) : 0;
+      const balance = Number(inv.balanceDue || 0);
+      if (daysOverdue <= 0) summary.current += balance;
+      else if (daysOverdue <= 30) summary.days1_30 += balance;
+      else if (daysOverdue <= 60) summary.days31_60 += balance;
+      else if (daysOverdue <= 90) summary.days61_90 += balance;
+      else summary.days91plus += balance;
+      return { ...inv, daysOverdue: Math.max(0, daysOverdue) };
+    });
+    return { invoices: result, summary, totalOutstanding: invoices.reduce((s,i) => s + Number(i.balanceDue||0), 0) };
+  }
+
+  // ── VAT Return ────────────────────────────────────────────────
+  async getVATReturn(tenantId: string, fromDate?: string, toDate?: string) {
+    const sQb = this.invoiceRepo.createQueryBuilder("i").where("i.tenantId = :tid", { tid: tenantId });
+    if (fromDate) sQb.andWhere("i.invoiceDate >= :fromDate", { fromDate });
+    if (toDate) sQb.andWhere("i.invoiceDate <= :toDate", { toDate });
+    const salesInvoices = await sQb.getMany();
+
+    const pQb = this.purchaseInvoiceRepo.createQueryBuilder("p").where("p.tenantId = :tid", { tid: tenantId });
+    if (fromDate) pQb.andWhere("p.invoiceDate >= :fromDate", { fromDate });
+    if (toDate) pQb.andWhere("p.invoiceDate <= :toDate", { toDate });
+    const purchaseInvoices = await pQb.getMany();
+
+    const outputVat = salesInvoices.reduce((s,i) => s + Number(i.vatAmount||0), 0);
+    const inputVat = purchaseInvoices.reduce((s,i) => s + Number(i.vatAmount||0), 0);
+    const taxableSales = salesInvoices.reduce((s,i) => s + Number(i.subtotal||0), 0);
+    return {
+      outputVat, inputVat, netVat: outputVat - inputVat, taxableSales,
+      salesDetails: salesInvoices.map(i => ({ invoiceId: i.invoiceId, invoiceNumber: i.invoiceNumber, customerName: i.customerName, invoiceDate: i.invoiceDate, taxableAmount: i.subtotal, vatAmount: i.vatAmount })),
+      purchaseDetails: purchaseInvoices.map(i => ({ invoiceId: i.invoiceId, invoiceNumber: i.invoiceNumber, supplierName: i.supplierName, invoiceDate: i.invoiceDate, taxableAmount: i.subtotal, vatAmount: i.vatAmount })),
+    };
+  }
+
+  // ── Budget vs Actual ──────────────────────────────────────────
+  async getBudgetVsActual(tenantId: string, fromDate?: string, toDate?: string) {
+    const accounts = await this.coaRepo.find({ where: { tenantId, isActive: true, accountType: "EXPENSE" } });
+    const items = accounts.map(acc => ({ accountId: acc.accountId, accountCode: acc.accountCode, accountName: acc.accountName, budget: 0, actual: 0, variance: 0, utilization: 0 }));
+    return { items, totalBudget: 0, totalActual: 0, totalVariance: 0, overallUtilization: 0 };
+  }
+
+  // ── Sales Targets ─────────────────────────────────────────────
+  async getSalesTargets(tenantId: string, year?: number, month?: number) {
+    const rawSql = `SELECT * FROM sales_targets WHERE tenant_id = $1 ${year ? 'AND period_year = $2' : ''} ${month ? `AND period_month = $${year ? 3 : 2}` : ''} ORDER BY period_year DESC, period_month DESC`;
+    const params: any[] = [tenantId];
+    if (year) params.push(year);
+    if (month) params.push(month);
+    return this.invoiceRepo.query(rawSql, params);
+  }
+
+  async createSalesTarget(tenantId: string, dto: any, userId: string) {
+    const sql = `INSERT INTO sales_targets (tenant_id, period_type, period_year, period_month, period_quarter, salesman_id, salesman_name, target_amount, target_qty, notes, created_by)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`;
+    const result = await this.invoiceRepo.query(sql, [
+      tenantId, dto.periodType||'MONTHLY', dto.periodYear, dto.periodMonth||null,
+      dto.periodQuarter||null, dto.salesmanId||null, dto.salesmanName||null,
+      dto.targetAmount||0, dto.targetQty||0, dto.notes||null, userId
+    ]);
+    return result[0];
+  }
+
+  async updateSalesTarget(tenantId: string, id: string, dto: any) {
+    const sql = `UPDATE sales_targets SET target_amount=$1, target_qty=$2, salesman_id=$3, salesman_name=$4, notes=$5, updated_at=NOW() WHERE target_id=$6 AND tenant_id=$7 RETURNING *`;
+    const result = await this.invoiceRepo.query(sql, [dto.targetAmount||0, dto.targetQty||0, dto.salesmanId||null, dto.salesmanName||null, dto.notes||null, id, tenantId]);
+    return result[0];
+  }
+
+  async deleteSalesTarget(tenantId: string, id: string) {
+    await this.invoiceRepo.query(`DELETE FROM sales_targets WHERE target_id=$1 AND tenant_id=$2`, [id, tenantId]);
+    return { success: true };
+  }
+
+  async getSalesVsTarget(tenantId: string, year: number, month?: number) {
+    // Get targets
+    const targetSql = `SELECT * FROM sales_targets WHERE tenant_id=$1 AND period_year=$2 ${month?'AND period_month=$3':''}`;
+    const targetParams: any[] = [tenantId, year];
+    if (month) targetParams.push(month);
+    const targets = await this.invoiceRepo.query(targetSql, targetParams);
+
+    // Get actual sales by salesman and month
+    const actualSql = `
+      SELECT 
+        salesman_id, salesman_name,
+        EXTRACT(MONTH FROM invoice_date) as month,
+        EXTRACT(YEAR FROM invoice_date) as year,
+        SUM(total_amount) as actual_amount,
+        COUNT(*) as invoice_count
+      FROM sales_invoices 
+      WHERE tenant_id=$1 AND EXTRACT(YEAR FROM invoice_date)=$2
+      ${month ? 'AND EXTRACT(MONTH FROM invoice_date)=$3' : ''}
+      GROUP BY salesman_id, salesman_name, EXTRACT(MONTH FROM invoice_date), EXTRACT(YEAR FROM invoice_date)
+      ORDER BY year, month`;
+    const actualParams: any[] = [tenantId, year];
+    if (month) actualParams.push(month);
+    const actuals = await this.invoiceRepo.query(actualSql, actualParams);
+
+    // Overall actual by month
+    const monthlyActualSql = `
+      SELECT 
+        EXTRACT(MONTH FROM invoice_date) as month,
+        SUM(total_amount) as actual_amount,
+        COUNT(*) as invoice_count
+      FROM sales_invoices 
+      WHERE tenant_id=$1 AND EXTRACT(YEAR FROM invoice_date)=$2
+      GROUP BY EXTRACT(MONTH FROM invoice_date)
+      ORDER BY month`;
+    const monthlyActuals = await this.invoiceRepo.query(monthlyActualSql, [tenantId, year]);
+
+    // Build monthly comparison
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthly = months.map((name, i) => {
+      const m = i + 1;
+      const target = targets.find((t:any) => !t.salesman_id && Number(t.period_month) === m);
+      const actual = monthlyActuals.find((a:any) => Number(a.month) === m);
+      const targetAmt = Number(target?.target_amount || 0);
+      const actualAmt = Number(actual?.actual_amount || 0);
+      return {
+        month: name, monthNum: m,
+        target: targetAmt,
+        actual: actualAmt,
+        variance: actualAmt - targetAmt,
+        achievement: targetAmt > 0 ? Math.round((actualAmt / targetAmt) * 100) : 0,
+        invoiceCount: Number(actual?.invoice_count || 0),
+      };
+    });
+
+    // Salesman comparison
+    const salesmanTargets = targets.filter((t:any) => t.salesman_id);
+    const salesmanActuals = actuals;
+    const salesmanMap: Record<string, any> = {};
+    salesmanTargets.forEach((t:any) => {
+      const key = t.salesman_id || 'unassigned';
+      if (!salesmanMap[key]) salesmanMap[key] = { salesmanId: t.salesman_id, salesmanName: t.salesman_name, target: 0, actual: 0 };
+      salesmanMap[key].target += Number(t.target_amount || 0);
+    });
+    salesmanActuals.forEach((a:any) => {
+      const key = a.salesman_id || 'unassigned';
+      if (!salesmanMap[key]) salesmanMap[key] = { salesmanId: a.salesman_id, salesmanName: a.salesman_name, target: 0, actual: 0 };
+      salesmanMap[key].actual += Number(a.actual_amount || 0);
+    });
+    const bySalesman = Object.values(salesmanMap).map((s:any) => ({
+      ...s,
+      variance: s.actual - s.target,
+      achievement: s.target > 0 ? Math.round((s.actual / s.target) * 100) : 0,
+    }));
+
+    const totalTarget = monthly.reduce((s, m) => s + m.target, 0);
+    const totalActual = monthly.reduce((s, m) => s + m.actual, 0);
+
+    return {
+      year, month: month||null, targets, monthly, bySalesman,
+      summary: {
+        totalTarget, totalActual,
+        totalVariance: totalActual - totalTarget,
+        achievement: totalTarget > 0 ? Math.round((totalActual / totalTarget) * 100) : 0,
+      }
+    };
+  }
+
+  // ── Daily Report ──────────────────────────────────────────────
+  async getDailyReport(tenantId: string, date?: string) {
+    const reportDate = date || new Date().toISOString().slice(0, 10);
+    const invoices = await this.invoiceRepo.createQueryBuilder("i").where("i.tenantId = :tid AND DATE(i.createdAt) = :d", { tid: tenantId, d: reportDate }).getMany();
+    const receipts = await this.receiptRepo.createQueryBuilder("r").where("r.tenantId = :tid AND DATE(r.createdAt) = :d", { tid: tenantId, d: reportDate }).getMany();
+    const quotations = await this.quotationRepo.createQueryBuilder("q").where("q.tenantId = :tid AND DATE(q.createdAt) = :d", { tid: tenantId, d: reportDate }).getMany();
+    return {
+      invoices, receipts, quotations,
+      totalSales: invoices.reduce((s,i) => s + Number(i.totalAmount||0), 0),
+      totalReceipts: receipts.reduce((s,r) => s + Number(r.amount||0), 0),
+      totalVat: invoices.reduce((s,i) => s + Number(i.vatAmount||0), 0),
+      invoiceCount: invoices.length, receiptCount: receipts.length,
+    };
+  }
+
+  // ── Bank Reconciliation ───────────────────────────────────────
+  async getBankReconciliation(tenantId: string, fromDate?: string, toDate?: string) {
+    const rQb = this.receiptRepo.createQueryBuilder("r").where("r.tenantId = :tid", { tid: tenantId });
+    if (fromDate) rQb.andWhere("r.receiptDate >= :fromDate", { fromDate });
+    if (toDate) rQb.andWhere("r.receiptDate <= :toDate", { toDate });
+    const receipts = await rQb.getMany();
+
+    const vQb = this.voucherRepo.createQueryBuilder("v").where("v.tenantId = :tid", { tid: tenantId });
+    if (fromDate) vQb.andWhere("v.voucherDate >= :fromDate", { fromDate });
+    if (toDate) vQb.andWhere("v.voucherDate <= :toDate", { toDate });
+    const paymentVouchers = await vQb.getMany();
+
+    return {
+      receipts, paymentVouchers,
+      totalReceipts: receipts.reduce((s,r) => s + Number(r.amount||0), 0),
+      totalPayments: paymentVouchers.reduce((s,v) => s + Number(v.amount||0), 0),
+      openingBalance: 0,
+    };
+  }
+
+  // ── Liquidation Projection ────────────────────────────────────
+  async getLiquidationProjection(tenantId: string, currentCash: number, salaries: number, rent: number) {
+    const now = new Date();
+    const periods = [30, 60, 90];
+    const result = [];
+    for (const days of periods) {
+      const futureDate = new Date(now.getTime() + days * 86400000).toISOString().slice(0, 10);
+      const arResult = await this.invoiceRepo.createQueryBuilder("i")
+        .select("SUM(i.balanceDue)", "total")
+        .where("i.tenantId = :tid AND i.status NOT IN (:...s) AND i.dueDate <= :d", { tid: tenantId, s: ["PAID","CANCELLED"], d: futureDate })
+        .getRawOne();
+      const apResult = await this.purchaseInvoiceRepo.createQueryBuilder("p")
+        .select("SUM(p.balanceDue)", "total")
+        .where("p.tenantId = :tid AND p.status NOT IN (:...s) AND p.dueDate <= :d", { tid: tenantId, s: ["PAID","CANCELLED"], d: futureDate })
+        .getRawOne();
+      const expectedAR = Number(arResult?.total || 0);
+      const expectedAP = Number(apResult?.total || 0);
+      const salaryObligation = salaries * Math.ceil(days / 30);
+      const rentObligation = rent * Math.ceil(days / 30);
+      const totalInflows = currentCash + expectedAR;
+      const totalObligations = expectedAP + salaryObligation + rentObligation;
+      const netPosition = totalInflows - totalObligations;
+      result.push({ period: days, expectedAR, expectedAP, salaryObligation, rentObligation, totalInflows, totalObligations, netPosition, fundingGap: Math.min(0, netPosition), status: netPosition >= 0 ? "SUFFICIENT" : "DEFICIT" });
+    }
+    return { periods: result, currentCash };
+  }
+
+  // ── Credit Risk Statement ─────────────────────────────────────
+  async getCreditRiskStatement(tenantId: string) {
+    const invoices = await this.invoiceRepo.createQueryBuilder("i")
+      .where("i.tenantId = :tid AND i.status NOT IN (:...s)", { tid: tenantId, s: ["CANCELLED"] })
+      .getMany();
+    const customerMap = new Map<string, any>();
+    const now = new Date();
+    for (const inv of invoices) {
+      if (!customerMap.has(inv.customerName)) {
+        customerMap.set(inv.customerName, { customerName: inv.customerName, totalInvoiced: 0, totalPaid: 0, totalOverdue: 0, overdueCount: 0, totalInvoices: 0, maxDaysOverdue: 0, avgDaysToPay: 0 });
+      }
+      const c = customerMap.get(inv.customerName);
+      c.totalInvoices++;
+      c.totalInvoiced += Number(inv.totalAmount || 0);
+      c.totalPaid += Number(inv.paidAmount || 0);
+      const balance = Number(inv.balanceDue || 0);
+      if (balance > 0 && inv.dueDate && new Date(inv.dueDate) < now) {
+        const daysOverdue = Math.floor((now.getTime() - new Date(inv.dueDate).getTime()) / 86400000);
+        c.totalOverdue += balance;
+        c.overdueCount++;
+        c.maxDaysOverdue = Math.max(c.maxDaysOverdue, daysOverdue);
+      }
+    }
+    const customers = Array.from(customerMap.values()).map(c => {
+      const overdueRatio = c.totalInvoiced > 0 ? (c.totalOverdue / c.totalInvoiced) * 100 : 0;
+      let riskScore = 0;
+      if (c.totalOverdue > 0) riskScore += 30;
+      if (c.maxDaysOverdue > 90) riskScore += 40;
+      else if (c.maxDaysOverdue > 60) riskScore += 30;
+      else if (c.maxDaysOverdue > 30) riskScore += 20;
+      if (overdueRatio > 50) riskScore += 30;
+      else if (overdueRatio > 25) riskScore += 15;
+      const riskLevel = riskScore >= 70 ? "CRITICAL" : riskScore >= 40 ? "HIGH" : riskScore >= 20 ? "MEDIUM" : "LOW";
+      return { ...c, overdueRatio: Math.round(overdueRatio), riskScore, riskLevel };
+    }).sort((a, b) => b.riskScore - a.riskScore);
+    return { customers, totalExposure: customers.reduce((s,c) => s + c.totalOverdue, 0) };
+  }
+
+  // ── Warehouses ────────────────────────────────────────────────
+  async getWarehouses(tenantId: string, search?: string) {
+    const qb = this.warehouseRepo.createQueryBuilder('w')
+      .where('w.tenantId = :tid AND w.isActive = true', { tid: tenantId });
+    if (search) qb.andWhere('(w.warehouseName ILIKE :s OR w.warehouseCode ILIKE :s)', { s: `%${search}%` });
+    return qb.orderBy('w.warehouseName', 'ASC').getMany();
+  }
+  async createWarehouse(tenantId: string, dto: any, userId: string) {
+    const w = this.warehouseRepo.create({ ...dto, tenantId, createdBy: userId });
+    return this.warehouseRepo.save(w);
+  }
+  async updateWarehouse(tenantId: string, id: string, dto: any) {
+    await this.warehouseRepo.update({ warehouseId: id, tenantId }, dto);
+    return this.warehouseRepo.findOne({ where: { warehouseId: id } });
+  }
+  async deleteWarehouse(tenantId: string, id: string) {
+    await this.warehouseRepo.update({ warehouseId: id, tenantId }, { isActive: false });
+    return { success: true };
+  }
+
+  // ── Warehouse Locations ───────────────────────────────────────
+  async getLocations(tenantId: string, warehouseId?: string) {
+    const qb = this.locationRepo.createQueryBuilder('l')
+      .where('l.tenantId = :tid AND l.isActive = true', { tid: tenantId });
+    if (warehouseId) qb.andWhere('l.warehouseId = :wid', { wid: warehouseId });
+    return qb.orderBy('l.locationCode', 'ASC').getMany();
+  }
+  async createLocation(tenantId: string, dto: any) {
+    const l = this.locationRepo.create({ ...dto, tenantId });
+    return this.locationRepo.save(l);
+  }
+  async updateLocation(tenantId: string, id: string, dto: any) {
+    await this.locationRepo.update({ locationId: id, tenantId }, dto);
+    return this.locationRepo.findOne({ where: { locationId: id } });
+  }
+  async deleteLocation(tenantId: string, id: string) {
+    await this.locationRepo.update({ locationId: id, tenantId }, { isActive: false });
+    return { success: true };
+  }
+
+  // ── Stock Transfers ───────────────────────────────────────────
+  async getStockTransfers(tenantId: string, page = 1, limit = 20, search?: string) {
+    const qb = this.transferRepo.createQueryBuilder('t').where('t.tenantId = :tid', { tid: tenantId });
+    if (search) qb.andWhere('(t.transferNumber ILIKE :s OR t.fromWarehouse ILIKE :s OR t.toWarehouse ILIKE :s)', { s: `%${search}%` });
+    qb.orderBy('t.createdAt', 'DESC').skip((page-1)*limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+  async getStockTransfer(tenantId: string, id: string) {
+    const t = await this.transferRepo.findOne({ where: { transferId: id, tenantId }, relations: ['items'] });
+    if (!t) throw new NotFoundException('Stock Transfer not found');
+    return t;
+  }
+  async createStockTransfer(tenantId: string, dto: any, userId: string) {
+    const number = await this.generateNumber('ST', this.transferRepo, 'transferNumber');
+    const { items, ...header } = dto;
+    const t = this.transferRepo.create({ ...header, tenantId, transferNumber: number, createdBy: userId });
+    const saved = await this.transferRepo.save(t) as any;
+    if (items?.length) {
+      const lineItems = items.map((item: any, idx: number) =>
+        this.transferItemRepo.create({ ...item, transferId: saved.transferId, lineNumber: idx + 1 })
+      );
+      await this.transferItemRepo.save(lineItems);
+    }
+    return this.getStockTransfer(tenantId, saved.transferId);
+  }
+  async updateStockTransfer(tenantId: string, id: string, dto: any) {
+    const { items, ...header } = dto;
+    await this.transferRepo.update({ transferId: id, tenantId }, header);
+    if (items) {
+      await this.transferItemRepo.delete({ transferId: id });
+      const lineItems = items.map((item: any, idx: number) =>
+        this.transferItemRepo.create({ ...item, transferId: id, lineNumber: idx + 1 })
+      );
+      if (lineItems.length) await this.transferItemRepo.save(lineItems);
+    }
+    return this.getStockTransfer(tenantId, id);
+  }
+  async confirmStockTransfer(tenantId: string, id: string, userId: string) {
+    const transfer = await this.getStockTransfer(tenantId, id);
+    for (const item of transfer.items) {
+      if (item.productId) {
+        await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'OUT', transfer.transferNumber, userId);
+        await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'IN', transfer.transferNumber, userId);
+      }
+    }
+    await this.transferRepo.update({ transferId: id, tenantId }, { status: 'COMPLETED' });
+    return this.getStockTransfer(tenantId, id);
+  }
+  async deleteStockTransfer(tenantId: string, id: string) {
+    await this.transferRepo.delete({ transferId: id, tenantId });
+    return { success: true };
+  }
+
+  // ── Stock Adjustments ─────────────────────────────────────────
+  async getStockAdjustments(tenantId: string, page = 1, limit = 20, search?: string) {
+    const qb = this.adjustmentRepo.createQueryBuilder('a').where('a.tenantId = :tid', { tid: tenantId });
+    if (search) qb.andWhere('(a.adjustmentNumber ILIKE :s OR a.reason ILIKE :s)', { s: `%${search}%` });
+    qb.orderBy('a.createdAt', 'DESC').skip((page-1)*limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+  async getStockAdjustment(tenantId: string, id: string) {
+    const a = await this.adjustmentRepo.findOne({ where: { adjustmentId: id, tenantId }, relations: ['items'] });
+    if (!a) throw new NotFoundException('Stock Adjustment not found');
+    return a;
+  }
+  async createStockAdjustment(tenantId: string, dto: any, userId: string) {
+    const number = await this.generateNumber('ADJ', this.adjustmentRepo, 'adjustmentNumber');
+    const { items, ...header } = dto;
+    const a = this.adjustmentRepo.create({ ...header, tenantId, adjustmentNumber: number, createdBy: userId });
+    const saved = await this.adjustmentRepo.save(a) as any;
+    if (items?.length) {
+      const lineItems = items.map((item: any, idx: number) =>
+        this.adjustmentItemRepo.create({ ...item, adjustmentId: saved.adjustmentId, lineNumber: idx + 1 })
+      );
+      await this.adjustmentItemRepo.save(lineItems);
+      if (dto.status === 'CONFIRMED') {
+        for (const item of items) {
+          if (item.productId) {
+            await this.adjustStock(tenantId, item.productId, Number(item.quantity), header.adjustmentType || 'IN', number, userId);
+          }
+        }
+      }
+    }
+    return this.getStockAdjustment(tenantId, saved.adjustmentId);
+  }
+  async updateStockAdjustment(tenantId: string, id: string, dto: any) {
+    const { items, ...header } = dto;
+    await this.adjustmentRepo.update({ adjustmentId: id, tenantId }, header);
+    if (items) {
+      await this.adjustmentItemRepo.delete({ adjustmentId: id });
+      const lineItems = items.map((item: any, idx: number) =>
+        this.adjustmentItemRepo.create({ ...item, adjustmentId: id, lineNumber: idx + 1 })
+      );
+      if (lineItems.length) await this.adjustmentItemRepo.save(lineItems);
+    }
+    return this.getStockAdjustment(tenantId, id);
+  }
+  async deleteStockAdjustment(tenantId: string, id: string) {
+    await this.adjustmentRepo.delete({ adjustmentId: id, tenantId });
+    return { success: true };
+  }
+
+  // ── Auto Journal Entry Helper ────────────────────────────────
+  private async createAutoJournalEntry(tenantId: string, userId: string, dto: {
+    voucherNumber: string, description: string, voucherDate: string,
+    lines: { accountCode: string, description: string, debitAmount: number, creditAmount: number }[]
+  }) {
+    try {
+      console.log('[JV] Creating auto journal entry for:', dto.voucherNumber, 'tenant:', tenantId);
+      // Get account IDs from codes
+      const getAccountId = async (code: string) => {
+        const acc = await this.coaRepo.findOne({ where: { tenantId, accountCode: code } } as any);
+        return acc?.accountId || null;
+      };
+
+      const jvNumber = await this.generateNumber('JV', this.jvRepo, 'voucherNumber');
+      const totalDebit = dto.lines.reduce((s, l) => s + Number(l.debitAmount || 0), 0);
+      const totalCredit = dto.lines.reduce((s, l) => s + Number(l.creditAmount || 0), 0);
+
+      const jv = this.jvRepo.create({
+        tenantId, voucherNumber: jvNumber, voucherType: 'JOURNAL',
+        description: dto.description, voucherDate: dto.voucherDate,
+        status: 'POSTED', createdBy: userId, totalDebit, totalCredit,
+        reference: dto.voucherNumber,
+      } as any);
+      const savedJV = await this.jvRepo.save(jv) as any;
+
+      // Create lines
+      for (let i = 0; i < dto.lines.length; i++) {
+        const line = dto.lines[i];
+        const acc = await this.coaRepo.findOne({ where: { tenantId, accountCode: line.accountCode } } as any);
+        if (!acc) continue;
+        await this.jvLineRepo.save(this.jvLineRepo.create({
+          voucherId: savedJV.voucherId, lineNumber: i + 1,
+          accountId: acc.accountId, accountCode: acc.accountCode,
+          accountName: acc.accountName,
+          description: line.description,
+          debitAmount: line.debitAmount, creditAmount: line.creditAmount,
+        } as any));
+      }
+      return savedJV;
+    } catch (e: any) {
+      console.error('Auto journal entry failed:', e?.message || e);
+    }
+  }
+
+  // ── Reports ───────────────────────────────────────────────────
+
+  async getStockMovementReport(tenantId: string, productId?: string, from?: string, to?: string) {
+    // Get all products
+    const productQb = this.productRepo.createQueryBuilder('p').where('p.tenantId = :tenantId', { tenantId });
+    if (productId) productQb.andWhere('p.productId = :productId', { productId });
+    const products = await productQb.getMany();
+
+    const report = await Promise.all(products.map(async (p) => {
+      // Sales movements (from sales invoice items)
+      const salesQb = this.invoiceItemRepo.createQueryBuilder('i')
+        .innerJoin('sales_invoices', 'inv', 'inv.invoice_id = i.invoice_id')
+        .select('SUM(i.quantity)', 'totalQty').addSelect('SUM(i.line_total)', 'totalValue')
+        .where('inv.tenant_id = :tid AND i.product_id = :pid', { tid: tenantId, pid: p.productId });
+      if (from) salesQb.andWhere('inv.invoice_date >= :from', { from });
+      if (to) salesQb.andWhere('inv.invoice_date <= :to', { to });
+      const salesData = await salesQb.getRawOne();
+
+      // Purchase movements (from grn items)
+      const purchQb = this.grnItemRepo.createQueryBuilder('g')
+        .innerJoin('goods_receipt_notes', 'grn', 'grn.grn_id = g.grn_id')
+        .select('SUM(g.quantity)', 'totalQty').addSelect('SUM(g.line_total)', 'totalValue')
+        .where('grn.tenant_id = :tid AND g.product_id = :pid', { tid: tenantId, pid: p.productId });
+      if (from) purchQb.andWhere('grn.grn_date >= :from', { from });
+      if (to) purchQb.andWhere('grn.grn_date <= :to', { to });
+      const purchData = await purchQb.getRawOne();
+
+      // Stock adjustments
+      const adjQb = this.stockRepo.createQueryBuilder('s')
+        .select('SUM(CASE WHEN s.quantity > 0 THEN s.quantity ELSE 0 END)', 'inQty')
+        .addSelect('SUM(CASE WHEN s.quantity < 0 THEN ABS(s.quantity) ELSE 0 END)', 'outQty')
+        .where('s.tenantId = :tid AND s.productId = :pid', { tid: tenantId, pid: p.productId });
+      const adjData = await adjQb.getRawOne();
+
+      const salesQty = Number(salesData?.totalQty || 0);
+      const salesValue = Number(salesData?.totalValue || 0);
+      const purchQty = Number(purchData?.totalQty || 0);
+      const purchValue = Number(purchData?.totalValue || 0);
+      const adjIn = Number(adjData?.inQty || 0);
+      const adjOut = Number(adjData?.outQty || 0);
+      const currentStock = Number(p.stockQty || 0);
+      const openingStock = currentStock + salesQty - purchQty - adjIn + adjOut;
+
+      return {
+        productId: p.productId, productCode: p.productCode, productName: p.productName,
+        category: p.category, unitOfMeasure: p.unitOfMeasure,
+        openingStock, purchasesIn: purchQty, purchasesValue: purchValue,
+        salesOut: salesQty, salesValue, adjustmentsIn: adjIn, adjustmentsOut: adjOut,
+        closingStock: currentStock, costPrice: p.costPrice, unitPrice: p.unitPrice,
+        stockValue: currentStock * Number(p.costPrice || 0),
+        isLowStock: p.trackStock && currentStock <= Number(p.minStockQty || 0),
+        minStockQty: p.minStockQty,
+      };
+    }));
+
+    return report;
+  }
+
+  async getItemTransactionHistory(tenantId: string, productId: string) {
+    const product = await this.productRepo.findOne({ where: { productId, tenantId } });
+    if (!product) throw new Error('Product not found');
+
+    const transactions: any[] = [];
+
+    // Sales invoice items
+    const salesItems = await this.invoiceItemRepo.createQueryBuilder('i')
+      .innerJoinAndSelect('i.invoice', 'inv', 'inv.tenantId = :tid', { tid: tenantId })
+      .where('i.productId = :pid', { pid: productId })
+      .orderBy('inv.invoiceDate', 'DESC').getMany();
+    salesItems.forEach((item: any) => transactions.push({
+      date: item.invoice?.invoiceDate, type: 'SALE', reference: item.invoice?.invoiceNumber,
+      party: item.invoice?.customerName, qty: -Number(item.quantity),
+      unitPrice: Number(item.unitPrice), value: Number(item.lineTotal),
+      direction: 'OUT',
+    }));
+
+    // GRN items
+    const grnItems = await this.grnItemRepo.createQueryBuilder('g')
+      .innerJoinAndSelect('g.grn', 'grn', 'grn.tenantId = :tid', { tid: tenantId })
+      .where('g.productId = :pid', { pid: productId })
+      .orderBy('grn.grnDate', 'DESC').getMany();
+    grnItems.forEach((item: any) => transactions.push({
+      date: item.grn?.grnDate, type: 'PURCHASE', reference: item.grn?.grnNumber,
+      party: item.grn?.supplierName, qty: Number(item.quantity),
+      unitPrice: Number(item.unitPrice), value: Number(item.lineTotal),
+      direction: 'IN',
+    }));
+
+    // Stock adjustments
+    const adjustments = await this.stockRepo.find({ where: { tenantId, productId }, order: { createdAt: 'DESC' } });
+    adjustments.forEach((adj: any) => transactions.push({
+      date: adj.createdAt, type: 'ADJUSTMENT', reference: adj.reference || 'ADJ',
+      party: adj.adjustmentType, qty: Number(adj.quantity),
+      unitPrice: Number(product.costPrice), value: Math.abs(Number(adj.quantity)) * Number(product.costPrice),
+      direction: Number(adj.quantity) > 0 ? 'IN' : 'OUT',
+    }));
+
+    // Sort by date desc
+    transactions.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+
+    // Price analysis
+    const salePrices = salesItems.map((i: any) => Number(i.unitPrice)).filter(p => p > 0);
+    const purchPrices = grnItems.map((i: any) => Number(i.unitPrice)).filter(p => p > 0);
+
+    return {
+      product,
+      transactions,
+      summary: {
+        totalSalesQty: salesItems.reduce((s: number, i: any) => s + Number(i.quantity), 0),
+        totalSalesValue: salesItems.reduce((s: number, i: any) => s + Number(i.lineTotal), 0),
+        totalPurchaseQty: grnItems.reduce((s: number, i: any) => s + Number(i.quantity), 0),
+        totalPurchaseValue: grnItems.reduce((s: number, i: any) => s + Number(i.lineTotal), 0),
+        currentStock: Number(product.stockQty),
+        stockValue: Number(product.stockQty) * Number(product.costPrice),
+      },
+      priceAnalysis: {
+        minSalePrice: salePrices.length ? Math.min(...salePrices) : 0,
+        maxSalePrice: salePrices.length ? Math.max(...salePrices) : 0,
+        avgSalePrice: salePrices.length ? salePrices.reduce((s, p) => s + p, 0) / salePrices.length : 0,
+        minPurchasePrice: purchPrices.length ? Math.min(...purchPrices) : 0,
+        maxPurchasePrice: purchPrices.length ? Math.max(...purchPrices) : 0,
+        avgPurchasePrice: purchPrices.length ? purchPrices.reduce((s, p) => s + p, 0) / purchPrices.length : 0,
+        currentCostPrice: Number(product.costPrice),
+        currentSellingPrice: Number(product.unitPrice),
+      },
+    };
+  }
+
+  async getGLLedger(tenantId: string, accountId: string, from?: string, to?: string) {
+    const account = await this.coaRepo.findOne({ where: { accountId, tenantId } });
+    if (!account) throw new Error('Account not found');
+
+    // Journal entries linked to this account
+    const jvQb = this.jvRepo.createQueryBuilder('jv')
+      .leftJoinAndSelect('jv.lines', 'line')
+      .where('jv.tenantId = :tid', { tid: tenantId })
+      .andWhere('line.accountId = :aid', { aid: accountId });
+    if (from) jvQb.andWhere('jv.voucherDate >= :from', { from });
+    if (to) jvQb.andWhere('jv.voucherDate <= :to', { to });
+    const journals = await jvQb.orderBy('jv.voucherDate', 'ASC').getMany();
+
+    const transactions: any[] = [];
+    journals.forEach((jv: any) => {
+      jv.lines?.filter((l: any) => l.accountId === accountId).forEach((line: any) => {
+        transactions.push({
+          date: jv.voucherDate, type: 'JOURNAL', reference: jv.voucherNumber,
+          description: line.description || jv.description,
+          debit: Number(line.debitAmount || 0), credit: Number(line.creditAmount || 0),
+        });
+      });
+    });
+
+    // Sort by date
+    transactions.sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime());
+
+    // Running balance
+    let runningBalance = 0;
+    transactions.forEach(t => {
+      runningBalance += t.debit - t.credit;
+      t.runningBalance = runningBalance;
+    });
+
+    return {
+      account,
+      transactions,
+      summary: {
+        totalDebit: transactions.reduce((s, t) => s + t.debit, 0),
+        totalCredit: transactions.reduce((s, t) => s + t.credit, 0),
+        closingBalance: runningBalance,
+      },
+    };
+  }
+
+  async getAllCustomersStatement(tenantId: string) {
+    const customers = await this.invoiceRepo.createQueryBuilder('i')
+      .select('i.customerName', 'name')
+      .addSelect('SUM(i.totalAmount)', 'totalInvoiced')
+      .addSelect('SUM(i.paidAmount)', 'totalPaid')
+      .addSelect('SUM(i.balanceDue)', 'totalBalance')
+      .addSelect('COUNT(*)', 'invoiceCount')
+      .where('i.tenantId = :tid', { tid: tenantId })
+      .groupBy('i.customerName')
+      .orderBy('SUM(i.balanceDue)', 'DESC')
+      .getRawMany();
+    return customers;
+  }
+
+  async getAllSuppliersStatement(tenantId: string) {
+    const suppliers = await this.purchaseInvoiceRepo.createQueryBuilder('i')
+      .select('i.supplierName', 'name')
+      .addSelect('SUM(i.totalAmount)', 'totalInvoiced')
+      .addSelect('SUM(i.paidAmount)', 'totalPaid')
+      .addSelect('SUM(i.balanceDue)', 'totalBalance')
+      .addSelect('COUNT(*)', 'invoiceCount')
+      .where('i.tenantId = :tid', { tid: tenantId })
+      .groupBy('i.supplierName')
+      .orderBy('SUM(i.balanceDue)', 'DESC')
+      .getRawMany();
+    return suppliers;
+  }
+
+  async getAccountLedger(tenantId: string, accountId?: string, customerName?: string, supplierName?: string, from?: string, to?: string) {
+    const transactions: any[] = [];
+
+    if (!supplierName) {
+      // Sales invoices
+      const invQb = this.invoiceRepo.createQueryBuilder('i').where('i.tenantId = :tid', { tid: tenantId });
+      if (customerName) invQb.andWhere('i.customerName ILIKE :name', { name: `%${customerName}%` });
+      if (from) invQb.andWhere('i.invoiceDate >= :from', { from });
+      if (to) invQb.andWhere('i.invoiceDate <= :to', { to });
+      const invoices = await invQb.orderBy('i.invoiceDate', 'ASC').getMany();
+      invoices.forEach(inv => transactions.push({
+        date: inv.invoiceDate, type: 'SALES INVOICE', reference: (inv as any).invoiceNumber,
+        party: (inv as any).customerName, debit: Number((inv as any).totalAmount), credit: 0,
+        status: (inv as any).status, balanceDue: Number((inv as any).balanceDue),
+      }));
+
+      // Receipts
+      const rcptQb = this.receiptRepo.createQueryBuilder('r').where('r.tenantId = :tid', { tid: tenantId });
+      if (customerName) rcptQb.andWhere('r.customerName ILIKE :name', { name: `%${customerName}%` });
+      if (from) rcptQb.andWhere('r.receiptDate >= :from', { from });
+      if (to) rcptQb.andWhere('r.receiptDate <= :to', { to });
+      const receipts = await rcptQb.orderBy('r.receiptDate', 'ASC').getMany();
+      receipts.forEach(r => transactions.push({
+        date: (r as any).receiptDate, type: 'RECEIPT', reference: (r as any).receiptNumber,
+        party: (r as any).customerName, debit: 0, credit: Number((r as any).amount),
+        status: 'CONFIRMED', balanceDue: 0,
+      }));
+    }
+
+    if (!customerName) {
+      // Purchase invoices
+      const pinvQb = this.purchaseInvoiceRepo.createQueryBuilder('i').where('i.tenantId = :tid', { tid: tenantId });
+      if (supplierName) pinvQb.andWhere('i.supplierName ILIKE :name', { name: `%${supplierName}%` });
+      if (from) pinvQb.andWhere('i.invoiceDate >= :from', { from });
+      if (to) pinvQb.andWhere('i.invoiceDate <= :to', { to });
+      const pinvoices = await pinvQb.orderBy('i.invoiceDate', 'ASC').getMany();
+      pinvoices.forEach(inv => transactions.push({
+        date: (inv as any).invoiceDate, type: 'PURCHASE INVOICE', reference: (inv as any).invoiceNumber,
+        party: (inv as any).supplierName, debit: 0, credit: Number((inv as any).totalAmount),
+        status: (inv as any).status, balanceDue: Number((inv as any).balanceDue),
+      }));
+
+      // Payment vouchers
+      const pvQb = this.voucherRepo.createQueryBuilder('v').where('v.tenantId = :tid', { tid: tenantId });
+      if (supplierName) pvQb.andWhere('v.supplierName ILIKE :name', { name: `%${supplierName}%` });
+      if (from) pvQb.andWhere('v.voucherDate >= :from', { from });
+      if (to) pvQb.andWhere('v.voucherDate <= :to', { to });
+      const vouchers = await pvQb.orderBy('v.voucherDate', 'ASC').getMany();
+      vouchers.forEach(v => transactions.push({
+        date: (v as any).voucherDate, type: 'PAYMENT', reference: (v as any).voucherNumber,
+        party: (v as any).supplierName, debit: Number((v as any).amount), credit: 0,
+        status: 'CONFIRMED', balanceDue: 0,
+      }));
+    }
+
+    // Sort by date
+    transactions.sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime());
+
+    // Add running balance
+    let runningBalance = 0;
+    transactions.forEach(t => {
+      runningBalance += t.debit - t.credit;
+      t.runningBalance = runningBalance;
+    });
+
+    return {
+      transactions,
+      summary: {
+        totalDebit: transactions.reduce((s, t) => s + t.debit, 0),
+        totalCredit: transactions.reduce((s, t) => s + t.credit, 0),
+        closingBalance: runningBalance,
+      },
+    };
+  }
+  async getSalesReport(tenantId: string, from?: string, to?: string) {
+    const qb = this.invoiceRepo.createQueryBuilder('i')
+      .leftJoinAndSelect('i.items', 'item')
+      .where('i.tenantId = :tid', { tid: tenantId });
+    if (from) qb.andWhere('i.invoiceDate >= :from', { from });
+    if (to) qb.andWhere('i.invoiceDate <= :to', { to });
+    qb.orderBy('i.invoiceDate', 'DESC');
+    const invoices = await qb.getMany();
+
+    // By Customer
+    const byCustomer: Record<string, any> = {};
+    invoices.forEach((inv: any) => {
+      const name = inv.customerName || 'Unknown';
+      if (!byCustomer[name]) byCustomer[name] = { name, invoiceCount: 0, totalAmount: 0, paidAmount: 0, balanceDue: 0 };
+      byCustomer[name].invoiceCount++;
+      byCustomer[name].totalAmount += Number(inv.totalAmount || 0);
+      byCustomer[name].paidAmount += Number(inv.paidAmount || 0);
+      byCustomer[name].balanceDue += Number(inv.balanceDue || 0);
+    });
+
+    // By Product
+    const byProduct: Record<string, any> = {};
+    invoices.forEach((inv: any) => {
+      (inv.items || []).forEach((item: any) => {
+        const name = item.description || item.productId || 'Unknown';
+        if (!byProduct[name]) byProduct[name] = { name, qty: 0, totalAmount: 0, invoiceCount: 0 };
+        byProduct[name].qty += Number(item.quantity || 0);
+        byProduct[name].totalAmount += Number(item.lineTotal || 0);
+        byProduct[name].invoiceCount++;
+      });
+    });
+
+    // By Month
+    const byMonth: Record<string, any> = {};
+    invoices.forEach((inv: any) => {
+      const month = inv.invoiceDate ? inv.invoiceDate.toString().slice(0, 7) : 'Unknown';
+      if (!byMonth[month]) byMonth[month] = { month, invoiceCount: 0, totalAmount: 0, paidAmount: 0 };
+      byMonth[month].invoiceCount++;
+      byMonth[month].totalAmount += Number(inv.totalAmount || 0);
+      byMonth[month].paidAmount += Number(inv.paidAmount || 0);
+    });
+
+    const totalRevenue = invoices.reduce((s: number, i: any) => s + Number(i.totalAmount || 0), 0);
+    const totalPaid = invoices.reduce((s: number, i: any) => s + Number(i.paidAmount || 0), 0);
+    const totalBalance = invoices.reduce((s: number, i: any) => s + Number(i.balanceDue || 0), 0);
+
+    return {
+      summary: { totalInvoices: invoices.length, totalRevenue, totalPaid, totalBalance },
+      byCustomer: Object.values(byCustomer).sort((a: any, b: any) => b.totalAmount - a.totalAmount),
+      byProduct: Object.values(byProduct).sort((a: any, b: any) => b.totalAmount - a.totalAmount),
+      byMonth: Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b)).map(([, v]) => v),
+    };
+  }
+
+  async getPurchaseReport(tenantId: string, from?: string, to?: string) {
+    const qb = this.purchaseInvoiceRepo.createQueryBuilder('i')
+      .leftJoinAndSelect('i.items', 'item')
+      .where('i.tenantId = :tid', { tid: tenantId });
+    if (from) qb.andWhere('i.invoiceDate >= :from', { from });
+    if (to) qb.andWhere('i.invoiceDate <= :to', { to });
+    qb.orderBy('i.invoiceDate', 'DESC');
+    const invoices = await qb.getMany();
+
+    const bySupplier: Record<string, any> = {};
+    invoices.forEach((inv: any) => {
+      const name = inv.supplierName || 'Unknown';
+      if (!bySupplier[name]) bySupplier[name] = { name, invoiceCount: 0, totalAmount: 0, paidAmount: 0, balanceDue: 0 };
+      bySupplier[name].invoiceCount++;
+      bySupplier[name].totalAmount += Number(inv.totalAmount || 0);
+      bySupplier[name].paidAmount += Number(inv.paidAmount || 0);
+      bySupplier[name].balanceDue += Number(inv.balanceDue || 0);
+    });
+
+    const byProduct: Record<string, any> = {};
+    invoices.forEach((inv: any) => {
+      (inv.items || []).forEach((item: any) => {
+        const name = item.description || item.productId || 'Unknown';
+        if (!byProduct[name]) byProduct[name] = { name, qty: 0, totalAmount: 0 };
+        byProduct[name].qty += Number(item.quantity || 0);
+        byProduct[name].totalAmount += Number(item.lineTotal || 0);
+      });
+    });
+
+    const byMonth: Record<string, any> = {};
+    invoices.forEach((inv: any) => {
+      const month = inv.invoiceDate ? inv.invoiceDate.toString().slice(0, 7) : 'Unknown';
+      if (!byMonth[month]) byMonth[month] = { month, invoiceCount: 0, totalAmount: 0 };
+      byMonth[month].invoiceCount++;
+      byMonth[month].totalAmount += Number(inv.totalAmount || 0);
+    });
+
+    const totalPurchases = invoices.reduce((s: number, i: any) => s + Number(i.totalAmount || 0), 0);
+    const totalPaid = invoices.reduce((s: number, i: any) => s + Number(i.paidAmount || 0), 0);
+    const totalBalance = invoices.reduce((s: number, i: any) => s + Number(i.balanceDue || 0), 0);
+
+    return {
+      summary: { totalInvoices: invoices.length, totalPurchases, totalPaid, totalBalance },
+      bySupplier: Object.values(bySupplier).sort((a: any, b: any) => b.totalAmount - a.totalAmount),
+      byProduct: Object.values(byProduct).sort((a: any, b: any) => b.totalAmount - a.totalAmount),
+      byMonth: Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b)).map(([, v]) => v),
+    };
+  }
+
+  async getTopCustomersSuppliers(tenantId: string, limit = 10) {
+    const topCustomers = await this.invoiceRepo.createQueryBuilder('i')
+      .select('i.customerName', 'name')
+      .addSelect('COUNT(*)', 'invoiceCount')
+      .addSelect('SUM(i.totalAmount)', 'totalAmount')
+      .addSelect('SUM(i.paidAmount)', 'paidAmount')
+      .addSelect('SUM(i.balanceDue)', 'balanceDue')
+      .where('i.tenantId = :tid', { tid: tenantId })
+      .groupBy('i.customerName')
+      .orderBy('SUM(i.totalAmount)', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    const topSuppliers = await this.purchaseInvoiceRepo.createQueryBuilder('i')
+      .select('i.supplierName', 'name')
+      .addSelect('COUNT(*)', 'invoiceCount')
+      .addSelect('SUM(i.totalAmount)', 'totalAmount')
+      .addSelect('SUM(i.paidAmount)', 'paidAmount')
+      .addSelect('SUM(i.balanceDue)', 'balanceDue')
+      .where('i.tenantId = :tid', { tid: tenantId })
+      .groupBy('i.supplierName')
+      .orderBy('SUM(i.totalAmount)', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    return { topCustomers, topSuppliers };
+  }
+
+  async getFinancialReports(tenantId: string, from?: string, to?: string) {
+    const tid = tenantId;
+
+    // Get all COA accounts
+    const accounts = await this.coaRepo.find({ where: { tenantId: tid, isActive: true } as any });
+
+    // Get all journal voucher lines with account balances using raw SQL
+    let rawSql = `
+      SELECT l.account_code as "accountCode", l.account_name as "accountName",
+             SUM(l.debit_amount) as "totalDebit", SUM(l.credit_amount) as "totalCredit"
+      FROM journal_voucher_lines l
+      JOIN journal_vouchers jv ON jv.voucher_id = l.voucher_id
+      WHERE jv.tenant_id = $1 AND jv.status = 'POSTED'
+    `;
+    const params: any[] = [tid];
+    if (from) { rawSql += ` AND jv.voucher_date >= $${params.length+1}`; params.push(from); }
+    if (to) { rawSql += ` AND jv.voucher_date <= $${params.length+1}`; params.push(to); }
+    rawSql += ` GROUP BY l.account_code, l.account_name ORDER BY l.account_code`;
+    const balances = await this.jvLineRepo.query(rawSql, params);
+
+    // Map balances by account code
+    const balanceMap: Record<string, { debit: number, credit: number, balance: number }> = {};
+    balances.forEach((b: any) => {
+      const debit = Number(b.totalDebit || 0);
+      const credit = Number(b.totalCredit || 0);
+      balanceMap[b.accountCode] = { debit, credit, balance: debit - credit };
+    });
+
+    // Build account rows with balances
+    const accountRows = accounts.filter(a => a.accountSubtype !== 'HEADER').map(acc => {
+      const bal = balanceMap[acc.accountCode] || { debit: 0, credit: 0, balance: 0 };
+      // Normal balance: ASSET/EXPENSE = Debit, LIABILITY/EQUITY/REVENUE = Credit
+      const normalDebit = ['ASSET', 'EXPENSE'].includes(acc.accountType);
+      const netBalance = normalDebit ? bal.balance : -bal.balance;
+      return {
+        accountId: acc.accountId, accountCode: acc.accountCode, accountName: acc.accountName,
+        accountType: acc.accountType, accountSubtype: acc.accountSubtype,
+        debit: bal.debit, credit: bal.credit, balance: netBalance,
+      };
+    });
+
+    // Trial Balance
+    const trialBalance = accountRows.filter(a => a.debit > 0 || a.credit > 0)
+      .sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+
+    // P&L
+    const revenue = accountRows.filter(a => a.accountType === 'REVENUE' && a.accountSubtype !== 'HEADER');
+    const cogs = accountRows.filter(a => a.accountType === 'EXPENSE' && ['COGS'].includes(a.accountSubtype || ''));
+    const opex = accountRows.filter(a => a.accountType === 'EXPENSE' && ['OPERATING', 'Administration', 'Sales & Marketing Expenses', 'Finance Expenses', 'OTHER'].includes(a.accountSubtype || ''));
+    const totalRevenue = revenue.reduce((s, a) => s + a.balance, 0);
+    const totalCogs = cogs.reduce((s, a) => s + a.balance, 0);
+    const grossProfit = totalRevenue - totalCogs;
+    const totalOpex = opex.reduce((s, a) => s + a.balance, 0);
+    const netProfit = grossProfit - totalOpex;
+
+    // Balance Sheet
+    const currentAssets = accountRows.filter(a => a.accountType === 'ASSET' && a.accountSubtype === 'CURRENT');
+    const fixedAssets = accountRows.filter(a => a.accountType === 'ASSET' && a.accountSubtype === 'FIXED');
+    const currentLiabilities = accountRows.filter(a => a.accountType === 'LIABILITY' && a.accountSubtype === 'CURRENT');
+    const longTermLiabilities = accountRows.filter(a => a.accountType === 'LIABILITY' && a.accountSubtype === 'LONG_TERM');
+    const equity = accountRows.filter(a => a.accountType === 'EQUITY');
+    const totalCurrentAssets = currentAssets.reduce((s, a) => s + a.balance, 0);
+    const totalFixedAssets = fixedAssets.reduce((s, a) => s + a.balance, 0);
+    const totalAssets = totalCurrentAssets + totalFixedAssets;
+    const totalCurrentLiabilities = currentLiabilities.reduce((s, a) => s + a.balance, 0);
+    const totalLongTermLiabilities = longTermLiabilities.reduce((s, a) => s + a.balance, 0);
+    const totalEquity = equity.reduce((s, a) => s + a.balance, 0) + netProfit;
+    const totalLiabilitiesEquity = totalCurrentLiabilities + totalLongTermLiabilities + totalEquity;
+
+    return {
+      trialBalance,
+      pnl: {
+        revenue, cogs, opex,
+        totalRevenue, totalCogs, grossProfit, totalOpex, netProfit,
+        grossMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
+        netMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0,
+      },
+      balanceSheet: {
+        currentAssets, fixedAssets, currentLiabilities, longTermLiabilities, equity,
+        totalCurrentAssets, totalFixedAssets, totalAssets,
+        totalCurrentLiabilities, totalLongTermLiabilities, totalEquity,
+        totalLiabilitiesEquity, netProfit,
+        isBalanced: Math.abs(totalAssets - totalLiabilitiesEquity) < 0.01,
+      },
+    };
+  }
+
+  // ── Asset Brands ─────────────────────────────────────────────
+  async getBrands(tenantId: string, category?: string) {
+    let sql = `SELECT * FROM asset_brands WHERE tenant_id=$1 AND is_active=true`;
+    const params: any[] = [tenantId];
+    if (category) { sql += ` AND category=$2`; params.push(category); }
+    sql += ` ORDER BY brand_name`;
+    return this.invoiceRepo.query(sql, params);
+  }
+
+  async createBrand(tenantId: string, dto: any) {
+    const sql = `INSERT INTO asset_brands (tenant_id, brand_name, category) VALUES ($1,$2,$3) RETURNING *`;
+    const result = await this.invoiceRepo.query(sql, [tenantId, dto.brandName, dto.category||null]);
+    return result[0];
+  }
+
+  async deleteBrand(tenantId: string, id: string) {
+    await this.invoiceRepo.query(`UPDATE asset_brands SET is_active=false WHERE brand_id=$1 AND tenant_id=$2`, [id, tenantId]);
+    return { success: true };
+  }
+
+  async createDraftAssetsFromPO(tenantId: string, poId: string, userId: string) {
+    // Get PO with items
+    const poResult = await this.invoiceRepo.query(`
+      SELECT po.*, poi.* FROM purchase_orders po
+      JOIN purchase_order_items poi ON poi.po_id = po.po_id
+      WHERE po.po_id=$1 AND po.tenant_id=$2 AND poi.is_fixed_asset=true`, [poId, tenantId]);
+    
+    const assets = [];
+    for (const item of poResult) {
+      const count = await this.fixedAssetRepo.count({ where: { tenantId } as any });
+      const assetCode = `AST-${String(count + assets.length + 1).padStart(4,'0')}`;
+      const warrantyExpiry = item.warranty_months ? 
+        new Date(new Date(item.expected_delivery || Date.now()).setMonth(new Date(item.expected_delivery || Date.now()).getMonth() + item.warranty_months)).toISOString().slice(0,10) : null;
+      
+      const asset = this.fixedAssetRepo.create({
+        tenantId, assetCode, status: 'ACTIVE',
+        assetName: item.description || item.product_name,
+        category: item.asset_category || 'Other',
+        brand: item.brand,
+        model: item.model,
+        serialNumber: item.serial_number,
+        supplierName: item.supplier_name,
+        purchaseDate: item.po_date || new Date().toISOString().slice(0,10),
+        purchaseCost: Number(item.unit_price || 0),
+        warrantyExpiry,
+        invoiceNumber: item.po_number,
+        currentBookValue: Number(item.unit_price || 0),
+        usefulLifeYears: 5,
+        depreciationMethod: 'STRAIGHT_LINE',
+        createdBy: userId,
+      } as any);
+      const saved = await this.fixedAssetRepo.save(asset);
+      assets.push(saved);
+    }
+    // Mark PO as asset draft created
+    await this.invoiceRepo.query(`UPDATE purchase_orders SET asset_draft_created=true WHERE po_id=$1`, [poId]);
+    return { created: assets.length, assets };
+  }
+
+  // ── Fixed Assets ─────────────────────────────────────────────
+
+  async getAssets(tenantId: string, page = 1, limit = 20, search?: string, status?: string, category?: string) {
+    const qb = this.fixedAssetRepo.createQueryBuilder('a').where('a.tenantId = :tid', { tid: tenantId });
+    if (search) qb.andWhere('(a.assetName ILIKE :s OR a.assetCode ILIKE :s OR a.serialNumber ILIKE :s)', { s: `%${search}%` });
+    if (status) qb.andWhere('a.status = :status', { status });
+    if (category) qb.andWhere('a.category = :category', { category });
+    qb.orderBy('a.createdAt', 'DESC').skip((page-1)*limit).take(limit);
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+
+  async getAsset(tenantId: string, id: string) {
+    return this.fixedAssetRepo.findOne({ where: { assetId: id, tenantId } as any });
+  }
+
+  async createAsset(tenantId: string, dto: any, userId: string) {
+    // Auto generate asset code
+    const count = await this.fixedAssetRepo.count({ where: { tenantId } as any });
+    const assetCode = dto.assetCode || `AST-${String(count + 1).padStart(4, '0')}`;
+    // Calculate initial values
+    const purchaseCost = Number(dto.purchaseCost || 0);
+    const salvageValue = Number(dto.salvageValue || 0);
+    const usefulLife = Number(dto.usefulLifeYears || 5);
+    const depreciableAmount = purchaseCost - salvageValue;
+    const annualDepreciation = usefulLife > 0 ? depreciableAmount / usefulLife : 0;
+    const depreciationRate = purchaseCost > 0 ? (annualDepreciation / purchaseCost) * 100 : 0;
+    const asset = this.fixedAssetRepo.create({
+      ...dto, tenantId, assetCode, createdBy: userId,
+      currentBookValue: purchaseCost,
+      depreciationRate,
+      accumulatedDepreciation: 0,
+    } as any);
+    const saved = await this.fixedAssetRepo.save(asset) as any;
+    // Auto journal entry: Dr Asset Account / Cr AP or Bank
+    if (purchaseCost > 0 && dto.coaAssetAccount) {
+      const creditAccount = dto.supplierName ? '2110' : '1120'; // AP or Bank
+      await this.createAutoJournalEntry(tenantId, userId, {
+        voucherNumber: assetCode, description: `Asset Purchase: ${dto.assetName}`,
+        voucherDate: dto.purchaseDate || new Date().toISOString().slice(0,10),
+        lines: [
+          { accountCode: dto.coaAssetAccount, description: `Asset: ${dto.assetName}`, debitAmount: purchaseCost, creditAmount: 0 },
+          { accountCode: creditAccount, description: `Purchase of ${dto.assetName}`, debitAmount: 0, creditAmount: purchaseCost },
+        ],
+      });
+    }
+    return saved;
+  }
+
+  async updateAsset(tenantId: string, id: string, dto: any) {
+    await this.fixedAssetRepo.update({ assetId: id, tenantId } as any, dto);
+    return this.fixedAssetRepo.findOne({ where: { assetId: id } as any });
+  }
+
+  async deleteAsset(tenantId: string, id: string) {
+    await this.fixedAssetRepo.delete({ assetId: id, tenantId } as any);
+    return { success: true };
+  }
+
+  async calculateDepreciation(tenantId: string, assetId: string, year: number, month: number, userId: string) {
+    const asset = await this.fixedAssetRepo.findOne({ where: { assetId, tenantId } as any }) as any;
+    if (!asset) throw new Error('Asset not found');
+    const purchaseCost = Number(asset.purchaseCost || 0);
+    const salvageValue = Number(asset.salvageValue || 0);
+    const usefulLife = Number(asset.usefulLifeYears || 5);
+    const accumulatedDepr = Number(asset.accumulatedDepreciation || 0);
+    const currentValue = Number(asset.currentBookValue || purchaseCost);
+    const depreciableAmount = purchaseCost - salvageValue;
+    let monthlyDepr = 0;
+    if (asset.depreciationMethod === 'STRAIGHT_LINE') {
+      monthlyDepr = usefulLife > 0 ? depreciableAmount / (usefulLife * 12) : 0;
+    } else if (asset.depreciationMethod === 'DECLINING_BALANCE') {
+      const rate = Number(asset.depreciationRate || 0) / 100 / 12;
+      monthlyDepr = currentValue * rate;
+    }
+    monthlyDepr = Math.min(monthlyDepr, Math.max(0, currentValue - salvageValue));
+    const newAccumDepr = accumulatedDepr + monthlyDepr;
+    const newBookValue = purchaseCost - newAccumDepr;
+    // Save depreciation record
+    const deprRecord = this.assetDeprRepo.create({
+      tenantId, assetId, periodYear: year, periodMonth: month,
+      openingValue: currentValue, depreciationAmount: monthlyDepr,
+      closingValue: newBookValue, accumulatedDepreciation: newAccumDepr,
+      status: 'POSTED', postedDate: new Date().toISOString().slice(0,10),
+    } as any);
+    await this.assetDeprRepo.save(deprRecord);
+    // Update asset
+    await this.fixedAssetRepo.update({ assetId } as any, {
+      accumulatedDepreciation: newAccumDepr, currentBookValue: newBookValue,
+    } as any);
+    // Auto journal entry
+    if (monthlyDepr > 0 && asset.coaDeprExpenseAccount && asset.coaAccumDeprAccount) {
+      await this.createAutoJournalEntry(tenantId, userId, {
+        voucherNumber: `DEPR-${assetId.slice(-6)}-${year}-${month}`,
+        description: `Depreciation: ${asset.assetName} (${year}/${month})`,
+        voucherDate: `${year}-${String(month).padStart(2,'0')}-01`,
+        lines: [
+          { accountCode: asset.coaDeprExpenseAccount, description: `Depreciation - ${asset.assetName}`, debitAmount: monthlyDepr, creditAmount: 0 },
+          { accountCode: asset.coaAccumDeprAccount, description: `Accum. Depr - ${asset.assetName}`, debitAmount: 0, creditAmount: monthlyDepr },
+        ],
+      });
+    }
+    return deprRecord;
+  }
+
+  async runBulkDepreciation(tenantId: string, year: number, month: number, userId: string) {
+    const assets = await this.fixedAssetRepo.find({ where: { tenantId, status: 'ACTIVE', isActive: true } as any });
+    const results = [];
+    for (const asset of assets) {
+      try {
+        const result = await this.calculateDepreciation(tenantId, (asset as any).assetId, year, month, userId);
+        results.push({ assetId: (asset as any).assetId, assetName: (asset as any).assetName, status: 'success', amount: (result as any).depreciationAmount });
+      } catch (e: any) {
+        results.push({ assetId: (asset as any).assetId, assetName: (asset as any).assetName, status: 'error', error: e.message });
+      }
+    }
+    return { processed: results.length, results };
+  }
+
+  async getDepreciationSchedule(tenantId: string, assetId: string) {
+    return this.assetDeprRepo.find({ where: { tenantId, assetId } as any, order: { periodYear: 'DESC', periodMonth: 'DESC' } });
+  }
+
+  async getMaintenance(tenantId: string, assetId?: string, status?: string) {
+    const where: any = { tenantId };
+    if (assetId) where.assetId = assetId;
+    if (status) where.status = status;
+    return this.assetMaintRepo.find({ where, order: { scheduledDate: 'ASC' } });
+  }
+
+  async createMaintenance(tenantId: string, dto: any, userId: string) {
+    const m = this.assetMaintRepo.create({ ...dto, tenantId, createdBy: userId } as any);
+    const saved = await this.assetMaintRepo.save(m);
+    // Update asset next maintenance date
+    if (dto.assetId && dto.nextDueDate) {
+      await this.fixedAssetRepo.update({ assetId: dto.assetId } as any, { nextMaintenanceDate: dto.nextDueDate } as any);
+    }
+    return saved;
+  }
+
+  async updateMaintenance(tenantId: string, id: string, dto: any) {
+    await this.assetMaintRepo.update({ maintenanceId: id, tenantId } as any, dto);
+    if (dto.status === 'COMPLETED' && dto.assetId) {
+      await this.fixedAssetRepo.update({ assetId: dto.assetId } as any, {
+        lastMaintenanceDate: dto.completedDate || new Date().toISOString().slice(0,10),
+        nextMaintenanceDate: dto.nextDueDate,
+        condition: dto.condition || 'GOOD',
+      } as any);
+    }
+    return this.assetMaintRepo.findOne({ where: { maintenanceId: id } as any });
+  }
+
+  async getTransfers(tenantId: string, assetId?: string) {
+    const where: any = { tenantId };
+    if (assetId) where.assetId = assetId;
+    return this.assetTransferRepo.find({ where, order: { createdAt: 'DESC' } });
+  }
+
+  async createTransfer(tenantId: string, dto: any, userId: string) {
+    const t = this.assetTransferRepo.create({ ...dto, tenantId, createdBy: userId } as any);
+    const saved = await this.assetTransferRepo.save(t);
+    // Update asset location and assignment
+    await this.fixedAssetRepo.update({ assetId: dto.assetId } as any, {
+      department: dto.toDepartment,
+      locationName: dto.toLocation,
+      assignedToId: dto.toUserId,
+      assignedToName: dto.toUserName,
+    } as any);
+    return saved;
+  }
+
+  async getAssetStats(tenantId: string) {
+    const assets = await this.fixedAssetRepo.find({ where: { tenantId } as any });
+    const totalAssets = assets.length;
+    const totalCost = assets.reduce((s, a) => s + Number((a as any).purchaseCost || 0), 0);
+    const totalBookValue = assets.reduce((s, a) => s + Number((a as any).currentBookValue || 0), 0);
+    const totalAccumDepr = assets.reduce((s, a) => s + Number((a as any).accumulatedDepreciation || 0), 0);
+    const byStatus = assets.reduce((acc: any, a) => { const s = (a as any).status || 'ACTIVE'; acc[s] = (acc[s]||0)+1; return acc; }, {});
+    const byCategory = assets.reduce((acc: any, a) => { const c = (a as any).category || 'Uncategorized'; acc[c] = (acc[c]||0)+1; return acc; }, {});
+    const dueForMaintenance = await this.assetMaintRepo.count({ where: { tenantId, status: 'SCHEDULED' } as any });
+    const expiredWarranty = assets.filter((a:any) => a.warrantyExpiry && new Date(a.warrantyExpiry) < new Date()).length;
+    return { totalAssets, totalCost, totalBookValue, totalAccumDepr, byStatus, byCategory, dueForMaintenance, expiredWarranty };
+  }
+
+  async getSalesmanReport(tenantId: string, from?: string, to?: string) {
+    // Sales by salesman
+    const qb = this.invoiceRepo.createQueryBuilder('i')
+      .select('i.salesmanId', 'salesmanId')
+      .addSelect('i.salesmanName', 'salesmanName')
+      .addSelect('COUNT(*)', 'invoiceCount')
+      .addSelect('SUM(i.totalAmount)', 'totalSales')
+      .addSelect('SUM(i.paidAmount)', 'totalCollected')
+      .addSelect('SUM(i.balanceDue)', 'totalOutstanding')
+      .where('i.tenantId = :tid', { tid: tenantId })
+      .andWhere('i.salesmanId IS NOT NULL');
+    if (from) qb.andWhere('i.invoiceDate >= :from', { from });
+    if (to) qb.andWhere('i.invoiceDate <= :to', { to });
+    const bySalesman = await qb.groupBy('i.salesmanId, i.salesmanName')
+      .orderBy('SUM(i.totalAmount)', 'DESC').getRawMany();
+
+    // Quotations by salesman
+    const qbQ = this.quotationRepo.createQueryBuilder('q')
+      .select('q.salesmanId', 'salesmanId')
+      .addSelect('q.salesmanName', 'salesmanName')
+      .addSelect('COUNT(*)', 'quotationCount')
+      .addSelect('SUM(q.totalAmount)', 'totalQuoted')
+      .addSelect("COUNT(CASE WHEN q.status = 'CONVERTED' THEN 1 END)", "converted")
+      .where('q.tenantId = :tid', { tid: tenantId })
+      .andWhere('q.salesmanId IS NOT NULL');
+    if (from) qbQ.andWhere('q.quotationDate >= :from', { from });
+    if (to) qbQ.andWhere('q.quotationDate <= :to', { to });
+    const quotationsBySalesman = await qbQ.groupBy('q.salesmanId, q.salesmanName')
+      .orderBy('SUM(q.totalAmount)', 'DESC').getRawMany();
+
+    // Customer visits by salesman
+    const visits = await this.invoiceRepo.query(
+      `SELECT salesman_id, salesman_name, COUNT(*) as visit_count 
+       FROM customer_visits WHERE tenant_id = $1 
+       GROUP BY salesman_id, salesman_name ORDER BY COUNT(*) DESC`,
+      [tenantId]
+    ).catch(() => []);
+
+    return { bySalesman, quotationsBySalesman, visits };
+  }
+
+  async getStockReport(tenantId: string) {
+    const products = await this.productRepo.createQueryBuilder('p')
+      .where('p.tenantId = :tid AND p.isActive = true', { tid: tenantId })
+      .orderBy('p.productName', 'ASC')
+      .getMany();
+
+    return products.map(p => ({
+      productId: p.productId, productCode: p.productCode, productName: p.productName,
+      category: p.category, unitOfMeasure: p.unitOfMeasure,
+      stockQty: Number(p.stockQty || 0), minStockQty: Number(p.minStockQty || 0),
+      costPrice: Number(p.costPrice || 0), unitPrice: Number(p.unitPrice || 0),
+      stockValue: Number(p.stockQty || 0) * Number(p.costPrice || 0),
+      isLowStock: p.trackStock && Number(p.stockQty || 0) <= Number(p.minStockQty || 0),
+      trackStock: p.trackStock,
+      margin: Number(p.unitPrice) > 0 ? Math.round(((Number(p.unitPrice) - Number(p.costPrice)) / Number(p.unitPrice)) * 100) : 0,
+    }));
+  }
+}

@@ -1,0 +1,513 @@
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import {
+  Table, Card, Button, Input, Select, Tag, Space, Modal, Form,
+  Typography, Tabs, Row, Col, message, Tooltip, Avatar, Drawer,
+  List, Badge, Popconfirm, Empty, Divider, AutoComplete, Spin,
+} from "antd";
+import {
+  PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined,
+  GlobalOutlined, MailOutlined, PhoneOutlined, EyeOutlined,
+  UserOutlined, BankOutlined, MessageOutlined, EnvironmentOutlined,
+  ShareAltOutlined, CopyOutlined, LinkOutlined,
+} from "@ant-design/icons";
+import api from "../../services/api";
+
+const { Title, Text } = Typography;
+const { TabPane } = Tabs;
+const { Option } = Select;
+
+// ─── Google Maps Location Search ─────────────────────────────────────────────
+function LocationSearch({ value, onChange, onSelect }) {
+  const [options, setOptions] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const timer = useRef(null);
+
+  const search = async (query) => {
+    if (!query || query.length < 3) { setOptions([]); return; }
+    setSearching(true);
+    try {
+      // Use Nominatim (free OpenStreetMap geocoding — no API key needed)
+      const r = await fetch(
+        "https://nominatim.openstreetmap.org/search?format=json&limit=6&q=" + encodeURIComponent(query),
+        { headers: { "Accept-Language": "en" } }
+      );
+      const data = await r.json();
+      setOptions(data.map(item => ({
+        value: item.display_name,
+        lat: item.lat,
+        lng: item.lon,
+        displayName: item.display_name,
+        label: (
+          <div style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"4px 0" }}>
+            <EnvironmentOutlined style={{ color:"#ff4d4f", marginTop:2, flexShrink:0 }} />
+            <Text style={{ fontSize:12, lineHeight:1.4 }}>{item.display_name}</Text>
+          </div>
+        ),
+      })));
+    } catch { setOptions([]); } finally { setSearching(false); }
+  };
+
+  return (
+    <AutoComplete
+      value={value} options={options}
+      onChange={v => { onChange(v); clearTimeout(timer.current); timer.current = setTimeout(() => search(v), 500); }}
+      onSelect={(v, opt) => { onChange(v); if (onSelect) onSelect(opt); }}
+      placeholder="Search for a location (powered by OpenStreetMap)..."
+      style={{ width:"100%" }}
+      notFoundContent={searching ? <Spin size="small" /> : null}
+    />
+  );
+}
+
+// ─── Location Display Card ────────────────────────────────────────────────────
+function LocationCard({ record, onClear }) {
+  if (!record?.locationLat) return null;
+
+  const lat = record.locationLat;
+  const lng = record.locationLng;
+  const mapsUrl = record.mapsUrl || "https://www.google.com/maps?q=" + lat + "," + lng;
+  const embedUrl = "https://maps.google.com/maps?q=" + lat + "," + lng + "&z=15&output=embed";
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(mapsUrl);
+    message.success("Location link copied to clipboard!");
+  };
+
+  const shareLink = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: record.locationName || record.accountName || record.firstName,
+          text: "Location: " + record.locationAddress,
+          url: mapsUrl,
+        });
+      } catch {}
+    } else {
+      copyLink();
+    }
+  };
+
+  return (
+    <div style={{ marginTop:12 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+        <Space>
+          <EnvironmentOutlined style={{ color:"#ff4d4f" }} />
+          <Text strong style={{ fontSize:13 }}>{record.locationName || "Saved Location"}</Text>
+        </Space>
+        <Space>
+          <Tooltip title="Copy link">
+            <Button size="small" icon={<CopyOutlined />} onClick={copyLink}>Copy Link</Button>
+          </Tooltip>
+          <Tooltip title="Share location">
+            <Button size="small" icon={<ShareAltOutlined />} type="primary" onClick={shareLink}>Share</Button>
+          </Tooltip>
+          <Tooltip title="Open in Google Maps">
+            <Button size="small" icon={<GlobalOutlined />} href={mapsUrl} target="_blank">Open Maps</Button>
+          </Tooltip>
+        </Space>
+      </div>
+      <Text style={{ fontSize:12, color:"#8c8c8c", display:"block", marginBottom:8 }}>
+        {record.locationAddress}
+      </Text>
+      {/* Embedded map */}
+      <div style={{ borderRadius:10, overflow:"hidden", border:"1px solid #f0f0f0", height:200 }}>
+        <iframe
+          src={embedUrl}
+          width="100%" height="200"
+          style={{ border:"none" }}
+          title="Location Map"
+          loading="lazy"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Contacts Page ───────────────────────────────────────────────────────
+export default function ContactsPage() {
+  const [activeTab, setActiveTab] = useState("accounts");
+  const [accounts, setAccounts] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [totalAccounts, setTotalAccounts] = useState(0);
+  const [totalContacts, setTotalContacts] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState("account");
+  const [editRecord, setEditRecord] = useState(null);
+  const [view360, setView360] = useState(null);
+  const [form] = Form.useForm();
+
+  // Location state
+  const [locationSearch, setLocationSearch] = useState("");
+  const [locationData, setLocationData] = useState(null);
+
+  const loadAccounts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await api.get("/accounts", { params: { page, limit: 20, search: search || undefined } });
+      setAccounts(r.data.data || []); setTotalAccounts(r.data.total || 0);
+    } catch {} finally { setLoading(false); }
+  }, [page, search]);
+
+  const loadContacts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await api.get("/contacts", { params: { page, limit: 20, search: search || undefined } });
+      setContacts(r.data.data || []); setTotalContacts(r.data.total || 0);
+    } catch {} finally { setLoading(false); }
+  }, [page, search]);
+
+  useEffect(() => {
+    if (activeTab === "accounts") loadAccounts();
+    else loadContacts();
+  }, [activeTab, loadAccounts, loadContacts]);
+
+  const open360 = async (accountId) => {
+    try {
+      const r = await api.get("/accounts/" + accountId + "/360");
+      setView360(r.data);
+    } catch { message.error("Failed to load 360° view"); }
+  };
+
+  const openModal = (type, record = null) => {
+    setModalType(type); setEditRecord(record);
+    form.resetFields();
+    setLocationSearch(""); setLocationData(null);
+    if (record) {
+      form.setFieldsValue(record);
+      if (record.locationName) {
+        setLocationSearch(record.locationName);
+        setLocationData({ lat: record.locationLat, lng: record.locationLng, displayName: record.locationAddress });
+      }
+    }
+    setModalOpen(true);
+  };
+
+  const handleSave = async (values) => {
+    try {
+      // Add location data to payload
+      const payload = {
+        ...values,
+        ...(locationData ? {
+          locationName: locationSearch,
+          locationLat: locationData.lat,
+          locationLng: locationData.lng,
+          locationAddress: locationData.displayName,
+          mapsUrl: "https://www.google.com/maps?q=" + locationData.lat + "," + locationData.lng,
+        } : {}),
+      };
+
+      if (modalType === "account") {
+        if (editRecord) { await api.put("/accounts/" + editRecord.accountId, payload); message.success("Account updated"); }
+        else { await api.post("/accounts", payload); message.success("Account created"); }
+        loadAccounts();
+      } else {
+        if (editRecord) { await api.put("/contacts/" + editRecord.contactId, payload); message.success("Contact updated"); }
+        else { await api.post("/contacts", payload); message.success("Contact created"); }
+        loadContacts();
+      }
+      setModalOpen(false);
+    } catch (e) { message.error(e.response?.data?.message || "Failed"); }
+  };
+
+  // Share location for any record
+  const shareLocation = (record) => {
+    if (!record.locationLat) { message.warning("No location saved for this record"); return; }
+    const url = record.mapsUrl || "https://www.google.com/maps?q=" + record.locationLat + "," + record.locationLng;
+    navigator.clipboard.writeText(url);
+    message.success("Location link copied! Share it anywhere.");
+  };
+
+  const accountColumns = [
+    {
+      title: "Account", key: "name",
+      render: (_, r) => (
+        <Space>
+          <Avatar size={36} style={{ background:"linear-gradient(135deg,#1890ff,#13c2c2)", fontWeight:700 }}>
+            {r.accountName?.[0]}
+          </Avatar>
+          <div>
+            <div style={{ fontWeight:600 }}>{r.accountName}</div>
+            <Text type="secondary" style={{ fontSize:12 }}>{r.phone || r.email || "—"}</Text>
+          </div>
+        </Space>
+      ),
+    },
+    { title: "City", dataIndex: "city", render: v => v || "—" },
+    {
+      title: "Location", key: "location",
+      render: (_, r) => r.locationName ? (
+        <Space>
+          <EnvironmentOutlined style={{ color:"#ff4d4f" }} />
+          <Text style={{ fontSize:12 }} ellipsis={{ tooltip: r.locationAddress }}>{r.locationName}</Text>
+          <Tooltip title="Copy location link">
+            <Button size="small" type="text" icon={<CopyOutlined />} onClick={() => shareLocation(r)} />
+          </Tooltip>
+        </Space>
+      ) : <Text type="secondary" style={{ fontSize:12 }}>—</Text>,
+    },
+    {
+      title: "", key: "actions",
+      render: (_, r) => (
+        <Space>
+          <Tooltip title="360° View"><Button size="small" icon={<EyeOutlined />} type="primary" ghost onClick={() => open360(r.accountId)} /></Tooltip>
+          <Tooltip title="Edit"><Button size="small" icon={<EditOutlined />} onClick={() => openModal("account", r)} /></Tooltip>
+          <Tooltip title="Share Location"><Button size="small" icon={<ShareAltOutlined />} onClick={() => shareLocation(r)} /></Tooltip>
+          <Popconfirm title="Delete account?" onConfirm={async () => { await api.delete("/accounts/"+r.accountId); loadAccounts(); }}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  const contactColumns = [
+    {
+      title: "Contact", key: "name",
+      render: (_, r) => (
+        <Space>
+          <Avatar size={36} style={{ background:"linear-gradient(135deg,#722ed1,#eb2f96)", fontWeight:700 }}>
+            {r.firstName?.[0]}{r.lastName?.[0]}
+          </Avatar>
+          <div>
+            <div style={{ fontWeight:600 }}>{r.firstName} {r.lastName}</div>
+            <Text type="secondary" style={{ fontSize:12 }}>{r.jobTitle || "—"}</Text>
+          </div>
+        </Space>
+      ),
+    },
+    { title: "Email", dataIndex: "email", render: v => v ? <a href={"mailto:"+v}><MailOutlined /> {v}</a> : "—" },
+    { title: "Mobile", dataIndex: "mobile", render: v => v || "—" },
+    { title: "Phone", dataIndex: "phone", render: v => v || "—" },
+    {
+      title: "Location", key: "location",
+      render: (_, r) => r.locationName ? (
+        <Space>
+          <EnvironmentOutlined style={{ color:"#ff4d4f" }} />
+          <Text style={{ fontSize:12 }}>{r.locationName}</Text>
+          <Tooltip title="Copy location link">
+            <Button size="small" type="text" icon={<CopyOutlined />} onClick={() => shareLocation(r)} />
+          </Tooltip>
+        </Space>
+      ) : "—",
+    },
+    {
+      title: "", key: "actions",
+      render: (_, r) => (
+        <Space>
+          <Tooltip title="Edit"><Button size="small" icon={<EditOutlined />} onClick={() => openModal("contact", r)} /></Tooltip>
+          <Tooltip title="Share Location"><Button size="small" icon={<ShareAltOutlined />} onClick={() => shareLocation(r)} /></Tooltip>
+          <Popconfirm title="Delete contact?" onConfirm={async () => { await api.delete("/contacts/"+r.contactId); loadContacts(); }}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:20 }}>
+        <div>
+          <Title level={4} style={{ margin:0 }}>Contacts & Accounts</Title>
+          <Text type="secondary">Manage your companies and people</Text>
+        </div>
+        <Space>
+          <Button icon={<PlusOutlined />} onClick={() => openModal("account")} style={{ borderRadius:8 }}>New Account</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal("contact")} style={{ borderRadius:8 }}>New Contact</Button>
+        </Space>
+      </div>
+
+      <Card style={{ borderRadius:12 }}>
+        <Tabs activeKey={activeTab} onChange={k => { setActiveTab(k); setPage(1); setSearch(""); }}
+          tabBarExtraContent={
+            <Input prefix={<SearchOutlined />} placeholder="Search..."
+              value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+              allowClear style={{ width:220, borderRadius:8 }} />
+          }
+        >
+          <TabPane tab={<span><BankOutlined /> Accounts ({totalAccounts})</span>} key="accounts">
+            <Table dataSource={accounts} columns={accountColumns} rowKey="accountId"
+              loading={loading} size="middle"
+              pagination={{ current:page, total:totalAccounts, pageSize:20, onChange:setPage }} />
+          </TabPane>
+          <TabPane tab={<span><UserOutlined /> Contacts ({totalContacts})</span>} key="contacts">
+            <Table dataSource={contacts} columns={contactColumns} rowKey="contactId"
+              loading={loading} size="middle"
+              pagination={{ current:page, total:totalContacts, pageSize:20, onChange:setPage }} />
+          </TabPane>
+        </Tabs>
+      </Card>
+
+      {/* 360° View Drawer */}
+      <Drawer
+        title={view360 ? "360° View — " + view360.account?.accountName : ""}
+        open={!!view360} onClose={() => setView360(null)} width={640}
+      >
+        {view360 && (
+          <>
+            <Row gutter={16} style={{ marginBottom:16 }}>
+              {[
+                { label:"Phone", value:view360.account.phone },
+                { label:"Email", value:view360.account.email },
+                { label:"Website", value:view360.account.website },
+                { label:"City", value:view360.account.city },
+              ].map(f => (
+                <Col span={12} key={f.label}>
+                  <div style={{ background:"#fafafa", borderRadius:8, padding:"8px 12px", marginBottom:8 }}>
+                    <Text style={{ fontSize:11, color:"#8c8c8c" }}>{f.label}</Text>
+                    <div style={{ fontWeight:500, fontSize:13 }}>{f.value || "—"}</div>
+                  </div>
+                </Col>
+              ))}
+            </Row>
+
+            {/* Location in 360 view */}
+            {view360.account.locationLat && (
+              <>
+                <Divider>Location</Divider>
+                <LocationCard record={view360.account} onClear={() => {}} />
+              </>
+            )}
+
+            <Divider>Contacts ({view360.totals?.contacts || 0})</Divider>
+            <List dataSource={view360.contacts} size="small"
+              renderItem={(c: any) => (
+                <List.Item actions={[
+                  c.locationLat && <Tooltip title="Share location"><Button size="small" icon={<ShareAltOutlined />} onClick={() => shareLocation(c)} /></Tooltip>
+                ].filter(Boolean)}>
+                  <List.Item.Meta
+                    avatar={<Avatar size={32} style={{ background:"#722ed1" }}>{c.firstName?.[0]}</Avatar>}
+                    title={c.firstName + " " + c.lastName}
+                    description={
+                      <Space size={4} wrap>
+                        {c.jobTitle && <Text style={{ fontSize:12 }}>{c.jobTitle}</Text>}
+                        {c.email && <a href={"mailto:"+c.email} style={{ fontSize:12 }}>{c.email}</a>}
+                        {c.mobile && <Text style={{ fontSize:12 }}><PhoneOutlined /> {c.mobile}</Text>}
+                      </Space>
+                    }
+                  />
+                </List.Item>
+              )}
+              locale={{ emptyText: <Empty description="No contacts" /> }}
+            />
+          </>
+        )}
+      </Drawer>
+
+      {/* Create / Edit Modal */}
+      <Modal
+        title={
+          <Space>
+            {editRecord ? <EditOutlined /> : <PlusOutlined />}
+            {editRecord ? "Edit" : "New"} {modalType === "account" ? "Account" : "Contact"}
+          </Space>
+        }
+        open={modalOpen} onCancel={() => setModalOpen(false)}
+        footer={null} width={620} style={{ top:30 }}
+      >
+        <Form form={form} layout="vertical" onFinish={handleSave} style={{ marginTop:16 }}>
+
+          {modalType === "account" ? (
+            <>
+              <Form.Item name="accountName" label="Account Name" rules={[{ required:true }]}>
+                <Input placeholder="Company name" />
+              </Form.Item>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item name="phone" label="Phone"><Input placeholder="+968 xxx" /></Form.Item></Col>
+                <Col span={12}><Form.Item name="email" label="Email"><Input placeholder="info@company.com" /></Form.Item></Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item name="website" label="Website"><Input placeholder="https://company.com" /></Form.Item></Col>
+                <Col span={12}><Form.Item name="city" label="City"><Input placeholder="Muscat" /></Form.Item></Col>
+              </Row>
+            </>
+          ) : (
+            <>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item name="firstName" label="First Name" rules={[{ required:true }]}><Input /></Form.Item></Col>
+                <Col span={12}><Form.Item name="lastName" label="Last Name"><Input /></Form.Item></Col>
+              </Row>
+              <Form.Item name="jobTitle" label="Job Title / Designation"><Input /></Form.Item>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item name="email" label="Email"><Input /></Form.Item></Col>
+                <Col span={12}><Form.Item name="mobile" label="Mobile"><Input placeholder="+968 xxxx xxxx" /></Form.Item></Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item name="phone" label="Phone (Office)"><Input placeholder="+968 xxxx xxxx" /></Form.Item></Col>
+                <Col span={12}><Form.Item name="department" label="Department"><Input /></Form.Item></Col>
+              </Row>
+            </>
+          )}
+
+          <Form.Item name="description" label="Notes"><Input.TextArea rows={2} /></Form.Item>
+
+          {/* ─── Location Section ───────────────────────────────────────── */}
+          <Divider style={{ margin:"12px 0" }}>
+            <Space><EnvironmentOutlined style={{ color:"#ff4d4f" }} />Location (Optional)</Space>
+          </Divider>
+
+          <div style={{ background:"#fff1f0", border:"1px solid #ffccc7", borderRadius:10, padding:"14px 16px" }}>
+            <Text style={{ fontSize:12, color:"#8c8c8c", display:"block", marginBottom:8 }}>
+              Search for a location to save it and share with others.
+            </Text>
+            <LocationSearch
+              value={locationSearch}
+              onChange={v => {
+                setLocationSearch(v);
+                if (!v) setLocationData(null);
+              }}
+              onSelect={opt => {
+                setLocationData({ lat: opt.lat, lng: opt.lng, displayName: opt.displayName });
+                setLocationSearch(opt.displayName);
+                message.success("Location saved — you can share this link after saving");
+              }}
+            />
+
+            {/* Show map preview if location selected */}
+            {locationData && (
+              <div style={{ marginTop:12 }}>
+                <div style={{ borderRadius:8, overflow:"hidden", height:180, border:"1px solid #f0f0f0" }}>
+                  <iframe
+                    src={"https://maps.google.com/maps?q="+locationData.lat+","+locationData.lng+"&z=15&output=embed"}
+                    width="100%" height="180" style={{ border:"none" }} title="Preview"
+                    loading="lazy"
+                  />
+                </div>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
+                  <Text style={{ fontSize:11, color:"#8c8c8c" }}>{locationData.displayName}</Text>
+                  <Space>
+                    <Button size="small" icon={<CopyOutlined />}
+                      onClick={() => {
+                        const url = "https://www.google.com/maps?q="+locationData.lat+","+locationData.lng;
+                        navigator.clipboard.writeText(url);
+                        message.success("Link copied!");
+                      }}>
+                      Copy Link
+                    </Button>
+                    <Button size="small" icon={<DeleteOutlined />} danger
+                      onClick={() => { setLocationSearch(""); setLocationData(null); }}>
+                      Clear
+                    </Button>
+                  </Space>
+                </div>
+              </div>
+            )}
+
+            {/* Show existing location if editing */}
+            {editRecord?.locationLat && !locationData && (
+              <LocationCard record={editRecord} onClear={() => {}} />
+            )}
+          </div>
+
+          <div style={{ display:"flex", justifyContent:"flex-end", gap:8, marginTop:16 }}>
+            <Button onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button type="primary" htmlType="submit">{editRecord ? "Save Changes" : "Create"}</Button>
+          </div>
+        </Form>
+      </Modal>
+    </div>
+  );
+}

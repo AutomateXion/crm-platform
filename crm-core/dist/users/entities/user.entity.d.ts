@@ -1,0 +1,31 @@
+import { Tenant } from '../../tenants/entities/tenant.entity';
+import { UserGroup } from './user-group.entity';
+export declare class User {
+    userId: string;
+    tenantId: string;
+    userGroupId: string;
+    email: string;
+    fullName: string;
+    fullNameAr: string;
+    phone: string;
+    avatarUrl: string;
+    passwordHash: string;
+    isActive: boolean;
+    isEmailVerified: boolean;
+    emailVerifyToken: string;
+    passwordResetToken: string;
+    passwordResetExpires: Date;
+    twoFactorEnabled: boolean;
+    twoFactorSecret: string;
+    lastLogin: Date;
+    loginCount: number;
+    failedLoginCount: number;
+    lockedUntil: Date;
+    timezone: string;
+    language: string;
+    createdBy: string;
+    createdAt: Date;
+    updatedAt: Date;
+    tenant: Tenant;
+    userGroup: UserGroup;
+}

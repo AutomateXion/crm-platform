@@ -1,0 +1,56 @@
+import React from 'react';
+import { Modal } from 'antd';
+import QuotationPDF from './QuotationPDF';
+import InvoicePDF from './InvoicePDF';
+import DeliveryNotePDF from './DeliveryNotePDF';
+import PurchaseOrderPDF from './PurchaseOrderPDF';
+import PaymentVoucherPDF from './PaymentVoucherPDF';
+import GRNPDF from './GRNPDF';
+import PurchaseInvoicePDF from './PurchaseInvoicePDF';
+import ReceiptPDF from './ReceiptPDF';
+
+interface PDFModalProps {
+  open: boolean;
+  onClose: () => void;
+  docType: 'quotation' | 'invoice' | 'delivery-note' | 'purchase-order' | 'payment-voucher' | 'receipt' | 'grn' | 'purchase-invoice';
+  data: any;
+  companyInfo?: any;
+}
+
+export default function PDFModal({ open, onClose, docType, data, companyInfo }: PDFModalProps) {
+  const titles: Record<string, string> = {
+    'quotation': `Quotation — ${data?.quotationNumber || ''}`,
+    'invoice': `Invoice — ${data?.invoiceNumber || ''}`,
+    'delivery-note': `Delivery Note — ${data?.dnNumber || ''}`,
+    'purchase-order': `Purchase Order — ${data?.poNumber || ''}`,
+    'payment-voucher': `Payment Voucher — ${data?.voucherNumber || ''}`,
+    'receipt': `Receipt — ${data?.receiptNumber || ''}`,
+  };
+
+  const renderPDF = () => {
+    switch (docType) {
+      case 'quotation': return <QuotationPDF data={data} companyInfo={companyInfo} />;
+      case 'invoice': return <InvoicePDF data={data} companyInfo={companyInfo} />;
+      case 'delivery-note': return <DeliveryNotePDF data={data} companyInfo={companyInfo} />;
+      case 'purchase-order': return <PurchaseOrderPDF data={data} companyInfo={companyInfo} />;
+      case 'payment-voucher': return <PaymentVoucherPDF data={data} companyInfo={companyInfo} />;
+      case 'receipt': return <ReceiptPDF data={data} companyInfo={companyInfo} />;
+      case 'grn': return <GRNPDF data={data} />;
+      case 'purchase-invoice': return <PurchaseInvoicePDF data={data} />;
+      default: return null;
+    }
+  };
+
+  return (
+    <Modal
+      title={titles[docType]}
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      width={900}
+      style={{ top: 20 }}
+    >
+      {data && renderPDF()}
+    </Modal>
+  );
+}
