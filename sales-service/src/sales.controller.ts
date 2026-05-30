@@ -653,13 +653,13 @@ export class SalesController {
   }
 
   // ── Fixed Assets ─────────────────────────────────────────────
-  @Get('assets')
-  getAssets(@Request() req: any, @Query() q: any) {
-    return this.svc.getAssets(req.user.tenantId, +q.page||1, +q.limit||20, q.search, q.status, q.category);
-  }
   @Get('assets/stats')
   getAssetStats(@Request() req: any) {
     return this.svc.getAssetStats(req.user.tenantId);
+  }
+  @Get('assets')
+  getAssets(@Request() req: any, @Query() q: any) {
+    return this.svc.getAssets(req.user.tenantId, +q.page||1, +q.limit||20, q.search, q.status, q.category);
   }
   @Get('assets/:id')
   getAsset(@Request() req: any, @Param('id') id: string) {

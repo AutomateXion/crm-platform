@@ -30,6 +30,8 @@ export default function PurchaseOrdersPage() {
   const [vatRates, setVatRates] = useState<any[]>([]);
   const [lineItems, setLineItems] = useState<any[]>([]);
   const [form] = Form.useForm();
+  const [isAssetPurchase, setIsAssetPurchase] = useState(false);
+  const [brands, setBrands] = useState<string[]>([]);
   const navigate = useNavigate();
   const load = useCallback(async () => {
     setLoading(true);
