@@ -48,8 +48,9 @@ export default function ProductSelect({ value, onChange, onProductSelect, placeh
       const r = await productsApi.create({
         ...values,
         productCode: code,
-        isInventoryItem: values.isInventoryItem ?? false,
-        trackStock: values.trackStock ?? false,
+        isInventoryItem: values.productType === 'STOCK',
+        trackStock: values.productType === 'STOCK',
+        productType: values.productType || 'STOCK',
         currencyCode: 'OMR',
       });
       message.success(`"${values.productName}" created`);
@@ -98,7 +99,7 @@ export default function ProductSelect({ value, onChange, onProductSelect, placeh
           <Option key={p.productId} value={p.productId}>
             <Space>
               <Tag color={p.isInventoryItem ? 'blue' : 'purple'} style={{ fontSize: 10 }}>
-                {p.isInventoryItem ? 'ITEM' : 'SVC'}
+                {p.productType || (p.isInventoryItem ? 'STOCK' : 'SERVICE')}
               </Tag>
               <span>{p.productName}</span>
               {p.unitPrice && <span style={{ color: '#52c41a', fontSize: 11 }}>OMR {Number(p.unitPrice).toFixed(3)}</span>}
@@ -125,7 +126,15 @@ export default function ProductSelect({ value, onChange, onProductSelect, placeh
           <Form.Item name="unitPrice" label="Unit Price (OMR)">
             <InputNumber style={{ width: '100%' }} min={0} step={0.001} precision={3} placeholder="0.000" />
           </Form.Item>
-          <Form.Item name="isInventoryItem" label="Item Type" valuePropName="checked">
+          <Form.Item name="productType" label="Product Type" initialValue="STOCK">
+            <Select>
+              <Select.Option value="STOCK">📦 Stock Item</Select.Option>
+              <Select.Option value="CONSUMABLE">🔧 Consumable</Select.Option>
+              <Select.Option value="FIXED_ASSET">🏭 Fixed Asset</Select.Option>
+              <Select.Option value="SERVICE">⚙️ Service</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="isInventoryItem" label="" valuePropName="checked" hidden>
             <Switch checkedChildren="Inventory Item" unCheckedChildren="Service" />
           </Form.Item>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>

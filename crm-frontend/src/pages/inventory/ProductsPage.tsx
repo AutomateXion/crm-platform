@@ -14,6 +14,7 @@ import MasterSelect from '../../components/common/MasterSelect';
 import AutoCode from '../../components/common/AutoCode';
 import BarcodeQR from '../../components/common/BarcodeQR';
 import salesApi from '../../services/salesApi';
+import COASelect from '../../components/common/COASelect';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -32,6 +33,7 @@ export default function ProductsPage() {
   const [warehouseStocks, setWarehouseStocks] = useState<any[]>([{ warehouseId: '', locationId: '', quantity: 0 }]);
   const [form] = Form.useForm();
   const [isInventory, setIsInventory] = useState(true);
+  const [productType, setProductType] = useState('STOCK');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,7 +53,7 @@ export default function ProductsPage() {
     setEditRecord(null); form.resetFields(); setIsInventory(true);
     setWarehouseStocks([{ warehouseId: '', locationId: '', quantity: 0 }]);
     form.setFieldsValue({
-      isInventoryItem: true, trackStock: true, currencyCode: 'OMR',
+      isInventoryItem: true, trackStock: true, currencyCode: 'OMR', productType: 'STOCK',
       unitOfMeasure: 'PCS', taxCategory: 'STANDARD', weightUnit: 'KG',
       dimensionUnit: 'CM', openingStockDate: new Date().toISOString().slice(0, 10),
     });
@@ -59,7 +61,7 @@ export default function ProductsPage() {
   };
 
   const openEdit = async (r: any) => {
-    setEditRecord(r); setIsInventory(r.isInventoryItem);
+    setEditRecord(r); setIsInventory(r.isInventoryItem); setProductType(r.productType || 'STOCK');
     form.setFieldsValue({
       ...r,
       openingStockDate: r.openingStockDate?.slice(0, 10),
@@ -82,8 +84,10 @@ export default function ProductsPage() {
 
   const summaryCards = [
     { title: 'Total Products', value: total, color: '#1890ff', icon: <ShoppingOutlined /> },
-    { title: 'Inventory Items', value: products.filter(p => p.isInventoryItem).length, color: '#52c41a', icon: <InboxOutlined /> },
-    { title: 'Service Items', value: products.filter(p => !p.isInventoryItem).length, color: '#722ed1', icon: <ShoppingOutlined /> },
+    { title: 'Stock Items', value: products.filter(p => p.productType==='STOCK'||(!p.productType&&p.isInventoryItem)).length, color: '#52c41a', icon: <InboxOutlined /> },
+    { title: 'Consumables', value: products.filter(p => p.productType==='CONSUMABLE').length, color: '#fa8c16', icon: <ShoppingOutlined /> },
+    { title: 'Fixed Assets', value: products.filter(p => p.productType==='FIXED_ASSET').length, color: '#1890ff', icon: <ShoppingOutlined /> },
+    { title: 'Services', value: products.filter(p => p.productType==='SERVICE'||(!p.productType&&!p.isInventoryItem)).length, color: '#722ed1', icon: <ShoppingOutlined /> },
     { title: 'Low Stock', value: products.filter(p => p.isInventoryItem && p.trackStock && Number(p.stockQuantity || 0) <= Number(p.minStockQty || 5)).length, color: '#ff4d4f', icon: <WarningOutlined /> },
   ];
 
@@ -111,7 +115,11 @@ export default function ProductsPage() {
       const min = Number(r.minStockQty || 0);
       return <Tag color={qty <= 0 ? 'red' : qty <= min ? 'orange' : 'green'}>{qty.toFixed(0)} {r.unitOfMeasure}</Tag>;
     }},
-    { title: 'Type', dataIndex: 'isInventoryItem', render: (v: boolean) => <Tag color={v ? 'blue' : 'purple'}>{v ? 'Inventory' : 'Service'}</Tag> },
+    { title: 'Type', dataIndex: 'productType', render: (v: string, r: any) => {
+      const t = v || (r.isInventoryItem ? 'STOCK' : 'SERVICE');
+      const colors: Record<string,string> = { STOCK:'blue', CONSUMABLE:'orange', FIXED_ASSET:'green', SERVICE:'purple' };
+      return <Tag color={colors[t]||'default'}>{t.replace('_',' ')}</Tag>;
+    }},
     { title: 'Label', key: 'label', width: 60, render: (_: any, r: any) => <BarcodeQR value={r.productCode} productName={r.productName} productCode={r.productCode} price={r.unitPrice} /> },
     {
       title: '', key: 'actions', render: (_: any, r: any) => (
@@ -134,7 +142,27 @@ export default function ProductsPage() {
             <Col span={8}><Form.Item name="productCode" label="Product Code" rules={[{ required: true }]}><AutoCode prefix="PROD" /></Form.Item></Col>
             <Col span={16}><Form.Item name="productName" label="Product Name" rules={[{ required: true }]}><Input /></Form.Item></Col>
           </Row>
-          <Form.Item name="description" label="Description"><Input.TextArea rows={2} /></Form.Item>
+          <Row gutter={12}>
+            <Col span={8}>
+              <Form.Item name="productType" label="Product Type" rules={[{required:true}]}>
+                <Select onChange={v => {
+                  setProductType(v);
+                  if (v==='STOCK') { form.setFieldsValue({isInventoryItem:true, trackStock:true}); setIsInventory(true); }
+                  else if (v==='CONSUMABLE') { form.setFieldsValue({isInventoryItem:false, trackStock:false}); setIsInventory(false); }
+                  else if (v==='FIXED_ASSET') { form.setFieldsValue({isInventoryItem:false, trackStock:false}); setIsInventory(false); }
+                  else if (v==='SERVICE') { form.setFieldsValue({isInventoryItem:false, trackStock:false}); setIsInventory(false); }
+                }}>
+                  <Option value="STOCK">📦 Stock Item</Option>
+                  <Option value="CONSUMABLE">🔧 Consumable</Option>
+                  <Option value="FIXED_ASSET">🏭 Fixed Asset</Option>
+                  <Option value="SERVICE">⚙️ Service</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={16}>
+              <Form.Item name="description" label="Description"><Input.TextArea rows={2} /></Form.Item>
+            </Col>
+          </Row>
           <Row gutter={12}>
             <Col span={8}><Form.Item name="partNumber" label="Part Number"><Input placeholder="Manufacturer part #" /></Form.Item></Col>
             <Col span={8}><Form.Item name="designNumber" label="Design Number"><Input placeholder="Design/Drawing #" /></Form.Item></Col>
@@ -154,6 +182,40 @@ export default function ProductsPage() {
       ),
     },
     {
+      key: 'type_details', label: productType === 'FIXED_ASSET' ? '🏭 Asset Details' : productType === 'CONSUMABLE' ? '🔧 Consumable' : null,
+      style: { display: (productType === 'FIXED_ASSET' || productType === 'CONSUMABLE') ? 'block' : 'none' },
+      children: (
+        <>
+          {productType === 'FIXED_ASSET' && (
+            <Row gutter={12}>
+              <Col span={8}><Form.Item name="assetCategory" label="Asset Category">
+                <Select placeholder="Select category...">
+                  {['IT Equipment','Office Furniture','Vehicles','Machinery','Buildings','Land','Electrical Equipment','Security Systems','HVAC','Other'].map(c=><Option key={c} value={c}>{c}</Option>)}
+                </Select>
+              </Form.Item></Col>
+              <Col span={8}><Form.Item name="usefulLifeYears" label="Useful Life (Years)"><InputNumber style={{width:'100%'}} min={1} max={100} /></Form.Item></Col>
+              <Col span={8}><Form.Item name="depreciationMethod" label="Depreciation Method">
+                <Select defaultValue="STRAIGHT_LINE">
+                  <Option value="STRAIGHT_LINE">Straight Line</Option>
+                  <Option value="DECLINING_BALANCE">Declining Balance</Option>
+                  <Option value="UNITS_OF_PRODUCTION">Units of Production</Option>
+                </Select>
+              </Form.Item></Col>
+              <Col span={8}><Form.Item name="salvageValue" label="Salvage Value (OMR)"><InputNumber style={{width:'100%'}} min={0} step={0.001} precision={3} /></Form.Item></Col>
+              <Col span={8}><Form.Item name="assetAccount" label="Asset COA Account"><COASelect accountTypes={["ASSET"]} placeholder="e.g. 1210 Property & Equipment" /></Form.Item></Col>
+              <Col span={8}><Form.Item name="expenseAccount" label="Depreciation Expense Account"><COASelect accountTypes={["EXPENSE"]} placeholder="e.g. 6700 Depreciation Expense" /></Form.Item></Col>
+            </Row>
+          )}
+          {productType === 'CONSUMABLE' && (
+            <Row gutter={12}>
+              <Col span={8}><Form.Item name="minConsumableQty" label="Min Stock Alert Qty"><InputNumber style={{width:'100%'}} min={0} /></Form.Item></Col>
+              <Col span={8}><Form.Item name="expenseAccount" label="Expense Account"><COASelect accountTypes={["EXPENSE"]} placeholder="e.g. 6600 Office Supplies" /></Form.Item></Col>
+            </Row>
+          )}
+        </>
+      ),
+    },
+    {
       key: 'pricing', label: 'Pricing & UOM',
       children: (
         <>
@@ -164,7 +226,9 @@ export default function ProductsPage() {
           </Row>
           <Row gutter={12}>
             <Col span={8}><Form.Item name="unitOfMeasure" label="Primary UOM"><MasterSelect categoryCode="uom" useLabel={false} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="revenueAccount" label="Revenue Account"><MasterSelect categoryCode="revenue_accounts" useLabel={false} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="revenueAccount" label="Revenue Account">
+                  <COASelect accountTypes={['REVENUE']} placeholder="e.g. 4100 Sales Revenue" />
+                </Form.Item></Col>
           </Row>
           <Divider>Alternative Unit of Measure</Divider>
           <Alert type="info" style={{ marginBottom: 12 }} message="Define an alternative UOM (e.g. 1 Box = 12 Pcs). Leave empty if not needed." showIcon />

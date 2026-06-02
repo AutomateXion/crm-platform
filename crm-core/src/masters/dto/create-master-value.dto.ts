@@ -2,6 +2,7 @@ import {
   IsString, IsOptional, IsBoolean, IsInt,
   IsHexColor, IsUUID, MaxLength, Matches,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateMasterValueDto {
@@ -29,7 +30,7 @@ export class CreateMasterValueDto {
   @IsOptional() @IsString() iconCode?: string;
 
   @ApiPropertyOptional({ default: false })
-  @IsOptional() @IsBoolean() isDefault?: boolean;
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === "true") isDefault?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional() @IsUUID() parentValueId?: string;
@@ -49,7 +50,7 @@ export class UpdateMasterValueDto {
   @IsOptional() @IsString() iconCode?: string;
   @IsOptional() @IsBoolean() isDefault?: boolean;
   @IsOptional() @IsInt() sortOrder?: number;
-  @IsOptional() @IsBoolean() isActive?: boolean;
+  @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === "true") isActive?: boolean;
   @IsOptional() metadata?: Record<string, any>;
 }
 

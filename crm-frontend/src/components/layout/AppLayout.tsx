@@ -3,7 +3,7 @@ import { Layout, Menu, Avatar, Dropdown, Badge, Typography, Space, Button, Toolt
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  DashboardOutlined, TeamOutlined, SafetyOutlined, DatabaseOutlined,
+  DashboardOutlined, TeamOutlined, SafetyOutlined, SafetyCertificateOutlined, DatabaseOutlined,
   MailOutlined, SettingOutlined, FileTextOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
   UserOutlined, LogoutOutlined, KeyOutlined, BellOutlined, GlobalOutlined,
   FunnelPlotOutlined, RiseOutlined, CustomerServiceOutlined,
@@ -49,6 +49,7 @@ const NAV_ITEMS = [
       { key: '/finance/returns',           icon: <RollbackOutlined />,    label: 'Sales Returns' },
       { key: '/finance/exchange-rates',    icon: <SwapOutlined />,        label: 'Exchange Rates' },
       { key: '/finance/chart-of-accounts', icon: <BankOutlined />,        label: 'Chart of Accounts' },
+      { key: '/einvoice', icon: <SafetyCertificateOutlined />, label: '🧾 E-Invoicing (Fawtara)' },
       { key: '/finance/journal-vouchers',  icon: <EditOutlined />,        label: 'Journal Vouchers' },
       {
         key: 'financial-reports',
@@ -107,7 +108,8 @@ const NAV_ITEMS = [
   {
     key: 'ext', icon: <CustomerServiceOutlined />, label: 'Extended',
     children: [
-      { key: '/assets/fixed', icon: <BankOutlined />, label: '🏭 Fixed Assets' },
+      { key: '/assets/fixed',        icon: <BankOutlined />,  label: '🏭 Fixed Assets' },
+      { key: '/assets/consumables',   icon: <BankOutlined />,  label: '🔧 Consumables' },
       { key: '/support',    icon: <CustomerServiceOutlined />,   label: 'Support Tickets' },
       { key: '/marketing',  icon: <NotificationOutlined />,      label: 'Marketing' },
       { key: 'reports-group', icon: <BarChartOutlined />, label: 'Reports', children: [

@@ -780,10 +780,52 @@ export class SalesService {
         this.grnItemRepo.create({ ...item, grnId: saved.grnId, lineNumber: idx + 1 })
       );
       await this.grnItemRepo.save(lineItems);
-      if (dto.isInventory) {
-        for (const item of items) {
-          if (item.productId) {
-            await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'IN', number, userId);
+      for (const item of items) {
+        if (!item.productId) continue;
+        // Get product type
+        const productResult = await this.invoiceRepo.query(
+          `SELECT product_type, product_name, product_code, unit_of_measure FROM products WHERE product_id=$1`,
+          [item.productId]
+        );
+        const productType = productResult[0]?.product_type || 'STOCK';
+
+        if (productType === 'STOCK' && dto.isInventory) {
+          // Regular stock item - update inventory
+          await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'IN', number, userId);
+        } else if (productType === 'CONSUMABLE') {
+          // Consumable - update consumable stock
+          await this.receiveConsumable(tenantId, item.productId, Number(item.quantity), number, userId);
+        } else if (productType === 'FIXED_ASSET' || item.isFixedAsset) {
+          // Fixed Asset - create draft assets (one per unit)
+          const qty = Math.ceil(Number(item.quantity || 1));
+          for (let i = 0; i < qty; i++) {
+            const count = await this.fixedAssetRepo.count({ where: { tenantId } as any });
+            const assetCode = `AST-${String(count + i + 1).padStart(4,'0')}`;
+            const asset = this.fixedAssetRepo.create({
+              tenantId, assetCode,
+              assetName: item.description || productResult[0]?.product_name,
+              category: item.assetCategory || 'Other',
+              brand: item.brand || undefined,
+              model: item.model || undefined,
+              serialNumber: qty > 1 ? undefined : item.serialNumber,
+              supplierName: saved.supplierName,
+              purchaseDate: saved.grnDate || new Date().toISOString().slice(0,10),
+              purchaseCost: Number(item.unitPrice || 0),
+              currentBookValue: Number(item.unitPrice || 0),
+              usefulLifeYears: 5,
+              depreciationMethod: 'STRAIGHT_LINE',
+              status: 'ACTIVE',
+              invoiceNumber: number,
+              createdBy: userId,
+            } as any);
+            await this.fixedAssetRepo.save(asset);
+          }
+          // Mark PO item assets_created
+          if (item.poItemId) {
+            await this.invoiceRepo.query(
+              `UPDATE purchase_order_items SET assets_created = COALESCE(assets_created,0) + $1 WHERE item_id = $2`,
+              [qty, item.poItemId]
+            );
           }
         }
       }
@@ -2385,6 +2427,155 @@ export class SalesService {
     };
   }
 
+  // ── Consumables ──────────────────────────────────────────────
+  async getConsumableStock(tenantId: string) {
+    const sql = `
+      SELECT cs.*, p.product_name, p.product_code, p.unit_of_measure, p.brand, p.category,
+        CASE WHEN cs.qty_on_hand <= cs.min_qty THEN true ELSE false END as is_low_stock
+      FROM consumable_stock cs
+      JOIN products p ON p.product_id = cs.product_id
+      WHERE cs.tenant_id = $1
+      ORDER BY p.product_name`;
+    return this.invoiceRepo.query(sql, [tenantId]);
+  }
+
+  async getConsumableTransactions(tenantId: string, productId?: string) {
+    let sql = `
+      SELECT ct.*, p.product_name, p.product_code, p.unit_of_measure
+      FROM consumable_transactions ct
+      JOIN products p ON p.product_id = ct.product_id
+      WHERE ct.tenant_id = $1`;
+    const params: any[] = [tenantId];
+    if (productId) { sql += ` AND ct.product_id = $2`; params.push(productId); }
+    sql += ` ORDER BY ct.created_at DESC LIMIT 200`;
+    return this.invoiceRepo.query(sql, params);
+  }
+
+  async issueConsumable(tenantId: string, dto: any, userId: string) {
+    // Get current stock
+    const stockResult = await this.invoiceRepo.query(
+      `SELECT * FROM consumable_stock WHERE tenant_id=$1 AND product_id=$2`,
+      [tenantId, dto.productId]
+    );
+    if (!stockResult.length) throw new Error('Product not found in consumable stock');
+    const stock = stockResult[0];
+    const newQty = Number(stock.qty_on_hand) - Number(dto.quantity);
+    if (newQty < 0) throw new Error(`Insufficient stock. Available: ${stock.qty_on_hand}`);
+
+    // Update stock
+    await this.invoiceRepo.query(
+      `UPDATE consumable_stock SET qty_on_hand=$1, last_issued_date=$2, updated_at=NOW() WHERE tenant_id=$3 AND product_id=$4`,
+      [newQty, new Date().toISOString().slice(0,10), tenantId, dto.productId]
+    );
+
+    // Record transaction
+    await this.invoiceRepo.query(
+      `INSERT INTO consumable_transactions (tenant_id, product_id, transaction_type, quantity, balance_qty, department, issued_to_id, issued_to_name, reason, notes, created_by)
+       VALUES ($1,$2,'ISSUE',$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [tenantId, dto.productId, dto.quantity, newQty, dto.department||null, dto.issuedToId||null, dto.issuedToName||null, dto.reason||null, dto.notes||null, userId]
+    );
+
+    return { success: true, remainingQty: newQty };
+  }
+
+  async receiveConsumable(tenantId: string, productId: string, quantity: number, referenceNo: string, userId: string) {
+    // Check if stock record exists
+    const existing = await this.invoiceRepo.query(
+      `SELECT * FROM consumable_stock WHERE tenant_id=$1 AND product_id=$2`,
+      [tenantId, productId]
+    );
+
+    if (existing.length) {
+      const newQty = Number(existing[0].qty_on_hand) + Number(quantity);
+      await this.invoiceRepo.query(
+        `UPDATE consumable_stock SET qty_on_hand=$1, last_received_date=$2, updated_at=NOW() WHERE tenant_id=$3 AND product_id=$4`,
+        [newQty, new Date().toISOString().slice(0,10), tenantId, productId]
+      );
+      await this.invoiceRepo.query(
+        `INSERT INTO consumable_transactions (tenant_id, product_id, transaction_type, quantity, balance_qty, reference_no, created_by)
+         VALUES ($1,$2,'RECEIPT',$3,$4,$5,$6)`,
+        [tenantId, productId, quantity, newQty, referenceNo, userId]
+      );
+    } else {
+      // Create new stock record
+      const productResult = await this.invoiceRepo.query(
+        `SELECT * FROM products WHERE product_id=$1`, [productId]
+      );
+      if (productResult.length) {
+        await this.invoiceRepo.query(
+          `INSERT INTO consumable_stock (tenant_id, product_id, product_name, product_code, qty_on_hand, unit_of_measure, last_received_date)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [tenantId, productId, productResult[0].product_name, productResult[0].product_code, quantity, productResult[0].unit_of_measure, new Date().toISOString().slice(0,10)]
+        );
+        await this.invoiceRepo.query(
+          `INSERT INTO consumable_transactions (tenant_id, product_id, transaction_type, quantity, balance_qty, reference_no, created_by)
+           VALUES ($1,$2,'RECEIPT',$3,$4,$5,$6)`,
+          [tenantId, productId, quantity, quantity, referenceNo, userId]
+        );
+      }
+    }
+    return { success: true };
+  }
+
+  async getConsumableStats(tenantId: string) {
+    const sql = `
+      SELECT 
+        COUNT(*) as total_items,
+        SUM(qty_on_hand) as total_qty,
+        COUNT(CASE WHEN qty_on_hand <= min_qty THEN 1 END) as low_stock_count,
+        COUNT(CASE WHEN qty_on_hand = 0 THEN 1 END) as out_of_stock_count
+      FROM consumable_stock WHERE tenant_id=$1`;
+    const result = await this.invoiceRepo.query(sql, [tenantId]);
+    return result[0];
+  }
+
+  // ── PO Asset Items ───────────────────────────────────────────
+  async getPOAssetItems(tenantId: string) {
+    const sql = `
+      SELECT 
+        poi.item_id as id,
+        poi.description,
+        poi.brand,
+        poi.model,
+        poi.serial_number as "serialNumber",
+        poi.asset_category as "assetCategory",
+        poi.warranty_months as "warrantyMonths",
+        poi.unit_price as "unitPrice",
+        CEIL(poi.quantity) as quantity,
+        COALESCE(poi.assets_created, 0) as "assetsCreated",
+        CEIL(poi.quantity) - COALESCE(poi.assets_created, 0) as "remaining",
+        po.supplier_name as "supplierName",
+        po.po_number as "poNumber",
+        po.po_date as "poDate",
+        CASE WHEN poi.warranty_months IS NOT NULL 
+          THEN (po.po_date::date + (poi.warranty_months || ' months')::interval)::date
+          ELSE NULL 
+        END as "warrantyExpiry"
+      FROM purchase_order_items poi
+      JOIN purchase_orders po ON po.po_id = poi.po_id
+      WHERE po.tenant_id = $1 
+        AND po.status IN ('RECEIVED','PARTIALLY_RECEIVED','CONFIRMED')
+        AND CEIL(poi.quantity) > COALESCE(poi.assets_created, 0)
+      ORDER BY po.po_date DESC, poi.description
+    `;
+    const items = await this.invoiceRepo.query(sql, [tenantId]);
+    // Expand items by remaining quantity so each unit shows separately
+    const expanded: any[] = [];
+    for (const item of items) {
+      const remaining = Number(item.remaining || 1);
+      for (let i = 0; i < remaining; i++) {
+        expanded.push({
+          ...item,
+          id: `${item.id}-${i}`,
+          baseId: item.id,
+          unitIndex: i + 1,
+          displayName: remaining > 1 ? `${item.description} (Unit ${i + 1} of ${Number(item.quantity)})` : item.description,
+        });
+      }
+    }
+    return expanded;
+  }
+
   // ── Asset Brands ─────────────────────────────────────────────
   async getBrands(tenantId: string, category?: string) {
     let sql = `SELECT * FROM asset_brands WHERE tenant_id=$1 AND is_active=true`;
@@ -2471,13 +2662,21 @@ export class SalesService {
     const depreciableAmount = purchaseCost - salvageValue;
     const annualDepreciation = usefulLife > 0 ? depreciableAmount / usefulLife : 0;
     const depreciationRate = purchaseCost > 0 ? (annualDepreciation / purchaseCost) * 100 : 0;
+    const { poItemBaseId, ...assetDto } = dto;
     const asset = this.fixedAssetRepo.create({
-      ...dto, tenantId, assetCode, createdBy: userId,
+      ...assetDto, tenantId, assetCode, createdBy: userId,
       currentBookValue: purchaseCost,
       depreciationRate,
       accumulatedDepreciation: 0,
     } as any);
     const saved = await this.fixedAssetRepo.save(asset) as any;
+    // Increment assets_created counter on PO item if created from PO
+    if (poItemBaseId) {
+      await this.invoiceRepo.query(
+        `UPDATE purchase_order_items SET assets_created = COALESCE(assets_created, 0) + 1 WHERE item_id = $1`,
+        [poItemBaseId]
+      );
+    }
     // Auto journal entry: Dr Asset Account / Cr AP or Bank
     if (purchaseCost > 0 && dto.coaAssetAccount) {
       const creditAccount = dto.supplierName ? '2110' : '1120'; // AP or Bank

@@ -23,6 +23,8 @@ import {
 } from './sales.entities';
 import { SalesController } from './sales.controller';
 import { SalesService } from './sales.service';
+import { EInvoiceService } from './einvoice.service';
+import { EInvoiceController } from './einvoice.controller';
 import { JwtStrategy } from './auth.guard';
 
 @Module({
@@ -79,7 +81,7 @@ import { JwtStrategy } from './auth.guard';
       secret: process.env.JWT_SECRET || 'crm_jwt_super_secret_2024_change_in_production',
     }),
   ],
-  controllers: [SalesController],
-  providers: [SalesService, JwtStrategy],
+  controllers: [SalesController, EInvoiceController],
+  providers: [SalesService, EInvoiceService, JwtStrategy],
 })
 export class AppModule {}

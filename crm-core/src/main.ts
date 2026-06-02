@@ -30,7 +30,7 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,           // strip unknown properties
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false,
       transform: true,           // auto-transform to DTO types
       transformOptions: {
         enableImplicitConversion: true,

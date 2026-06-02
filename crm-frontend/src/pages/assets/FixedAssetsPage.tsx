@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, EnvironmentOutlined, ToolOu
 import axios from 'axios';
 import api from '../../services/api';
 import dayjs from 'dayjs';
+import COASelect from '../../components/common/COASelect';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -27,16 +28,18 @@ function AssetModal({ open, onClose, onSuccess, editRecord, coaAccounts, users, 
   const [location, setLocation] = useState<any>(null);
   const [brands, setBrands] = useState<string[]>([]);
   const [newBrand, setNewBrand] = useState('');
+  const [poAssets, setPoAssets] = useState<any[]>([]);
 
   useEffect(() => {
     if (open) {
       fetch('/sales-api/sales/asset-brands',{headers:{Authorization:'Bearer '+localStorage.getItem('accessToken')}}).then(r=>r.json()).then(d=>setBrands((d||[]).map((b:any)=>b.brand_name))).catch(()=>{});
+      fetch('/sales-api/sales/po-asset-items',{headers:{Authorization:'Bearer '+localStorage.getItem('accessToken')}}).then(r=>r.json()).then(d=>setPoAssets(Array.isArray(d)?d:[])).catch(()=>{});
       if (editRecord) {
         form.setFieldsValue({ ...editRecord, purchaseDate: editRecord.purchaseDate ? dayjs(editRecord.purchaseDate) : null });
         if (editRecord.locationLat) setLocation({ lat: editRecord.locationLat, lng: editRecord.locationLng });
       } else {
         form.resetFields();
-        form.setFieldsValue({ status: 'ACTIVE', condition: 'GOOD', depreciationMethod: 'STRAIGHT_LINE', usefulLifeYears: 5, salvageValue: 0 });
+        form.setFieldsValue({ status: 'ACTIVE', condition: 'GOOD', depreciationMethod: 'STRAIGHT_LINE', usefulLifeYears: 5, salvageValue: 0, coaAssetAccount: '1210', coaAccumDeprAccount: '1220', coaDeprExpenseAccount: '6700' });
         setLocation(null);
       }
     }
@@ -66,7 +69,10 @@ function AssetModal({ open, onClose, onSuccess, editRecord, coaAccounts, users, 
         purchaseDate: values.purchaseDate?.format('YYYY-MM-DD') };
       if (editRecord) await sApi.put(`/sales/assets/${editRecord.assetId}`, payload);
       else await sApi.post('/sales/assets', payload);
-      message.success('Asset saved!'); onSuccess();
+      message.success('Asset saved!');
+      // Refresh PO assets dropdown
+      fetch('/sales-api/sales/po-asset-items',{headers:{Authorization:'Bearer '+localStorage.getItem('accessToken')}}).then(r=>r.json()).then(d=>setPoAssets(Array.isArray(d)?d:[])).catch(()=>{});
+      onSuccess();
     } catch (e: any) { message.error(e.response?.data?.message || 'Failed'); }
     finally { setSaving(false); }
   };
@@ -80,6 +86,37 @@ function AssetModal({ open, onClose, onSuccess, editRecord, coaAccounts, users, 
   return (
     <Modal title={editRecord ? 'Edit Fixed Asset' : 'Add Fixed Asset'} open={open} onCancel={onClose} footer={null} width={860} style={{ top: 20 }}>
       <Form form={form} layout="vertical" onFinish={handleSave} style={{ marginTop: 12 }}>
+        {poAssets.length > 0 && (
+          <div style={{background:'#e6f7ff',border:'1px solid #91d5ff',borderRadius:8,padding:'10px 12px',marginBottom:12}}>
+            <div style={{fontSize:12,color:'#1890ff',fontWeight:600,marginBottom:6}}>📦 Auto-fill from Purchase Order</div>
+            <Select style={{width:'100%'}} placeholder="Select purchased item to auto-fill all details..." allowClear showSearch
+              onChange={(v:any) => {
+                const item = poAssets.find((a:any) => String(a.id)===String(v));
+                if (item) {
+                  try {
+                    form.setFieldsValue({
+                      assetName: item.description || undefined,
+                      brand: item.brand || undefined,
+                      model: item.model || undefined,
+                      serialNumber: item.serialNumber || undefined,
+                      supplierName: item.supplierName || undefined,
+                      purchaseCost: item.unitPrice ? Number(item.unitPrice) : undefined,
+                      category: item.assetCategory || undefined,
+                      invoiceNumber: item.poNumber || undefined,
+                      warrantyExpiry: item.warrantyExpiry ? String(item.warrantyExpiry).slice(0,10) : undefined,
+                      purchaseDate: item.poDate ? dayjs(String(item.poDate).slice(0,10)) : undefined,
+                      poItemBaseId: item.baseId || item.id,
+                    });
+                  } catch(e) { console.error('Auto-fill error:', e); }
+                }
+              }}>
+              {poAssets.map((a:any) => {
+                const label = `${a.displayName||a.description}${a.brand?' — '+a.brand:''} | ${a.supplierName} | OMR ${Number(a.unitPrice||0).toFixed(3)}${Number(a.quantity)>1?' ('+a.remaining+' remaining)':''}`;
+                return <Option key={a.id} value={a.id}>{label}</Option>;
+              })}
+            </Select>
+          </div>
+        )}
         <Row gutter={12}>
           <Col span={8}><Form.Item name="assetName" label="Asset Name" rules={[{required:true}]}><Input placeholder="e.g. Dell Laptop" /></Form.Item></Col>
           <Col span={4}><Form.Item name="assetCode" label="Asset Code"><Input placeholder="Auto-generated" /></Form.Item></Col>
@@ -129,20 +166,14 @@ function AssetModal({ open, onClose, onSuccess, editRecord, coaAccounts, users, 
         </Row>
         <Divider>COA Accounts (for Auto Journal)</Divider>
         <Row gutter={12}>
-          <Col span={8}><Form.Item name="coaAssetAccount" label="Asset Account (e.g. 1210)">
-            <Select showSearch optionFilterProp="children" placeholder="Select asset COA..." allowClear>
-              {(coaAccounts||[]).filter((a:any)=>a.accountType==='ASSET').map((a:any)=><Option key={a.accountCode} value={a.accountCode}>{a.accountCode} — {a.accountName}</Option>)}
-            </Select>
+          <Col span={8}><Form.Item name="coaAssetAccount" label="Asset Account">
+            <COASelect accountTypes={['ASSET']} placeholder="Select asset account..." />
           </Form.Item></Col>
           <Col span={8}><Form.Item name="coaAccumDeprAccount" label="Accum. Depreciation Account">
-            <Select showSearch optionFilterProp="children" placeholder="e.g. 1220" allowClear>
-              {(coaAccounts||[]).filter((a:any)=>a.accountType==='ASSET').map((a:any)=><Option key={a.accountCode} value={a.accountCode}>{a.accountCode} — {a.accountName}</Option>)}
-            </Select>
+            <COASelect accountTypes={['ASSET']} placeholder="Select accum. depreciation account..." />
           </Form.Item></Col>
           <Col span={8}><Form.Item name="coaDeprExpenseAccount" label="Depreciation Expense Account">
-            <Select showSearch optionFilterProp="children" placeholder="e.g. 6700" allowClear>
-              {(coaAccounts||[]).filter((a:any)=>a.accountType==='EXPENSE').map((a:any)=><Option key={a.accountCode} value={a.accountCode}>{a.accountCode} — {a.accountName}</Option>)}
-            </Select>
+            <COASelect accountTypes={['EXPENSE']} placeholder="Select depreciation expense account..." />
           </Form.Item></Col>
         </Row>
         <Divider>Location & Assignment</Divider>
@@ -167,6 +198,7 @@ function AssetModal({ open, onClose, onSuccess, editRecord, coaAccounts, users, 
           <Col span={6}><Form.Item name="warrantyExpiry" label="Warranty Expiry"><Input type="date" /></Form.Item></Col>
           <Col span={6}><Form.Item name="insuranceExpiry" label="Insurance Expiry"><Input type="date" /></Form.Item></Col>
         </Row>
+        <Form.Item name="poItemBaseId" hidden><Input /></Form.Item>
         <Form.Item name="notes" label="Notes"><TextArea rows={2} /></Form.Item>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:8 }}>
           <Button onClick={onClose}>Cancel</Button>
@@ -374,7 +406,6 @@ export default function FixedAssetsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [coaAccounts, setCoaAccounts] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [maintModalOpen, setMaintModalOpen] = useState(false);
@@ -399,7 +430,6 @@ export default function FixedAssetsPage() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    sApi.get('/sales/chart-of-accounts').then(r => setCoaAccounts(r.data || [])).catch(()=>{});
     api.get('/users', { params: { limit: 100 } }).then(r => setUsers(r.data.data || r.data || [])).catch(()=>{});
   }, []);
 
@@ -551,7 +581,7 @@ export default function FixedAssetsPage() {
       ]} />
 
       <AssetModal open={modalOpen} onClose={() => setModalOpen(false)} editRecord={editRecord}
-        coaAccounts={coaAccounts} users={users} suppliers={[]}
+        users={users} suppliers={[]}
         onSuccess={() => { setModalOpen(false); load(); }} />
       <MaintenanceModal open={maintModalOpen} onClose={() => setMaintModalOpen(false)} assets={assets} users={users}
         onSuccess={() => { setMaintModalOpen(false); load(); }} />

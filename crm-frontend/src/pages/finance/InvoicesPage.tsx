@@ -6,7 +6,7 @@ import {
   InputNumber, Divider, Switch,
 } from 'antd';
 import {
-  PlusOutlined, SearchOutlined, DeleteOutlined, DollarOutlined, FilePdfOutlined,
+  PlusOutlined, SearchOutlined, DeleteOutlined, DollarOutlined, FilePdfOutlined, FileTextOutlined,
   EditOutlined, ArrowRightOutlined,
 } from '@ant-design/icons';
 import { updateStatus, invoicesApi, receiptsApi, productsApi, deliveryNotesApi, quotationsApi } from '../../services/salesApi';
@@ -196,6 +196,22 @@ export default function InvoicesPage() {
         <Space>
                     {r.status === 'DRAFT' && <Tooltip title="Send Invoice"><Button size="small" type="primary" style={{background:'#1890ff'}} onClick={async () => { await updateStatus.invoice(r.invoiceId, 'SENT'); load(); message.success('Invoice Sent!'); }}>Send</Button></Tooltip>}
           <Tooltip title="View PDF"><Button size="small" icon={<FilePdfOutlined />} onClick={async () => { try { const d = await invoicesApi.getOne(r.invoiceId); setPdfData(d.data); setPdfOpen(true); } catch {} }} /></Tooltip>
+          <Tooltip title="Generate E-Invoice XML (Fawtara)">
+            <Button size="small" icon={<FileTextOutlined />} style={{color:'#722ed1',borderColor:'#722ed1'}}
+              onClick={async () => {
+                try {
+                  const axios = (await import('axios')).default;
+                  const sApi = axios.create({baseURL:'/sales-api'});
+                  const t = localStorage.getItem('accessToken');
+                  const r2 = await sApi.get('/einvoice/invoice/'+r.invoiceId+'/xml', {headers:{Authorization:'Bearer '+t}});
+                  if(r2.data.validation?.valid) {
+                    window.open('/sales-api/einvoice/invoice/'+r.invoiceId+'/download', '_blank');
+                  } else {
+                    alert('Validation errors: ' + r2.data.validation?.errors?.join(', '));
+                  }
+                } catch(e) { alert('Failed to generate XML'); }
+              }} />
+          </Tooltip>
         <Tooltip title="Edit"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
           {['SENT','PARTIALLY_PAID','OVERDUE'].includes(r.status) && (
             <Tooltip title="Record Payment">

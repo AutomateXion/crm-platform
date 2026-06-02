@@ -634,6 +634,33 @@ export class SalesController {
     return this.svc.deleteStockAdjustment(req.user.tenantId, id);
   }
 
+  @Get('po-asset-items')
+  getPOAssetItems(@Request() req: any) {
+    return this.svc.getPOAssetItems(req.user.tenantId);
+  }
+
+  // ── Consumables ──────────────────────────────────────────────
+  @Get('consumables/stock')
+  getConsumableStock(@Request() req: any) {
+    return this.svc.getConsumableStock(req.user.tenantId);
+  }
+  @Get('consumables/stats')
+  getConsumableStats(@Request() req: any) {
+    return this.svc.getConsumableStats(req.user.tenantId);
+  }
+  @Get('consumables/transactions')
+  getConsumableTransactions(@Request() req: any, @Query() q: any) {
+    return this.svc.getConsumableTransactions(req.user.tenantId, q.productId);
+  }
+  @Post('consumables/issue')
+  issueConsumable(@Request() req: any, @Body() dto: any) {
+    return this.svc.issueConsumable(req.user.tenantId, dto, req.user.userId);
+  }
+  @Post('consumables/receive')
+  receiveConsumable(@Request() req: any, @Body() dto: any) {
+    return this.svc.receiveConsumable(req.user.tenantId, dto.productId, dto.quantity, dto.referenceNo, req.user.userId);
+  }
+
   // ── Asset Brands ─────────────────────────────────────────────
   @Get('asset-brands')
   getBrands(@Request() req: any, @Query() q: any) {

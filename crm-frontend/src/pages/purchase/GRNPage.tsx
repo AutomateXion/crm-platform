@@ -163,6 +163,20 @@ export default function GRNPage() {
             <Col span={12}><Form.Item name="receivedBy" label="Received By"><Input /></Form.Item></Col>
             <Col span={12}><Form.Item name="notes" label="Notes"><Input.TextArea rows={2} /></Form.Item></Col>
           </Row>
+          {lineItems.some((item:any) => { const p = products.find((p:any) => p.productId === item.productId); return p?.productType === 'FIXED_ASSET'; }) && (
+            <div style={{background:'#f6ffed',border:'1px solid #b7eb8f',borderRadius:8,padding:'10px 14px',marginBottom:12}}>
+              <span style={{color:'#52c41a',fontWeight:600}}>🏭 Fixed Asset Notice: </span>
+              <span style={{color:'#52c41a'}}>This GRN contains Fixed Asset products. Assets will be automatically created in the Fixed Asset Register upon saving.</span>
+            </div>
+          )}
+          {lineItems.some((item:any) => { const p = products.find((p:any) => p.productId === item.productId); return p?.productType === 'CONSUMABLE'; }) && (
+            <div style={{background:'#fff7e6',border:'1px solid #ffd591',borderRadius:8,padding:'10px 14px',marginBottom:12}}>
+              <span style={{color:'#fa8c16',fontWeight:600}}>🔧 Consumable Notice: </span>
+              <span style={{color:'#fa8c16'}}>Consumable stock will be updated automatically in the Consumables module.</span>
+            </div>
+          )}
+          <Row gutter={12}>
+          </Row>
           <div style={{display:'flex', justifyContent:'flex-end', gap:8}}>
             <Button onClick={() => setModalOpen(false)}>Cancel</Button>
             <Button type="primary" htmlType="submit" loading={saving}>{editRecord ? 'Save' : 'Create GRN'}</Button>

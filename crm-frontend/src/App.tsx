@@ -22,6 +22,8 @@ import ActivitiesPage  from './pages/activities/ActivitiesPage';
 import SupportPage     from './pages/support/SupportPage';
 import MarketingPage   from './pages/marketing/MarketingPage';
 import FinancialReportsPage  from './pages/reports/FinancialReportsPage';
+import ConsumablesPage     from './pages/assets/ConsumablesPage';
+import EInvoicePage        from './pages/einvoice/EInvoicePage';
 import FixedAssetsPage      from './pages/assets/FixedAssetsPage';
 import SalesVsTargetPage   from './pages/reports/SalesVsTargetPage';
 import SalesmanReport        from './pages/reports/SalesmanReport';
@@ -114,6 +116,8 @@ export default function App() {
         <Route path="marketing"   element={<MarketingPage />} />
         <Route path="reports"                    element={<ReportsPage />} />
         <Route path="reports/financial"        element={<FinancialReportsPage />} />
+        <Route path="assets/consumables"  element={<ConsumablesPage />} />
+        <Route path="einvoice"               element={<EInvoicePage />} />
         <Route path="assets/fixed"            element={<FixedAssetsPage />} />
         <Route path="reports/sales-vs-target"  element={<SalesVsTargetPage />} />
         <Route path="reports/salesman"         element={<SalesmanReport />} />
