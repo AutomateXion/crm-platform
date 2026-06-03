@@ -15,6 +15,7 @@ export interface JwtPayload {
     tenantId: string;
     userGroupId: string;
     groupCode: string;
+    isSuperAdmin?: boolean;
     iat?: number;
     exp?: number;
 }

@@ -57,6 +57,10 @@ __decorate([
     __metadata("design:type", Boolean)
 ], User.prototype, "isActive", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'is_super_admin', default: false }),
+    __metadata("design:type", Boolean)
+], User.prototype, "isSuperAdmin", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'is_email_verified', default: false }),
     __metadata("design:type", Boolean)
 ], User.prototype, "isEmailVerified", void 0);

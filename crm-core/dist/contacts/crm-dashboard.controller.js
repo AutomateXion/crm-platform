@@ -44,16 +44,16 @@ let CrmDashboardController = class CrmDashboardController {
             .where('l.tenantId = :tid AND l.leadStatusCode = :s', { tid, s: 'CONVERTED' })
             .getCount();
         const leadsBySource = await this.leadRepo.createQueryBuilder('l')
-            .select('l.leadSource', 'source')
+            .select('l.lead_source_code', 'source')
             .addSelect('COUNT(*)', 'count')
             .where('l.tenantId = :tid', { tid })
-            .groupBy('l.leadSource')
+            .groupBy('l.lead_source_code')
             .getRawMany();
         const leadsByStatus = await this.leadRepo.createQueryBuilder('l')
-            .select('l.leadStatusCode', 'status')
+            .select('l.lead_status_code', 'status')
             .addSelect('COUNT(*)', 'count')
             .where('l.tenantId = :tid', { tid })
-            .groupBy('l.leadStatusCode')
+            .groupBy('l.lead_status_code')
             .getRawMany();
         const totalOpps = await this.oppRepo.count({ where: { tenantId: tid, isActive: true } });
         const wonOpps = await this.oppRepo.createQueryBuilder('o')
@@ -73,11 +73,11 @@ let CrmDashboardController = class CrmDashboardController {
             .getRawOne();
         const wonValue = Number(wonResult?.total || 0);
         const oppsByStage = await this.oppRepo.createQueryBuilder('o')
-            .select('o.stageCode', 'stage')
+            .select('o.stage_code', 'stage')
             .addSelect('COUNT(*)', 'count')
             .addSelect('SUM(o.dealValue)', 'value')
             .where('o.tenantId = :tid AND o.isActive = true', { tid })
-            .groupBy('o.stageCode')
+            .groupBy('o.stage_code')
             .getRawMany();
         const totalClosed = wonOpps + lostOpps;
         const winRate = totalClosed > 0 ? Math.round((wonOpps / totalClosed) * 100) : 0;
@@ -88,11 +88,11 @@ let CrmDashboardController = class CrmDashboardController {
             .where('a.tenantId = :tid AND a.createdAt >= :start', { tid, start: startOfMonth })
             .getCount();
         const topAccounts = await this.oppRepo.createQueryBuilder('o')
-            .select('o.accountName', 'accountName')
+            .select('o.account_name', 'accountName')
             .addSelect('SUM(o.dealValue)', 'totalValue')
             .addSelect('COUNT(*)', 'oppCount')
             .where('o.tenantId = :tid AND o.isActive = true', { tid })
-            .groupBy('o.accountName')
+            .groupBy('o.account_name')
             .orderBy('SUM(o.dealValue)', 'DESC')
             .limit(5)
             .getRawMany();

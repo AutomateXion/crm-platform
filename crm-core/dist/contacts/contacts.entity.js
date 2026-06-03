@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ActivityEntity = exports.OpportunityEntity = exports.LeadEntity = exports.ContactEntity = exports.AccountEntity = void 0;
+exports.CustomerVisitEntity = exports.ActivityEntity = exports.OpportunityEntity = exports.OpportunityItemEntity = exports.LeadEntity = exports.ContactEntity = exports.AccountEntity = void 0;
 const typeorm_1 = require("typeorm");
 let AccountEntity = class AccountEntity {
 };
@@ -67,9 +67,85 @@ __decorate([
     __metadata("design:type", Boolean)
 ], AccountEntity.prototype, "isActive", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'address_line1', nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "addressLine1", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'is_customer', default: true }),
+    __metadata("design:type", Boolean)
+], AccountEntity.prototype, "isCustomer", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'is_supplier', default: false }),
+    __metadata("design:type", Boolean)
+], AccountEntity.prototype, "isSupplier", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "trn", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'credit_limit', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], AccountEntity.prototype, "creditLimit", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'payment_terms', nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "paymentTerms", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'currency_code', default: 'OMR' }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "currencyCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'bank_name', nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "bankName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'bank_account', nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "bankAccount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'bank_iban', nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "bankIban", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'address_line2', nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "addressLine2", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "state", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'zip_code', nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "zipCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'po_box', nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "poBox", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "fax", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'contact_person', nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "contactPerson", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'account_code', nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "accountCode", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'created_by', nullable: true }),
     __metadata("design:type", String)
 ], AccountEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'salesman_id', nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "salesmanId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'salesman_name', nullable: true }),
+    __metadata("design:type", String)
+], AccountEntity.prototype, "salesmanName", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)
@@ -287,6 +363,60 @@ exports.LeadEntity = LeadEntity = __decorate([
     (0, typeorm_2.Entity)('leads')
 ], LeadEntity);
 const typeorm_3 = require("typeorm");
+let OpportunityItemEntity = class OpportunityItemEntity {
+};
+exports.OpportunityItemEntity = OpportunityItemEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'item_id' }),
+    __metadata("design:type", String)
+], OpportunityItemEntity.prototype, "itemId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'opportunity_id' }),
+    __metadata("design:type", String)
+], OpportunityItemEntity.prototype, "opportunityId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'product_id', nullable: true }),
+    __metadata("design:type", String)
+], OpportunityItemEntity.prototype, "productId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'item_code', nullable: true }),
+    __metadata("design:type", String)
+], OpportunityItemEntity.prototype, "itemCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], OpportunityItemEntity.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 18, scale: 3, default: 1 }),
+    __metadata("design:type", Number)
+], OpportunityItemEntity.prototype, "quantity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'unit_price', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], OpportunityItemEntity.prototype, "unitPrice", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'unit_of_measure', default: 'PCS' }),
+    __metadata("design:type", String)
+], OpportunityItemEntity.prototype, "unitOfMeasure", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'discount_pct', type: 'decimal', precision: 5, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], OpportunityItemEntity.prototype, "discountPct", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'line_total', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], OpportunityItemEntity.prototype, "lineTotal", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], OpportunityItemEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'line_number', default: 1 }),
+    __metadata("design:type", Number)
+], OpportunityItemEntity.prototype, "lineNumber", void 0);
+exports.OpportunityItemEntity = OpportunityItemEntity = __decorate([
+    (0, typeorm_1.Entity)('opportunity_items')
+], OpportunityItemEntity);
 let OpportunityEntity = class OpportunityEntity {
 };
 exports.OpportunityEntity = OpportunityEntity;
@@ -387,7 +517,7 @@ __decorate([
     __metadata("design:type", Date)
 ], OpportunityEntity.prototype, "updatedAt", void 0);
 exports.OpportunityEntity = OpportunityEntity = __decorate([
-    (0, typeorm_3.Entity)('opportunities')
+    (0, typeorm_1.Entity)('opportunities')
 ], OpportunityEntity);
 const typeorm_4 = require("typeorm");
 let ActivityEntity = class ActivityEntity {
@@ -488,4 +618,90 @@ __decorate([
 exports.ActivityEntity = ActivityEntity = __decorate([
     (0, typeorm_4.Entity)('activities')
 ], ActivityEntity);
+let CustomerVisitEntity = class CustomerVisitEntity {
+};
+exports.CustomerVisitEntity = CustomerVisitEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'visit_id' }),
+    __metadata("design:type", String)
+], CustomerVisitEntity.prototype, "visitId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tenant_id' }),
+    __metadata("design:type", String)
+], CustomerVisitEntity.prototype, "tenantId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'account_id', nullable: true }),
+    __metadata("design:type", String)
+], CustomerVisitEntity.prototype, "accountId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'account_name', nullable: true }),
+    __metadata("design:type", String)
+], CustomerVisitEntity.prototype, "accountName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'salesman_id', nullable: true }),
+    __metadata("design:type", String)
+], CustomerVisitEntity.prototype, "salesmanId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'salesman_name', nullable: true }),
+    __metadata("design:type", String)
+], CustomerVisitEntity.prototype, "salesmanName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'visit_date', type: 'timestamp', nullable: true }),
+    __metadata("design:type", Date)
+], CustomerVisitEntity.prototype, "visitDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'check_in_lat', type: 'decimal', precision: 10, scale: 7, nullable: true }),
+    __metadata("design:type", Number)
+], CustomerVisitEntity.prototype, "checkInLat", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'check_in_lng', type: 'decimal', precision: 10, scale: 7, nullable: true }),
+    __metadata("design:type", Number)
+], CustomerVisitEntity.prototype, "checkInLng", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'check_in_address', nullable: true }),
+    __metadata("design:type", String)
+], CustomerVisitEntity.prototype, "checkInAddress", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'check_out_time', type: 'timestamp', nullable: true }),
+    __metadata("design:type", Date)
+], CustomerVisitEntity.prototype, "checkOutTime", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'duration_minutes', nullable: true }),
+    __metadata("design:type", Number)
+], CustomerVisitEntity.prototype, "durationMinutes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CustomerVisitEntity.prototype, "purpose", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], CustomerVisitEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'CHECKED_IN' }),
+    __metadata("design:type", String)
+], CustomerVisitEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'jsonb', default: '[]' }),
+    __metadata("design:type", Array)
+], CustomerVisitEntity.prototype, "photos", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CustomerVisitEntity.prototype, "outcome", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'next_action', nullable: true }),
+    __metadata("design:type", String)
+], CustomerVisitEntity.prototype, "nextAction", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
+    __metadata("design:type", Date)
+], CustomerVisitEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
+    __metadata("design:type", Date)
+], CustomerVisitEntity.prototype, "updatedAt", void 0);
+exports.CustomerVisitEntity = CustomerVisitEntity = __decorate([
+    (0, typeorm_1.Entity)('customer_visits')
+], CustomerVisitEntity);
 //# sourceMappingURL=contacts.entity.js.map

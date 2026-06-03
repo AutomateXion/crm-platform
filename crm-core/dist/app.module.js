@@ -16,6 +16,7 @@ const auth_module_1 = require("./auth/auth.module");
 const users_module_1 = require("./users/users.module");
 const permissions_module_1 = require("./permissions/permissions.module");
 const masters_module_1 = require("./masters/masters.module");
+const superadmin_module_1 = require("./superadmin/superadmin.module");
 const tenants_module_1 = require("./tenants/tenants.module");
 const audit_module_1 = require("./audit/audit.module");
 const contacts_module_1 = require("./contacts/contacts.module");
@@ -66,6 +67,7 @@ exports.AppModule = AppModule = __decorate([
             permissions_module_1.PermissionsModule,
             masters_module_1.MastersModule,
             tenants_module_1.TenantsModule,
+            superadmin_module_1.SuperAdminModule,
             audit_module_1.AuditModule,
             contacts_module_1.ContactsInlineModule,
         ],

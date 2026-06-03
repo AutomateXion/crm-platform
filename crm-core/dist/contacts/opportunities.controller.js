@@ -20,8 +20,9 @@ const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
 const contacts_entity_1 = require("./contacts.entity");
 let OpportunitiesController = class OpportunitiesController {
-    constructor(repo) {
+    constructor(repo, itemRepo) {
         this.repo = repo;
+        this.itemRepo = itemRepo;
     }
     async getAll(user, q) {
         const page = parseInt(q.page) || 1;
@@ -90,6 +91,16 @@ let OpportunitiesController = class OpportunitiesController {
         await this.repo.update(id, { isActive: false });
         return { message: "Opportunity deleted" };
     }
+    async getItems(id) {
+        return this.itemRepo.find({ where: { opportunityId: id }, order: { lineNumber: 'ASC' } });
+    }
+    async saveItems(id, body) {
+        await this.itemRepo.delete({ opportunityId: id });
+        const items = (body.items || []).map((item, idx) => this.itemRepo.create({ ...item, opportunityId: id, lineNumber: idx + 1 }));
+        if (items.length)
+            await this.itemRepo.save(items);
+        return this.itemRepo.find({ where: { opportunityId: id }, order: { lineNumber: 'ASC' } });
+    }
 };
 exports.OpportunitiesController = OpportunitiesController;
 __decorate([
@@ -142,10 +153,27 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], OpportunitiesController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Get)(':id/items'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], OpportunitiesController.prototype, "getItems", null);
+__decorate([
+    (0, common_1.Post)(':id/items'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], OpportunitiesController.prototype, "saveItems", null);
 exports.OpportunitiesController = OpportunitiesController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)("opportunities"),
     __param(0, (0, typeorm_1.InjectRepository)(contacts_entity_1.OpportunityEntity)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(contacts_entity_1.OpportunityItemEntity)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository])
 ], OpportunitiesController);
 //# sourceMappingURL=opportunities.controller.js.map

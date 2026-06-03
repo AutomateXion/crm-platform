@@ -31,6 +31,10 @@ let ContactsController = class ContactsController {
             .where('a.tenantId = :tid AND a.isActive = true', { tid: user.tenantId });
         if (q.search)
             qb.andWhere('a.accountName ILIKE :s', { s: `%${q.search}%` });
+        if (q.isSupplier === 'true')
+            qb.andWhere('a.isSupplier = true');
+        if (q.isCustomer === 'true')
+            qb.andWhere('a.isCustomer = true');
         const total = await qb.getCount();
         const data = await qb.skip((page - 1) * limit).take(limit).orderBy('a.accountName', 'ASC').getMany();
         return { data, total, page, limit, totalPages: Math.ceil(total / limit) };

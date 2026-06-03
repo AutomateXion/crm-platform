@@ -55,6 +55,50 @@ __decorate([
     __metadata("design:type", String)
 ], Tenant.prototype, "logoUrl", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'address_line1', nullable: true }),
+    __metadata("design:type", String)
+], Tenant.prototype, "addressLine1", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'address_line2', nullable: true }),
+    __metadata("design:type", String)
+], Tenant.prototype, "addressLine2", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Tenant.prototype, "city", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true, default: 'Oman' }),
+    __metadata("design:type", String)
+], Tenant.prototype, "country", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Tenant.prototype, "phone", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Tenant.prototype, "email", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Tenant.prototype, "website", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Tenant.prototype, "trn", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'po_box', nullable: true }),
+    __metadata("design:type", String)
+], Tenant.prototype, "poBox", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Tenant.prototype, "fax", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'jsonb', nullable: true, default: '{}' }),
+    __metadata("design:type", Object)
+], Tenant.prototype, "settings", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'primary_color', length: 7, default: '#1890ff' }),
     __metadata("design:type", String)
 ], Tenant.prototype, "primaryColor", void 0);

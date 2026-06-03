@@ -125,7 +125,12 @@ let MastersService = class MastersService {
     }
     async getBulkValues(tenantId, categoryCodes) {
         const result = {};
-        for (const code of categoryCodes) {
+        const codes = Array.isArray(categoryCodes)
+            ? categoryCodes
+            : typeof categoryCodes === 'string' && categoryCodes.length
+                ? [categoryCodes]
+                : [];
+        for (const code of codes) {
             try {
                 result[code] = await this.getValues(code, tenantId);
             }

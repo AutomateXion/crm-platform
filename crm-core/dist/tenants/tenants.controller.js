@@ -34,6 +34,27 @@ let TenantsController = class TenantsController {
     async updateModules(user, modules) {
         return this.tenantsService.updateActiveModules(user.tenantId, modules);
     }
+    async getCompanySettings(user) {
+        return this.tenantsService.getTenant(user.tenantId);
+    }
+    async updateCompanySettings(user, dto) {
+        return this.tenantsService.updateTenant(user.tenantId, dto);
+    }
+    async getAccountingConfig(user) {
+        return this.tenantsService.getAccountingConfig(user.tenantId);
+    }
+    async saveAccountingConfig(user, dto) {
+        return this.tenantsService.saveAccountingConfig(user.tenantId, dto);
+    }
+    async getEmailConfig(user) {
+        return this.tenantsService.getEmailConfig(user.tenantId);
+    }
+    async saveEmailConfig(user, dto) {
+        return this.tenantsService.saveEmailConfig(user.tenantId, dto);
+    }
+    async testEmailConfig(user, dto) {
+        return this.tenantsService.testEmailConfig(user.tenantId, dto.to);
+    }
     async provisionTenant(dto) {
         return this.tenantsService.createTenant(dto);
     }
@@ -65,6 +86,59 @@ __decorate([
     __metadata("design:paramtypes", [user_entity_1.User, Array]),
     __metadata("design:returntype", Promise)
 ], TenantsController.prototype, "updateModules", null);
+__decorate([
+    (0, common_1.Get)('company-settings'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [user_entity_1.User]),
+    __metadata("design:returntype", Promise)
+], TenantsController.prototype, "getCompanySettings", null);
+__decorate([
+    (0, common_1.Put)('company-settings'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [user_entity_1.User, Object]),
+    __metadata("design:returntype", Promise)
+], TenantsController.prototype, "updateCompanySettings", null);
+__decorate([
+    (0, common_1.Get)('accounting-config'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [user_entity_1.User]),
+    __metadata("design:returntype", Promise)
+], TenantsController.prototype, "getAccountingConfig", null);
+__decorate([
+    (0, common_1.Post)('accounting-config'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [user_entity_1.User, Object]),
+    __metadata("design:returntype", Promise)
+], TenantsController.prototype, "saveAccountingConfig", null);
+__decorate([
+    (0, common_1.Get)('email-config'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [user_entity_1.User]),
+    __metadata("design:returntype", Promise)
+], TenantsController.prototype, "getEmailConfig", null);
+__decorate([
+    (0, common_1.Post)('email-config'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [user_entity_1.User, Object]),
+    __metadata("design:returntype", Promise)
+], TenantsController.prototype, "saveEmailConfig", null);
+__decorate([
+    (0, common_1.Post)('email-config/test'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [user_entity_1.User, Object]),
+    __metadata("design:returntype", Promise)
+], TenantsController.prototype, "testEmailConfig", null);
 __decorate([
     (0, common_1.Post)('provision'),
     (0, common_1.SetMetadata)('isPublic', true),

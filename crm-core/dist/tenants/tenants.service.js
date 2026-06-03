@@ -84,6 +84,58 @@ let TenantsService = class TenantsService {
     async getAllTenants() {
         return this.tenantRepo.find({ order: { companyName: 'ASC' } });
     }
+    async getEmailConfig(tenantId) {
+        const tenant = await this.getTenant(tenantId);
+        const settings = tenant.settings || {};
+        const emailConfig = settings.emailConfig || {};
+        const { password: _, ...safeConfig } = emailConfig;
+        return safeConfig;
+    }
+    async saveEmailConfig(tenantId, dto) {
+        const tenant = await this.getTenant(tenantId);
+        const settings = tenant.settings || {};
+        const existing = settings.emailConfig || {};
+        const newConfig = { ...existing, ...dto, password: dto.password ? dto.password : existing.password };
+        settings.emailConfig = newConfig;
+        await this.tenantRepo.update({ tenantId }, { settings });
+        const { password: _, ...safeConfig } = newConfig;
+        return { success: true, config: safeConfig };
+    }
+    async testEmailConfig(tenantId, to) {
+        const tenant = await this.getTenant(tenantId);
+        const settings = tenant.settings || {};
+        const cfg = settings.emailConfig;
+        if (!cfg?.host || !cfg?.username || !cfg?.password) {
+            throw new Error('Email not configured. Please save configuration first.');
+        }
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+            host: cfg.host, port: cfg.port || 587, secure: cfg.secure || false,
+            auth: { user: cfg.username, pass: cfg.password },
+        });
+        await transporter.sendMail({
+            from: `"${cfg.fromName || 'CRM System'}" <${cfg.fromEmail || cfg.username}>`,
+            to, subject: 'Test Email from CRM System',
+            html: `<h2>Test Email</h2><p>Your email configuration is working correctly!</p><p>${cfg.signature || ''}</p>`,
+        });
+        return { success: true, message: `Test email sent to ${to}` };
+    }
+    async getAccountingConfig(tenantId) {
+        const tenant = await this.getTenant(tenantId);
+        const settings = tenant.settings || {};
+        return settings.accountingConfig || {
+            accountsReceivable: '1130', salesRevenue: '4100', salesReturns: '4010',
+            vatPayable: '2121', vatReceivable: '1160', accountsPayable: '2110',
+            inventory: '1140', grni: '1141', cogs: '5001', purchaseReturns: '5010', cashBank: '1120',
+        };
+    }
+    async saveAccountingConfig(tenantId, dto) {
+        const tenant = await this.getTenant(tenantId);
+        const settings = tenant.settings || {};
+        settings.accountingConfig = dto;
+        await this.tenantRepo.update({ tenantId }, { settings });
+        return { success: true, config: dto };
+    }
 };
 exports.TenantsService = TenantsService;
 exports.TenantsService = TenantsService = __decorate([

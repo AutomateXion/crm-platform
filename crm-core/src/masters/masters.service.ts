@@ -161,11 +161,16 @@ export class MastersService {
   // Used by modules on page load to fetch all needed master data at once
   async getBulkValues(
     tenantId: string,
-    categoryCodes: string[],
+    categoryCodes: string[] | string | undefined,
   ): Promise<Record<string, MasterValue[]>> {
     const result: Record<string, MasterValue[]> = {};
 
-    for (const code of categoryCodes) {
+    const codes = Array.isArray(categoryCodes)
+      ? categoryCodes
+      : typeof categoryCodes === 'string' && categoryCodes.length
+        ? [categoryCodes]
+        : [];
+    for (const code of codes) {
       try {
         result[code] = await this.getValues(code, tenantId);
       } catch {

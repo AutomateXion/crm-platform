@@ -9,6 +9,17 @@ export declare class Tenant {
     dateFormat: string;
     currencyCode: string;
     logoUrl: string;
+    addressLine1: string;
+    addressLine2: string;
+    city: string;
+    country: string;
+    phone: string;
+    email: string;
+    website: string;
+    trn: string;
+    poBox: string;
+    fax: string;
+    settings: any;
     primaryColor: string;
     language: string;
     isActive: boolean;

@@ -6,12 +6,15 @@ const swagger_1 = require("@nestjs/swagger");
 const app_module_1 = require("./app.module");
 const helmet_1 = require("helmet");
 const compression = require("compression");
+const bodyParser = require("body-parser");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         logger: ['error', 'warn', 'log', 'debug'],
     });
     app.use((0, helmet_1.default)());
     app.use(compression());
+    app.use(bodyParser.json({ limit: '10mb' }));
+    app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
     app.enableCors({
         origin: process.env.FRONTEND_URL || 'http://localhost:5173',
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -20,7 +23,7 @@ async function bootstrap() {
     });
     app.useGlobalPipes(new common_1.ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: true,
+        forbidNonWhitelisted: false,
         transform: true,
         transformOptions: {
             enableImplicitConversion: true,

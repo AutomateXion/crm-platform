@@ -16,5 +16,5 @@ export declare class MastersService {
     updateValue(tenantId: string, valueId: string, dto: UpdateMasterValueDto): Promise<MasterValue>;
     deleteValue(tenantId: string, valueId: string): Promise<void>;
     reorderValues(tenantId: string, dto: ReorderMasterValuesDto): Promise<void>;
-    getBulkValues(tenantId: string, categoryCodes: string[]): Promise<Record<string, MasterValue[]>>;
+    getBulkValues(tenantId: string, categoryCodes: string[] | string | undefined): Promise<Record<string, MasterValue[]>>;
 }

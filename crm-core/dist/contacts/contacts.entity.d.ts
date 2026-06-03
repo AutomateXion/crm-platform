@@ -12,7 +12,26 @@ export declare class AccountEntity {
     locationAddress: string;
     mapsUrl: string;
     isActive: boolean;
+    addressLine1: string;
+    isCustomer: boolean;
+    isSupplier: boolean;
+    trn: string;
+    creditLimit: number;
+    paymentTerms: string;
+    currencyCode: string;
+    bankName: string;
+    bankAccount: string;
+    bankIban: string;
+    addressLine2: string;
+    state: string;
+    zipCode: string;
+    poBox: string;
+    fax: string;
+    contactPerson: string;
+    accountCode: string;
     createdBy: string;
+    salesmanId: string;
+    salesmanName: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -68,6 +87,20 @@ export declare class LeadEntity {
     createdAt: Date;
     updatedAt: Date;
 }
+export declare class OpportunityItemEntity {
+    itemId: string;
+    opportunityId: string;
+    productId: string;
+    itemCode: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    unitOfMeasure: string;
+    discountPct: number;
+    lineTotal: number;
+    notes: string;
+    lineNumber: number;
+}
 export declare class OpportunityEntity {
     opportunityId: string;
     tenantId: string;
@@ -116,6 +149,28 @@ export declare class ActivityEntity {
     isPrivate: boolean;
     createdBy: string;
     createdByName: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+export declare class CustomerVisitEntity {
+    visitId: string;
+    tenantId: string;
+    accountId: string;
+    accountName: string;
+    salesmanId: string;
+    salesmanName: string;
+    visitDate: Date;
+    checkInLat: number;
+    checkInLng: number;
+    checkInAddress: string;
+    checkOutTime: Date;
+    durationMinutes: number;
+    purpose: string;
+    notes: string;
+    status: string;
+    photos: string[];
+    outcome: string;
+    nextAction: string;
     createdAt: Date;
     updatedAt: Date;
 }

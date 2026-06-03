@@ -13,14 +13,22 @@ const contacts_controller_1 = require("./contacts.controller");
 const leads_controller_1 = require("./leads.controller");
 const opportunities_controller_1 = require("./opportunities.controller");
 const activities_controller_1 = require("./activities.controller");
+const crm_dashboard_controller_1 = require("./crm-dashboard.controller");
+const visits_controller_1 = require("./visits.controller");
 const contacts_entity_1 = require("./contacts.entity");
 let ContactsInlineModule = class ContactsInlineModule {
 };
 exports.ContactsInlineModule = ContactsInlineModule;
 exports.ContactsInlineModule = ContactsInlineModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([contacts_entity_1.AccountEntity, contacts_entity_1.ContactEntity, contacts_entity_1.LeadEntity, contacts_entity_1.OpportunityEntity, contacts_entity_1.ActivityEntity])],
-        controllers: [contacts_controller_1.ContactsController, leads_controller_1.LeadsController, opportunities_controller_1.OpportunitiesController, activities_controller_1.ActivitiesController, CrmDashboardController],
+        imports: [typeorm_1.TypeOrmModule.forFeature([
+                contacts_entity_1.AccountEntity, contacts_entity_1.ContactEntity, contacts_entity_1.LeadEntity, contacts_entity_1.OpportunityEntity,
+                contacts_entity_1.ActivityEntity, contacts_entity_1.OpportunityItemEntity, contacts_entity_1.CustomerVisitEntity
+            ])],
+        controllers: [
+            contacts_controller_1.ContactsController, leads_controller_1.LeadsController, opportunities_controller_1.OpportunitiesController,
+            activities_controller_1.ActivitiesController, crm_dashboard_controller_1.CrmDashboardController, visits_controller_1.VisitsController
+        ],
     })
 ], ContactsInlineModule);
 //# sourceMappingURL=contacts.module.js.map

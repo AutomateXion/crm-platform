@@ -1,8 +1,9 @@
 import { Repository } from "typeorm";
-import { OpportunityEntity } from "./contacts.entity";
+import { OpportunityEntity, OpportunityItemEntity } from "./contacts.entity";
 export declare class OpportunitiesController {
     private repo;
-    constructor(repo: Repository<OpportunityEntity>);
+    private itemRepo;
+    constructor(repo: Repository<OpportunityEntity>, itemRepo: Repository<OpportunityItemEntity>);
     getAll(user: any, q: any): Promise<{
         data: OpportunityEntity[];
         total: number;
@@ -17,4 +18,6 @@ export declare class OpportunitiesController {
     remove(user: any, id: string): Promise<{
         message: string;
     }>;
+    getItems(id: string): Promise<OpportunityItemEntity[]>;
+    saveItems(id: string, body: any): Promise<OpportunityItemEntity[]>;
 }

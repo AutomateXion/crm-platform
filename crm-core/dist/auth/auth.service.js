@@ -148,6 +148,7 @@ let AuthService = class AuthService {
             tenantId: user.tenantId,
             userGroupId: user.userGroupId,
             groupCode: user.userGroup?.groupCode,
+            isSuperAdmin: user.isSuperAdmin || false,
         };
         const accessToken = this.jwtService.sign(payload);
         return { accessToken };
@@ -215,6 +216,7 @@ let AuthService = class AuthService {
             tenantId: user.tenantId,
             userGroupId: user.userGroupId,
             groupCode: user.userGroup?.groupCode,
+            isSuperAdmin: user.isSuperAdmin || false,
         };
         const accessToken = this.jwtService.sign(payload);
         const refreshToken = (0, uuid_1.v4)() + '-' + (0, uuid_1.v4)();
@@ -248,6 +250,7 @@ let AuthService = class AuthService {
         });
         if (!user)
             throw new common_1.UnauthorizedException('User not found or inactive');
+        user.isSuperAdmin = user.isSuperAdmin || payload.isSuperAdmin || false;
         return user;
     }
 };

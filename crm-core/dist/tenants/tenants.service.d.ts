@@ -17,4 +17,18 @@ export declare class TenantsService {
         adminUser: User;
     }>;
     getAllTenants(): Promise<Tenant[]>;
+    getEmailConfig(tenantId: string): Promise<any>;
+    saveEmailConfig(tenantId: string, dto: any): Promise<{
+        success: boolean;
+        config: any;
+    }>;
+    testEmailConfig(tenantId: string, to: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    getAccountingConfig(tenantId: string): Promise<any>;
+    saveAccountingConfig(tenantId: string, dto: any): Promise<{
+        success: boolean;
+        config: any;
+    }>;
 }

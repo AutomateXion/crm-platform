@@ -11,6 +11,7 @@ export declare class User {
     avatarUrl: string;
     passwordHash: string;
     isActive: boolean;
+    isSuperAdmin: boolean;
     isEmailVerified: boolean;
     emailVerifyToken: string;
     passwordResetToken: string;
