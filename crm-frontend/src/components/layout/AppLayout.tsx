@@ -130,6 +130,7 @@ const NAV_ITEMS = [
       { key: '/users',             icon: <UserOutlined />,    label: 'Users' },
       { key: '/user-groups',       icon: <TeamOutlined />,    label: 'User Groups' },
       { key: '/admin/import-export', icon: <UploadOutlined />, label: 'Import / Export' },
+      { key: '/superadmin', icon: <SafetyCertificateOutlined />, label: '🛡️ Super Admin' },
       { key: '/admin/company-settings', icon: <ShopOutlined />, label: 'Company Settings' },
       { key: '/admin/accounting-config', icon: <SettingOutlined />, label: 'Accounting Configuration' },
       { key: '/admin/email-config', icon: <MailOutlined />, label: 'Email Configuration' },

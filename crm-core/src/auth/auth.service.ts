@@ -26,6 +26,7 @@ export interface JwtPayload {
   tenantId: string;
   userGroupId: string;
   groupCode: string;
+  isSuperAdmin?: boolean;
   iat?: number;
   exp?: number;
 }
@@ -218,6 +219,7 @@ export class AuthService {
       tenantId: user.tenantId,
       userGroupId: user.userGroupId,
       groupCode: user.userGroup?.groupCode,
+      isSuperAdmin: (user as any).isSuperAdmin || false,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -305,6 +307,7 @@ export class AuthService {
       tenantId: user.tenantId,
       userGroupId: user.userGroupId,
       groupCode: user.userGroup?.groupCode,
+      isSuperAdmin: (user as any).isSuperAdmin || false,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -353,6 +356,7 @@ export class AuthService {
       where: { userId: payload.sub, isActive: true },
     });
     if (!user) throw new UnauthorizedException('User not found or inactive');
+    (user as any).isSuperAdmin = (user as any).isSuperAdmin || payload.isSuperAdmin || false;
     return user;
   }
 }

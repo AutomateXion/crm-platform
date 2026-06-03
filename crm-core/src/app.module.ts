@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { MastersModule } from './masters/masters.module';
+import { SuperAdminModule } from './superadmin/superadmin.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { AuditModule } from './audit/audit.module';
 import { ContactsInlineModule } from './contacts/contacts.module';
@@ -66,6 +67,7 @@ import { ContactsInlineModule } from './contacts/contacts.module';
     PermissionsModule,
     MastersModule,
     TenantsModule,
+    SuperAdminModule,
     AuditModule,
     ContactsInlineModule,
   ],
