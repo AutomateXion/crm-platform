@@ -219,22 +219,26 @@ export class EInvoiceService {
   // ── Generate invoice XML for download ────────────────────
   async generateInvoiceXML(tenantId: string, invoiceId: string) {
     const invoices = await this.invoiceRepo.query(
-      `SELECT i.*, 
+      `SELECT i.invoice_id, i.invoice_number, i.invoice_date, i.due_date,
+        i.customer_name, i.customer_email, i.customer_address, i.customer_trn,
+        i.subtotal, i.vat_amount, i.total_amount, i.status, i.tenant_id,
         json_agg(json_build_object(
           'description', ii.description, 'quantity', ii.quantity,
           'unitPrice', ii.unit_price, 'lineTotal', ii.line_total,
-          'unitOfMeasure', ii.unit_of_measure, 'isTaxable', ii.is_taxable
+          'unitOfMeasure', COALESCE(ii.unit_of_measure, 'PCE'), 'isTaxable', ii.is_taxable
         )) as items
        FROM sales_invoices i
-       LEFT JOIN invoice_items ii ON ii.invoice_id = i.invoice_id
+       LEFT JOIN sales_invoice_items ii ON ii.invoice_id = i.invoice_id
        WHERE i.invoice_id=$1 AND i.tenant_id=$2
-       GROUP BY i.invoice_id`, [invoiceId, tenantId]
+       GROUP BY i.invoice_id, i.invoice_number, i.invoice_date, i.due_date,
+        i.customer_name, i.customer_email, i.customer_address, i.customer_trn,
+        i.subtotal, i.vat_amount, i.total_amount, i.status, i.tenant_id`, [invoiceId, tenantId]
     );
     if (!invoices.length) throw new Error('Invoice not found');
     const invoice = invoices[0];
 
     const settingResult = await this.invoiceRepo.query(
-      `SELECT * FROM tenants WHERE tenant_id=$1`, [tenantId]
+      `SELECT company_name as "companyName", address_line1 as "addressLine1", city, country, phone, email, trn, primary_color as "primaryColor" FROM tenants WHERE tenant_id=$1`, [tenantId]
     );
     const company = settingResult[0] || {};
 

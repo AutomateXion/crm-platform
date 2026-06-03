@@ -203,11 +203,19 @@ export default function InvoicesPage() {
                   const axios = (await import('axios')).default;
                   const sApi = axios.create({baseURL:'/sales-api'});
                   const t = localStorage.getItem('accessToken');
-                  const r2 = await sApi.get('/einvoice/invoice/'+r.invoiceId+'/xml', {headers:{Authorization:'Bearer '+t}});
-                  if(r2.data.validation?.valid) {
-                    window.open('/sales-api/einvoice/invoice/'+r.invoiceId+'/download', '_blank');
+                  const r2 = await sApi.get('/sales/einvoice/invoice/'+r.invoiceId+'/xml', {headers:{Authorization:'Bearer '+t}});
+                  if(r2.data.xml) {
+                    const blob = new Blob([r2.data.xml], {type:'application/xml'});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = (r2.data.invoiceNumber||r.invoiceNumber)+'.xml';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
                   } else {
-                    alert('Validation errors: ' + r2.data.validation?.errors?.join(', '));
+                    alert('Validation errors: ' + (r2.data.validation?.errors||[]).join(', '));
                   }
                 } catch(e) { alert('Failed to generate XML'); }
               }} />
