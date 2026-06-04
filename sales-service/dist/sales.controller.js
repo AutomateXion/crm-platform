@@ -155,6 +155,9 @@ let SalesController = class SalesController {
     getDashboard(req) {
         return this.svc.getDashboard(req.user.tenantId);
     }
+    getDashboardAnalytics(req) {
+        return this.svc.getDashboardAnalytics(req.user.tenantId);
+    }
     getFinanceDashboard(req) {
         return this.svc.getFinanceDashboard(req.user.tenantId);
     }
@@ -871,6 +874,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "getDashboard", null);
+__decorate([
+    (0, common_1.Get)('dashboard/analytics'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], SalesController.prototype, "getDashboardAnalytics", null);
 __decorate([
     (0, common_1.Get)('finance-dashboard'),
     __param(0, (0, common_1.Request)()),

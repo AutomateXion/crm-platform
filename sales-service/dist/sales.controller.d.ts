@@ -117,6 +117,17 @@ export declare class SalesController {
         pendingInvoices: number;
         pendingGRNs: number;
     }>;
+    getDashboardAnalytics(req: any): Promise<{
+        stockByType: any;
+        topProducts: any;
+        stockMovement: any;
+        assetsByCategory: any;
+        assetCostVsDepr: any;
+        assetCondition: any;
+        pipeline: any;
+        documentCounts: any;
+        revenueByMonth: any;
+    }>;
     getFinanceDashboard(req: any): Promise<{
         quotations: {
             total: number;

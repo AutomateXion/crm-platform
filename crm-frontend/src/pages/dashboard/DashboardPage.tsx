@@ -1,279 +1,387 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Card, Typography, Tag, Spin, Progress, Divider, Button } from 'antd';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Row, Col, Card, Statistic, Spin, Button, Empty } from 'antd';
 import {
-  ArrowUpOutlined, ArrowDownOutlined, DollarOutlined, ShoppingCartOutlined,
-  FileTextOutlined, TeamOutlined, ShoppingOutlined, CheckCircleOutlined,
-  ClockCircleOutlined, WarningOutlined, RiseOutlined, EyeOutlined,
-  FunnelPlotOutlined, TrophyOutlined, UserOutlined, ThunderboltOutlined,
+  ReloadOutlined, DollarOutlined, RiseOutlined, InboxOutlined,
+  BankOutlined, ShoppingCartOutlined, ToolOutlined, FileTextOutlined,
+  BarChartOutlined, SafetyOutlined, TeamOutlined, AppstoreOutlined,
 } from '@ant-design/icons';
-import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { RootState } from '../../store';
-import api from '../../services/api';
+import {
+  ResponsiveContainer, LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, AreaChart, Area,
+} from 'recharts';
 import axios from 'axios';
 
-const sApi = axios.create({ baseURL: '/sales-api' });
-sApi.interceptors.request.use(c => {
+// Sales API client (same base the rest of the app uses)
+const Lt = axios.create({ baseURL: '/sales-api' });
+Lt.interceptors.request.use((cfg) => {
   const t = localStorage.getItem('accessToken');
-  if (t) c.headers.Authorization = `Bearer ${t}`;
-  return c;
+  if (t) cfg.headers.Authorization = `Bearer ${t}`;
+  return cfg;
 });
 
-const { Title, Text } = Typography;
+// CRM core API client
+const Ft = axios.create({ baseURL: '/api/v1' });
+Ft.interceptors.request.use((cfg) => {
+  const t = localStorage.getItem('accessToken');
+  if (t) cfg.headers.Authorization = `Bearer ${t}`;
+  return cfg;
+});
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-}
+const PALETTE = ['#185FA5', '#1D9E75', '#534AB7', '#EF9F27', '#D85A30', '#888780', '#D4537E'];
+const n = (v: any) => Number(v || 0);
+const omr = (v: any) => `OMR ${n(v).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
-const SC: Record<string, string> = {
-  DRAFT: '#8c8c8c', SENT: '#1890ff', ACCEPTED: '#13c2c2', CONVERTED: '#52c41a',
-  REJECTED: '#ff4d4f', PAID: '#52c41a', PARTIALLY_PAID: '#fa8c16',
-  CONFIRMED: '#1890ff', RECEIVED: '#52c41a', INVOICED: '#722ed1', CANCELLED: '#ff4d4f',
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthLabel = (ym: string) => {
+  // ym like "2026-06"
+  const parts = String(ym).split('-');
+  const mi = parseInt(parts[1], 10) - 1;
+  return MONTHS[mi] || ym;
 };
 
-function KPI({ title, value, color, icon, sub, onClick, trend }: any) {
-  return (
-    <div onClick={onClick} style={{
-      background: '#fff', border: '1px solid #f0f0f0', borderRadius: 16,
-      padding: '16px 20px', cursor: onClick ? 'pointer' : 'default',
-      borderTop: `3px solid ${color}`, height: '100%', transition: 'box-shadow 0.2s',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-    }}
-      onMouseEnter={e => onClick && ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)')}
-      onMouseLeave={e => ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)')}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>{title}</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color, lineHeight: 1.2 }}>{value}</div>
-          {sub && <div style={{ fontSize: 11, color: '#8c8c8c', marginTop: 4 }}>{sub}</div>}
-          {trend !== undefined && (
-            <div style={{ fontSize: 11, marginTop: 4 }}>
-              {trend >= 0
-                ? <span style={{ color: '#52c41a' }}><ArrowUpOutlined /> +{trend}% vs last month</span>
-                : <span style={{ color: '#ff4d4f' }}><ArrowDownOutlined /> {trend}% vs last month</span>}
-            </div>
-          )}
-        </div>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color }}>{icon}</div>
-      </div>
-      {onClick && <div style={{ fontSize: 11, color: '#1890ff', marginTop: 8 }}><EyeOutlined /> View details →</div>}
-    </div>
-  );
-}
+const cardStyle: React.CSSProperties = {
+  borderRadius: 12,
+  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+  height: '100%',
+};
 
-function SectionHeader({ title, emoji }: any) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, marginTop: 8 }}>
-      <span style={{ fontSize: 16 }}>{emoji}</span>
-      <Text style={{ fontSize: 12, fontWeight: 700, color: '#595959', textTransform: 'uppercase', letterSpacing: '0.8px' }}>{title}</Text>
-      <div style={{ flex: 1, height: 1, background: '#f0f0f0', marginLeft: 4 }} />
-    </div>
-  );
-}
-
-function StatusItem({ status, count, value, onClick }: any) {
-  return (
-    <div onClick={onClick} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', transition: 'background 0.15s' }}
-      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f5f5f5'}
-      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: SC[status] || '#ccc', flexShrink: 0 }} />
-        <Text style={{ fontSize: 13 }}>{status.replace('_', ' ')}</Text>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {value !== undefined && <Text style={{ fontSize: 11, color: '#8c8c8c' }}>OMR {Number(value).toFixed(3)}</Text>}
-        <Tag style={{ background: `${SC[status]}15`, color: SC[status] || '#666', border: 'none', fontWeight: 600, minWidth: 28, textAlign: 'center' }}>{count}</Tag>
-      </div>
-    </div>
-  );
-}
-
-function PendingItem({ emoji, title, sub, badge, color, onClick }: any) {
-  return (
-    <div onClick={onClick} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 8, cursor: 'pointer', transition: 'background 0.15s' }}
-      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f5f5f5'}
-      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}>
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 500 }}>{emoji} {title}</div>
-        <div style={{ fontSize: 11, color: '#8c8c8c' }}>{sub}</div>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Tag style={{ background: `${color}15`, color, border: 'none', fontWeight: 600 }}>{badge}</Tag>
-        <EyeOutlined style={{ color: '#1890ff', fontSize: 12 }} />
-      </div>
-    </div>
-  );
-}
-
-function FinanceBox({ label, value, color, onClick }: any) {
-  return (
-    <div onClick={onClick} style={{ background: `${color}08`, border: `1px solid ${color}20`, borderRadius: 12, padding: '14px 16px', textAlign: 'center', cursor: onClick ? 'pointer' : 'default' }}>
-      <div style={{ fontSize: 11, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color, marginTop: 4 }}>OMR {value}</div>
-    </div>
-  );
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
 export default function DashboardPage() {
-  const { user, tenant } = useSelector((s: RootState) => s.auth);
   const navigate = useNavigate();
-  const [sd, setSd] = useState<any>({});
-  const [crm, setCrm] = useState<any>({});
   const [loading, setLoading] = useState(true);
+  const [kpi, setKpi] = useState<any>({});
+  const [a, setA] = useState<any>({});
 
-  const loadAll = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [sR, cR] = await Promise.allSettled([sApi.get('/sales/dashboard'), api.get('/crm-dashboard')]);
-      if (sR.status === 'fulfilled') setSd(sR.value.data || {});
-      if (cR.status === 'fulfilled') setCrm(cR.value.data || {});
-    } catch {}
-    finally { setLoading(false); }
+      const [dash, analytics] = await Promise.allSettled([
+        Lt.get('/sales/dashboard'),
+        Lt.get('/sales/dashboard/analytics'),
+      ]);
+      if (dash.status === 'fulfilled') setKpi(dash.value.data || {});
+      if (analytics.status === 'fulfilled') setA(analytics.value.data || {});
+    } catch {
+      /* charts degrade gracefully on empty data */
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  useEffect(() => { load(); }, [load]);
 
-  const rev = Number(sd.totalRevenue || 0);
-  const purch = Number(sd.totalPurchases || 0);
-  const revTM = Number(sd.revenueThisMonth || 0);
-  const revLM = Number(sd.revenueLastMonth || 0);
-  const outstanding = Number(sd.outstandingReceivables || 0);
-  const payables = Number(sd.outstandingPayables || 0);
-  const gp = rev - purch;
-  const ebitda = gp;
-  const ebitdaMargin = rev > 0 ? Math.round((ebitda / rev) * 100) : 0;
-  const revTrend = revLM > 0 ? Math.round(((revTM - revLM) / revLM) * 100) : 0;
+  // ---- Derived chart data (all Postgres values arrive as strings -> Number()) ----
+  const stockByType = (a.stockByType || []).map((r: any) => ({
+    name: (r.type || 'OTHER').replace('_', ' '),
+    value: n(r.value),
+    count: n(r.count),
+  }));
 
-  const opps = crm.opportunities || {};
-  const leads = crm.leads || {};
-  const accounts = crm.accounts || {};
-  const contacts = crm.contacts || {};
-  const acts = crm.activities || {};
+  const topProducts = (a.topProducts || []).map((r: any) => ({
+    name: r.name,
+    value: n(r.value),
+  }));
 
-  const hasPending = sd.pendingQuotations || sd.pendingInvoices || outstanding > 0 || payables > 0 || sd.pendingGRNs || acts.overdue;
+  const stockMovement = (a.stockMovement || []).map((r: any) => ({
+    week: `W${r.week}`,
+    In: n(r.inQty),
+    Out: n(r.outQty),
+  }));
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
+  const assetsByCategory = (a.assetsByCategory || []).map((r: any) => ({
+    name: r.category || 'Uncategorised',
+    value: n(r.value),
+    count: n(r.count),
+  }));
 
-  const cardStyle = { background: '#fff', border: '1px solid #f0f0f0', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' };
+  const assetCostVsDepr = (a.assetCostVsDepr || []).map((r: any) => ({
+    name: r.category || 'Other',
+    'Net book value': n(r.bookValue),
+    Depreciation: n(r.depreciation),
+  }));
+
+  const assetCondition = (a.assetCondition || []).map((r: any) => ({
+    name: r.condition || 'Unknown',
+    count: n(r.count),
+  }));
+
+  const pipeline = (a.pipeline || []).map((r: any) => ({
+    name: (r.status || '').replace('_', ' '),
+    count: n(r.count),
+    value: n(r.value),
+  }));
+
+  const revenueByMonth = (a.revenueByMonth || []).map((r: any) => ({
+    name: monthLabel(r.month),
+    Revenue: n(r.revenue),
+  }));
+
+  const docs = a.documentCounts || {};
+  const documents = [
+    { name: 'Quotations', count: n(docs.quotations) },
+    { name: 'Invoices', count: n(docs.invoices) },
+    { name: 'POs', count: n(docs.pos) },
+    { name: 'GRNs', count: n(docs.grns) },
+  ];
+
+  // KPI values from existing /sales/dashboard
+  const totalRevenue = n(kpi.totalRevenue);
+  const totalPurchases = n(kpi.totalPurchases);
+  const grossProfit = totalRevenue - totalPurchases;
+  const stockValue = stockByType.filter((s: any) => s.name === 'STOCK').reduce((sum: number, s: any) => sum + s.value, 0);
+  const assetValue = assetsByCategory.reduce((sum: number, s: any) => sum + s.value, 0);
+  const receivables = n(kpi.outstandingReceivables);
+
+  const modules = [
+    { icon: <TeamOutlined />, label: 'CRM', color: '#185FA5', path: '/contacts' },
+    { icon: <DollarOutlined />, label: 'Finance', color: '#1D9E75', path: '/finance/invoices' },
+    { icon: <InboxOutlined />, label: 'Inventory', color: '#534AB7', path: '/inventory/products' },
+    { icon: <ShoppingCartOutlined />, label: 'Purchase', color: '#EF9F27', path: '/purchase/orders' },
+    { icon: <BankOutlined />, label: 'Fixed Assets', color: '#D85A30', path: '/assets/fixed' },
+    { icon: <ToolOutlined />, label: 'Consumables', color: '#D4537E', path: '/assets/consumables' },
+    { icon: <FileTextOutlined />, label: 'E-Invoicing', color: '#185FA5', path: '/einvoice' },
+    { icon: <BarChartOutlined />, label: 'Reports', color: '#1D9E75', path: '/reports' },
+    { icon: <SafetyOutlined />, label: 'Admin', color: '#888780', path: '/users' },
+  ];
+
+  const ChartCard = ({ title, children, empty, to }: { title: string; children: React.ReactNode; empty?: boolean; to?: string }) => (
+    <Card
+      title={<span style={{ fontWeight: 700 }}>{title}</span>}
+      extra={to ? <a onClick={(e) => { e.preventDefault(); navigate(to); }} style={{ fontSize: 12 }}>Open →</a> : undefined}
+      style={cardStyle}
+      bordered={false}
+    >
+      {empty ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No data yet" style={{ padding: '24px 0' }} />
+        : <div style={{ width: '100%', height: 240 }}>{children}</div>}
+    </Card>
+  );
+
+  if (loading) {
+    return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
+  }
+
+  const tooltipStyle = { borderRadius: 8, border: '1px solid #f0f0f0', fontSize: 12 };
 
   return (
     <div style={{ padding: '0 2px' }}>
-      {/* ── Header ── */}
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ margin: 0, fontWeight: 700 }}>
-            {getGreeting()}, {user?.fullName?.split(' ')[0] || 'there'} 👋
-          </Title>
-          <Text style={{ color: '#8c8c8c', fontSize: 13 }}>
-            {tenant?.companyName} · {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          </Text>
+          <h2 style={{ margin: 0, fontWeight: 700 }}>{greeting()} 👋</h2>
+          <span style={{ color: '#8c8c8c', fontSize: 13 }}>
+            {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </span>
         </div>
-        <Button icon={<ThunderboltOutlined />} onClick={loadAll} style={{ borderRadius: 8 }}>Refresh</Button>
+        <Button icon={<ReloadOutlined />} onClick={load} style={{ borderRadius: 8 }}>Refresh</Button>
       </div>
 
-      {/* ── Financial KPIs ── */}
-      <SectionHeader title="Financial Overview" emoji="💰" />
+      {/* KPI cards */}
       <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
-        <Col xs={12} sm={8} lg={4}><KPI title="Total Revenue" value={`OMR ${rev.toFixed(3)}`} color="#52c41a" icon={<DollarOutlined />} trend={revTrend} sub={`This month: OMR ${revTM.toFixed(3)}`} onClick={() => navigate('/finance/invoices')} /></Col>
-        <Col xs={12} sm={8} lg={4}><KPI title="Total Purchases" value={`OMR ${purch.toFixed(3)}`} color="#1890ff" icon={<ShoppingCartOutlined />} onClick={() => navigate('/purchase/invoices')} /></Col>
-        <Col xs={12} sm={8} lg={4}><KPI title="Gross Profit" value={`OMR ${gp.toFixed(3)}`} color={gp >= 0 ? '#13c2c2' : '#ff4d4f'} icon={<RiseOutlined />} sub={`Margin: ${rev > 0 ? Math.round((gp/rev)*100) : 0}%`} /></Col>
-        <Col xs={12} sm={8} lg={4}><KPI title="EBITDA" value={`OMR ${ebitda.toFixed(3)}`} color={ebitda >= 0 ? '#722ed1' : '#ff4d4f'} icon={<TrophyOutlined />} sub={`Margin: ${ebitdaMargin}%`} /></Col>
-        <Col xs={12} sm={8} lg={4}><KPI title="Receivables" value={`OMR ${outstanding.toFixed(3)}`} color="#fa8c16" icon={<ClockCircleOutlined />} sub="Outstanding" onClick={() => navigate('/finance/invoices')} /></Col>
-        <Col xs={12} sm={8} lg={4}><KPI title="Payables" value={`OMR ${payables.toFixed(3)}`} color="#ff4d4f" icon={<WarningOutlined />} sub="Outstanding" onClick={() => navigate('/purchase/invoices')} /></Col>
+        {[
+          { title: 'Total Revenue', value: omr(totalRevenue), color: '#1D9E75', icon: <DollarOutlined />, path: '/finance/invoices' },
+          { title: 'Gross Profit', value: omr(grossProfit), color: '#185FA5', icon: <RiseOutlined />, path: '/finance/profit-loss' },
+          { title: 'Stock Value', value: omr(stockValue), color: '#EF9F27', icon: <InboxOutlined />, path: '/inventory/products' },
+          { title: 'Asset Book Value', value: omr(assetValue), color: '#534AB7', icon: <BankOutlined />, path: '/assets/fixed' },
+          { title: 'Receivables', value: omr(receivables), color: '#D85A30', icon: <DollarOutlined />, path: '/finance/ar-aging' },
+        ].map((k) => (
+          <Col xs={12} sm={8} lg={Math.floor(24 / 5) || 4} key={k.title}>
+            <Card
+              hoverable
+              onClick={() => navigate(k.path)}
+              style={{ ...cardStyle, borderTop: `3px solid ${k.color}`, cursor: 'pointer' }}
+              bordered={false}
+              bodyStyle={{ padding: 16 }}
+            >
+              <Statistic title={k.title} value={k.value as any} valueStyle={{ color: k.color, fontSize: 20, fontWeight: 700 }} prefix={k.icon} />
+              <div style={{ fontSize: 11, color: '#1890ff', marginTop: 4 }}>View details →</div>
+            </Card>
+          </Col>
+        ))}
       </Row>
 
-      {/* ── CRM KPIs ── */}
-      <SectionHeader title="CRM Overview" emoji="🤝" />
-      <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
-        <Col xs={12} sm={8} lg={4}><KPI title="Total Leads" value={leads.total || 0} color="#722ed1" icon={<FunnelPlotOutlined />} sub={`This month: ${leads.thisMonth || 0}`} onClick={() => navigate('/leads')} /></Col>
-        <Col xs={12} sm={8} lg={4}><KPI title="Lead Conversion" value={`${leads.conversionRate || 0}%`} color="#1890ff" icon={<RiseOutlined />} sub={`${leads.converted || 0} converted`} /></Col>
-        <Col xs={12} sm={8} lg={4}><KPI title="Opportunities" value={opps.total || 0} color="#fa8c16" icon={<TrophyOutlined />} sub={`Pipeline: OMR ${Number(opps.pipelineValue || 0).toFixed(3)}`} onClick={() => navigate('/sales')} /></Col>
-        <Col xs={12} sm={8} lg={4}><KPI title="Won Deals" value={opps.won || 0} color="#52c41a" icon={<TrophyOutlined />} sub={`Win rate: ${opps.winRate || 0}%`} onClick={() => navigate('/sales')} /></Col>
-        <Col xs={12} sm={8} lg={4}><KPI title="Accounts" value={accounts.total || 0} color="#13c2c2" icon={<TeamOutlined />} sub={`New this month: ${accounts.thisMonth || 0}`} onClick={() => navigate('/contacts')} /></Col>
-        <Col xs={12} sm={8} lg={4}><KPI title="Contacts" value={contacts.total || 0} color="#595959" icon={<UserOutlined />} sub={`Activities today: ${acts.today || 0}`} onClick={() => navigate('/contacts')} /></Col>
+      {/* Revenue + Expenses-by-type row */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} lg={15}>
+          <ChartCard title="📈 Revenue trend (6 months)" empty={!revenueByMonth.length} to="/finance/invoices">
+            <ResponsiveContainer>
+              <AreaChart data={revenueByMonth} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" fontSize={12} />
+                <YAxis fontSize={12} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => omr(v)} />
+                <Area type="monotone" dataKey="Revenue" stroke="#185FA5" fill="#185FA5" fillOpacity={0.12} strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Col>
+        <Col xs={24} lg={9}>
+          <ChartCard title="📦 Stock by product type" empty={!stockByType.length} to="/inventory/products">
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie data={stockByType} dataKey="value" nameKey="name" innerRadius={48} outerRadius={80} paddingAngle={2}>
+                  {stockByType.map((_: any, i: number) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => omr(v)} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Col>
       </Row>
 
-      {/* ── Document Counts ── */}
-      <SectionHeader title="Document Summary" emoji="📋" />
-      <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
-        <Col xs={8} sm={4} lg={4}><KPI title="Quotations" value={sd.totalQuotations || 0} color="#722ed1" icon={<FileTextOutlined />} onClick={() => navigate('/finance/quotations')} /></Col>
-        <Col xs={8} sm={4} lg={4}><KPI title="Sales Invoices" value={sd.totalInvoices || 0} color="#1890ff" icon={<FileTextOutlined />} onClick={() => navigate('/finance/invoices')} /></Col>
-        <Col xs={8} sm={4} lg={4}><KPI title="Delivery Notes" value={sd.totalInvoices || 0} color="#13c2c2" icon={<ShoppingOutlined />} onClick={() => navigate('/inventory/delivery-notes')} /></Col>
-        <Col xs={8} sm={4} lg={4}><KPI title="Purchase Orders" value={sd.totalPurchaseOrders || 0} color="#fa8c16" icon={<ShoppingCartOutlined />} onClick={() => navigate('/purchase/orders')} /></Col>
-        <Col xs={8} sm={4} lg={4}><KPI title="GRNs" value={sd.totalGRNs || 0} color="#52c41a" icon={<ShoppingOutlined />} onClick={() => navigate('/purchase/grn')} /></Col>
-        <Col xs={8} sm={4} lg={4}><KPI title="Purchase Invoices" value={sd.totalPurchaseInvoices || 0} color="#595959" icon={<FileTextOutlined />} onClick={() => navigate('/purchase/invoices')} /></Col>
+      {/* Pipeline + Documents row */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} lg={12}>
+          <ChartCard title="🎯 Sales pipeline by status" empty={!pipeline.length} to="/sales">
+            <ResponsiveContainer>
+              <BarChart data={pipeline} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" fontSize={11} />
+                <YAxis fontSize={12} allowDecimals={false} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="count" fill="#534AB7" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Col>
+        <Col xs={24} lg={12}>
+          <ChartCard title="📋 Documents" empty={!documents.some((d) => d.count)} to="/documents">
+            <ResponsiveContainer>
+              <BarChart data={documents} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" fontSize={11} />
+                <YAxis fontSize={12} allowDecimals={false} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar
+                  dataKey="count"
+                  fill="#1D9E75"
+                  radius={[4, 4, 0, 0]}
+                  cursor="pointer"
+                  onClick={(d: any) => {
+                    const map: Record<string, string> = {
+                      Quotations: '/finance/quotations',
+                      Invoices: '/finance/invoices',
+                      POs: '/purchase/orders',
+                      GRNs: '/purchase/grn',
+                    };
+                    const dest = map[d?.name];
+                    if (dest) navigate(dest);
+                  }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Col>
       </Row>
 
-      {/* ── Bottom Row ── */}
-      <Row gutter={[12, 12]}>
-        {/* Finance Summary */}
+      {/* Stock section */}
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#595959', margin: '24px 0 12px', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <InboxOutlined /> Stock & Inventory
+      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} lg={12}>
+          <ChartCard title="Top products by value" empty={!topProducts.length} to="/reports/item-profile">
+            <ResponsiveContainer>
+              <BarChart data={topProducts} layout="vertical" margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis type="number" fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                <YAxis type="category" dataKey="name" fontSize={11} width={130} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => omr(v)} />
+                <Bar dataKey="value" fill="#185FA5" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Col>
+        <Col xs={24} lg={12}>
+          <ChartCard title="Stock movement (30 days)" empty={!stockMovement.length} to="/reports/stock-movement">
+            <ResponsiveContainer>
+              <LineChart data={stockMovement} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="week" fontSize={11} />
+                <YAxis fontSize={12} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="In" stroke="#1D9E75" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="Out" stroke="#D85A30" strokeWidth={2} strokeDasharray="5 4" dot={{ r: 2 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Col>
+      </Row>
+
+      {/* Fixed Assets section */}
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#595959', margin: '24px 0 12px', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <BankOutlined /> Fixed Assets
+      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} lg={8}>
-          <Card title={<span style={{ fontWeight: 700 }}>💹 Finance Summary</span>} style={cardStyle} bordered={false}>
-            <Row gutter={[8, 8]}>
-              <Col span={12}><FinanceBox label="Revenue" value={rev.toFixed(3)} color="#52c41a" onClick={() => navigate('/finance/invoices')} /></Col>
-              <Col span={12}><FinanceBox label="Receivables" value={outstanding.toFixed(3)} color="#fa8c16" onClick={() => navigate('/finance/invoices')} /></Col>
-              <Col span={12}><FinanceBox label="Purchases" value={purch.toFixed(3)} color="#1890ff" onClick={() => navigate('/purchase/invoices')} /></Col>
-              <Col span={12}><FinanceBox label="Payables" value={payables.toFixed(3)} color="#ff4d4f" onClick={() => navigate('/purchase/invoices')} /></Col>
-              <Col span={24}>
-                <div style={{ background: gp >= 0 ? '#f6ffed' : '#fff1f0', border: `1px solid ${gp >= 0 ? '#b7eb8f' : '#ffa39e'}`, borderRadius: 12, padding: '12px 16px', textAlign: 'center', marginTop: 4 }}>
-                  <div style={{ fontSize: 11, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Net Profit (Revenue − Purchases)</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: gp >= 0 ? '#52c41a' : '#ff4d4f', marginTop: 4 }}>OMR {gp.toFixed(3)}</div>
-                  <div style={{ fontSize: 11, color: '#8c8c8c' }}>EBITDA Margin: {ebitdaMargin}%</div>
-                </div>
-              </Col>
-            </Row>
-          </Card>
+          <ChartCard title="Assets by category" empty={!assetsByCategory.length} to="/assets/fixed">
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie data={assetsByCategory} dataKey="value" nameKey="name" innerRadius={42} outerRadius={78} paddingAngle={2}>
+                  {assetsByCategory.map((_: any, i: number) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => omr(v)} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
         </Col>
+        <Col xs={24} lg={8}>
+          <ChartCard title="Net book value vs depreciation" empty={!assetCostVsDepr.length} to="/assets/fixed">
+            <ResponsiveContainer>
+              <BarChart data={assetCostVsDepr} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" fontSize={11} />
+                <YAxis fontSize={12} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => omr(v)} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="Net book value" stackId="a" fill="#185FA5" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="Depreciation" stackId="a" fill="#B4B2A9" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Col>
+        <Col xs={24} lg={8}>
+          <ChartCard title="Asset condition" empty={!assetCondition.length} to="/assets/fixed">
+            <ResponsiveContainer>
+              <BarChart data={assetCondition} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" fontSize={11} />
+                <YAxis fontSize={12} allowDecimals={false} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                  {assetCondition.map((_: any, i: number) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Col>
+      </Row>
 
-        {/* Status Breakdowns */}
-        <Col xs={24} lg={10}>
-          <Card title={<span style={{ fontWeight: 700 }}>📊 Pipeline Status</span>} style={cardStyle} bordered={false}>
-            <Row gutter={12}>
-              <Col span={12}>
-                <Text style={{ fontSize: 12, fontWeight: 600, color: '#595959', display: 'block', marginBottom: 4 }}>Sales Invoices</Text>
-                {(sd.invoicesByStatus || []).map((s: any) => (
-                  <StatusItem key={s.status} status={s.status} count={s.count} value={s.value} onClick={() => navigate('/finance/invoices')} />
-                ))}
-                {!sd.invoicesByStatus?.length && <Text type="secondary" style={{ fontSize: 12, padding: '4px 12px', display: 'block' }}>No data yet</Text>}
-              </Col>
-              <Col span={12}>
-                <Text style={{ fontSize: 12, fontWeight: 600, color: '#595959', display: 'block', marginBottom: 4 }}>Purchase Invoices</Text>
-                {(sd.purchaseInvoicesByStatus || []).map((s: any) => (
-                  <StatusItem key={s.status} status={s.status} count={s.count} value={s.value} onClick={() => navigate('/purchase/invoices')} />
-                ))}
-                {!sd.purchaseInvoicesByStatus?.length && <Text type="secondary" style={{ fontSize: 12, padding: '4px 12px', display: 'block' }}>No data yet</Text>}
-                <Divider style={{ margin: '8px 0' }} />
-                <Text style={{ fontSize: 12, fontWeight: 600, color: '#595959', display: 'block', marginBottom: 4 }}>Purchase Orders</Text>
-                {(sd.posByStatus || []).map((s: any) => (
-                  <StatusItem key={s.status} status={s.status} count={s.count} value={s.value} onClick={() => navigate('/purchase/orders')} />
-                ))}
-              </Col>
-            </Row>
-          </Card>
-        </Col>
-
-        {/* Pending Actions */}
-        <Col xs={24} lg={6}>
-          <Card title={<span style={{ fontWeight: 700 }}>⚡ Pending Actions</span>} style={cardStyle} bordered={false}>
-            {Number(sd.pendingQuotations || 0) > 0 && <PendingItem emoji="📋" title="Quotations to Send" sub="Draft quotations" badge={sd.pendingQuotations} color="#1890ff" onClick={() => navigate('/finance/quotations')} />}
-            {Number(sd.pendingInvoices || 0) > 0 && <PendingItem emoji="📄" title="Invoices to Send" sub="Draft invoices" badge={sd.pendingInvoices} color="#1890ff" onClick={() => navigate('/finance/invoices')} />}
-            {outstanding > 0 && <PendingItem emoji="💰" title="Receivables" sub="Payments pending" badge={`OMR ${outstanding.toFixed(3)}`} color="#fa8c16" onClick={() => navigate('/finance/invoices')} />}
-            {payables > 0 && <PendingItem emoji="🏦" title="Payables" sub="Payments to make" badge={`OMR ${payables.toFixed(3)}`} color="#ff4d4f" onClick={() => navigate('/purchase/invoices')} />}
-            {Number(sd.pendingGRNs || 0) > 0 && <PendingItem emoji="📦" title="GRNs Pending" sub="Goods to receive" badge={sd.pendingGRNs} color="#722ed1" onClick={() => navigate('/purchase/grn')} />}
-            {Number(acts.overdue || 0) > 0 && <PendingItem emoji="⚠️" title="Overdue Activities" sub="CRM tasks overdue" badge={acts.overdue} color="#ff4d4f" onClick={() => navigate('/activities')} />}
-            {!hasPending && (
-              <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                <CheckCircleOutlined style={{ fontSize: 32, color: '#52c41a' }} />
-                <div style={{ color: '#52c41a', fontWeight: 600, marginTop: 8 }}>All caught up!</div>
-                <Text type="secondary" style={{ fontSize: 12 }}>No pending actions</Text>
-              </div>
-            )}
-          </Card>
-        </Col>
+      {/* Modules */}
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#595959', margin: '24px 0 12px', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <AppstoreOutlined /> Modules
+      </div>
+      <Row gutter={[12, 12]} style={{ marginBottom: 8 }}>
+        {modules.map((m) => (
+          <Col xs={8} sm={6} md={4} lg={Math.floor(24 / 9) < 2 ? 3 : Math.floor(24 / 9)} key={m.label}>
+            <Card
+              hoverable
+              onClick={() => navigate(m.path)}
+              style={{ ...cardStyle, textAlign: 'center', cursor: 'pointer' }}
+              bodyStyle={{ padding: '18px 8px' }}
+            >
+              <div style={{ fontSize: 24, color: m.color, marginBottom: 6 }}>{m.icon}</div>
+              <div style={{ fontSize: 12, fontWeight: 600 }}>{m.label}</div>
+            </Card>
+          </Col>
+        ))}
       </Row>
     </div>
   );

@@ -823,4 +823,15 @@ export declare class SalesService {
         trackStock: boolean;
         margin: number;
     }[]>;
+    getDashboardAnalytics(tenantId: string): Promise<{
+        stockByType: any;
+        topProducts: any;
+        stockMovement: any;
+        assetsByCategory: any;
+        assetCostVsDepr: any;
+        assetCondition: any;
+        pipeline: any;
+        documentCounts: any;
+        revenueByMonth: any;
+    }>;
 }

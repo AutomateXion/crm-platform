@@ -2885,4 +2885,83 @@ export class SalesService {
       margin: Number(p.unitPrice) > 0 ? Math.round(((Number(p.unitPrice) - Number(p.costPrice)) / Number(p.unitPrice)) * 100) : 0,
     }));
   }
+
+  async getDashboardAnalytics(tenantId: string) {
+    const t = { tenantId };
+    const safe = async (fn: () => Promise<any>, fallback: any) => {
+      try { return await fn(); } catch (e) { return fallback; }
+    };
+
+    const stockByType = await safe(() => this.productRepo.createQueryBuilder('p')
+      .select('p.productType', 'type')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('COALESCE(SUM(p.stockQty * p.costPrice),0)', 'value')
+      .where('p.tenantId = :tenantId', t)
+      .groupBy('p.productType').getRawMany(), []);
+
+    const topProducts = await safe(() => this.productRepo.createQueryBuilder('p')
+      .select('p.productName', 'name')
+      .addSelect('COALESCE(p.stockQty * p.costPrice,0)', 'value')
+      .where('p.tenantId = :tenantId', t)
+      .orderBy('value', 'DESC').limit(5).getRawMany(), []);
+
+    const stockMovement = await safe(() => this.stockRepo.createQueryBuilder('s')
+      .select("TO_CHAR(s.createdAt,'IW')", 'week')
+      .addSelect("SUM(CASE WHEN s.movementType IN ('IN','RECEIPT','ADJUSTMENT_IN') THEN s.quantity ELSE 0 END)", 'inQty')
+      .addSelect("SUM(CASE WHEN s.movementType IN ('OUT','ISSUE','ADJUSTMENT_OUT') THEN s.quantity ELSE 0 END)", 'outQty')
+      .where('s.tenantId = :tenantId', t)
+      .andWhere("s.createdAt > NOW() - INTERVAL '30 days'")
+      .groupBy('week').orderBy('week', 'ASC').getRawMany(), []);
+
+    const assetsByCategory = await safe(() => this.fixedAssetRepo.createQueryBuilder('a')
+      .select('a.category', 'category')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('COALESCE(SUM(a.currentBookValue),0)', 'value')
+      .where('a.tenantId = :tenantId', t)
+      .andWhere('a.isActive = true')
+      .groupBy('a.category').getRawMany(), []);
+
+    const assetCostVsDepr = await safe(() => this.fixedAssetRepo.createQueryBuilder('a')
+      .select('a.category', 'category')
+      .addSelect('COALESCE(SUM(a.currentBookValue),0)', 'bookValue')
+      .addSelect('COALESCE(SUM(a.accumulatedDepreciation),0)', 'depreciation')
+      .where('a.tenantId = :tenantId', t)
+      .andWhere('a.isActive = true')
+      .groupBy('a.category').getRawMany(), []);
+
+    const assetCondition = await safe(() => this.fixedAssetRepo.createQueryBuilder('a')
+      .select('a.condition', 'condition')
+      .addSelect('COUNT(*)', 'count')
+      .where('a.tenantId = :tenantId', t)
+      .andWhere('a.isActive = true')
+      .groupBy('a.condition').getRawMany(), []);
+
+    const pipeline = await safe(() => this.quotationRepo.createQueryBuilder('q')
+      .select('q.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('COALESCE(SUM(q.totalAmount),0)', 'value')
+      .where('q.tenantId = :tenantId', t)
+      .groupBy('q.status').getRawMany(), []);
+
+    const documentCounts = await safe(async () => ({
+      quotations: await this.quotationRepo.count({ where: t }),
+      invoices: await this.invoiceRepo.count({ where: t }),
+      pos: await this.poRepo.count({ where: t }),
+      grns: await this.grnRepo.count({ where: t }),
+    }), { quotations: 0, invoices: 0, pos: 0, grns: 0 });
+
+    const revenueByMonth = await safe(() => this.invoiceRepo.createQueryBuilder('i')
+      .select("TO_CHAR(i.invoiceDate,'YYYY-MM')", 'month')
+      .addSelect('COALESCE(SUM(i.totalAmount),0)', 'revenue')
+      .where('i.tenantId = :tenantId', t)
+      .andWhere("i.invoiceDate > NOW() - INTERVAL '6 months'")
+      .groupBy('month').orderBy('month', 'ASC').getRawMany(), []);
+
+    return {
+      stockByType, topProducts, stockMovement,
+      assetsByCategory, assetCostVsDepr, assetCondition,
+      pipeline, documentCounts, revenueByMonth,
+    };
+  }
+
 }

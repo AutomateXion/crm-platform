@@ -240,6 +240,11 @@ export class SalesController {
     return this.svc.getDashboard(req.user.tenantId);
   }
 
+  @Get('dashboard/analytics')
+  getDashboardAnalytics(@Request() req: any) {
+    return this.svc.getDashboardAnalytics(req.user.tenantId);
+  }
+
   // ── Finance Dashboard ─────────────────────────────────────────
   @Get('finance-dashboard')
   getFinanceDashboard(@Request() req: any) {
