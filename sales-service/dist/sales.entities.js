@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PurchaseReturnItemEntity = exports.PurchaseReturnEntity = exports.PaymentVoucherEntity = exports.PurchaseInvoiceItemEntity = exports.PurchaseInvoiceEntity = exports.GoodsReceiptNoteItemEntity = exports.GoodsReceiptNoteEntity = exports.PurchaseOrderItemEntity = exports.PurchaseOrderEntity = exports.SupplierEntity = exports.ChartOfAccountEntity = exports.SalesReturnItemEntity = exports.SalesReturnEntity = exports.ReceiptEntity = exports.SalesInvoiceItemEntity = exports.SalesInvoiceEntity = exports.DeliveryNoteItemEntity = exports.DeliveryNoteEntity = exports.QuotationItemEntity = exports.QuotationEntity = exports.ExchangeRateEntity = exports.StockMovementEntity = exports.ProductEntity = void 0;
+exports.AssetTransferEntity = exports.AssetMaintenanceEntity = exports.AssetDepreciationEntity = exports.FixedAssetEntity = exports.StockAdjustmentItemEntity = exports.StockAdjustmentEntity = exports.StockTransferItemEntity = exports.StockTransferEntity = exports.WarehouseLocationEntity = exports.WarehouseEntity = exports.JournalVoucherLineEntity = exports.JournalVoucherEntity = exports.PurchaseReturnItemEntity = exports.PurchaseReturnEntity = exports.PaymentVoucherEntity = exports.PurchaseInvoiceItemEntity = exports.PurchaseInvoiceEntity = exports.GoodsReceiptNoteItemEntity = exports.GoodsReceiptNoteEntity = exports.PurchaseOrderItemEntity = exports.PurchaseOrderEntity = exports.SupplierEntity = exports.ChartOfAccountEntity = exports.SalesReturnItemEntity = exports.SalesReturnEntity = exports.ReceiptEntity = exports.SalesInvoiceItemEntity = exports.SalesInvoiceEntity = exports.DeliveryNoteItemEntity = exports.DeliveryNoteEntity = exports.QuotationItemEntity = exports.QuotationEntity = exports.ExchangeRateEntity = exports.StockMovementEntity = exports.ProductEntity = void 0;
 const typeorm_1 = require("typeorm");
 let ProductEntity = class ProductEntity {
 };
@@ -30,6 +30,154 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'product_name' }),
     __metadata("design:type", String)
 ], ProductEntity.prototype, "productName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'product_type', default: 'STOCK' }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "productType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "brand", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "manufacturer", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'country_of_origin', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "countryOfOrigin", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'part_number', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "partNumber", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'design_number', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "designNumber", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'model_number', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "modelNumber", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'hs_code', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "hsCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tax_category', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "taxCategory", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'reorder_point', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], ProductEntity.prototype, "reorderPoint", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'reorder_qty', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], ProductEntity.prototype, "reorderQty", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'track_serial', default: false }),
+    __metadata("design:type", Boolean)
+], ProductEntity.prototype, "trackSerial", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'track_batch', default: false }),
+    __metadata("design:type", Boolean)
+], ProductEntity.prototype, "trackBatch", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'track_expiry', default: false }),
+    __metadata("design:type", Boolean)
+], ProductEntity.prototype, "trackExpiry", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'shelf_life_days', type: 'int', nullable: true }),
+    __metadata("design:type", Number)
+], ProductEntity.prototype, "shelfLifeDays", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'alt_uom', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "altUom", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'alt_uom_conversion', type: 'decimal', precision: 18, scale: 6, nullable: true }),
+    __metadata("design:type", Number)
+], ProductEntity.prototype, "altUomConversion", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'alt_uom_label', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "altUomLabel", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 18, scale: 3, nullable: true }),
+    __metadata("design:type", Number)
+], ProductEntity.prototype, "weight", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'weight_unit', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "weightUnit", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 18, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], ProductEntity.prototype, "length", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 18, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], ProductEntity.prototype, "width", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 18, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], ProductEntity.prototype, "height", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'dimension_unit', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "dimensionUnit", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'opening_stock', type: 'decimal', precision: 18, scale: 3, nullable: true }),
+    __metadata("design:type", Number)
+], ProductEntity.prototype, "openingStock", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'opening_stock_value', type: 'decimal', precision: 18, scale: 3, nullable: true }),
+    __metadata("design:type", Number)
+], ProductEntity.prototype, "openingStockValue", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'opening_stock_date', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "openingStockDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'warehouse_id', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "warehouseId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'location_id', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "locationId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'asset_category', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "assetCategory", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'useful_life_years', type: 'decimal', precision: 5, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], ProductEntity.prototype, "usefulLifeYears", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'depreciation_method', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "depreciationMethod", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'salvage_value', type: 'decimal', precision: 18, scale: 3, nullable: true }),
+    __metadata("design:type", Number)
+], ProductEntity.prototype, "salvageValue", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'asset_account', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "assetAccount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'expense_account', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "expenseAccount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'min_consumable_qty', type: 'decimal', precision: 18, scale: 3, nullable: true }),
+    __metadata("design:type", Number)
+], ProductEntity.prototype, "minConsumableQty", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'product_notes', type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], ProductEntity.prototype, "productNotes", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'product_name_ar', nullable: true }),
     __metadata("design:type", String)
@@ -335,6 +483,14 @@ __decorate([
     __metadata("design:type", String)
 ], QuotationEntity.prototype, "createdBy", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'salesman_id', nullable: true }),
+    __metadata("design:type", String)
+], QuotationEntity.prototype, "salesmanId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'salesman_name', nullable: true }),
+    __metadata("design:type", String)
+], QuotationEntity.prototype, "salesmanName", void 0);
+__decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)
 ], QuotationEntity.prototype, "createdAt", void 0);
@@ -524,6 +680,14 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'created_by', nullable: true }),
     __metadata("design:type", String)
 ], DeliveryNoteEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'salesman_id', nullable: true }),
+    __metadata("design:type", String)
+], DeliveryNoteEntity.prototype, "salesmanId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'salesman_name', nullable: true }),
+    __metadata("design:type", String)
+], DeliveryNoteEntity.prototype, "salesmanName", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)
@@ -734,6 +898,14 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'created_by', nullable: true }),
     __metadata("design:type", String)
 ], SalesInvoiceEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'salesman_id', nullable: true }),
+    __metadata("design:type", String)
+], SalesInvoiceEntity.prototype, "salesmanId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'salesman_name', nullable: true }),
+    __metadata("design:type", String)
+], SalesInvoiceEntity.prototype, "salesmanName", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)
@@ -2066,4 +2238,963 @@ __decorate([
 exports.PurchaseReturnItemEntity = PurchaseReturnItemEntity = __decorate([
     (0, typeorm_1.Entity)('purchase_return_items')
 ], PurchaseReturnItemEntity);
+let JournalVoucherEntity = class JournalVoucherEntity {
+};
+exports.JournalVoucherEntity = JournalVoucherEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'voucher_id' }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "voucherId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tenant_id' }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "tenantId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'voucher_number', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "voucherNumber", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'voucher_date', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "voucherDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'voucher_type', default: 'JOURNAL' }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "voucherType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "reference", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'currency_code', default: 'OMR' }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "currencyCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'exchange_rate', type: 'decimal', precision: 18, scale: 6, default: 1 }),
+    __metadata("design:type", Number)
+], JournalVoucherEntity.prototype, "exchangeRate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'DRAFT' }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'is_posted', default: false }),
+    __metadata("design:type", Boolean)
+], JournalVoucherEntity.prototype, "isPosted", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'posted_at', nullable: true }),
+    __metadata("design:type", Date)
+], JournalVoucherEntity.prototype, "postedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'posted_by', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "postedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'posted_by_name', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "postedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'total_debit', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], JournalVoucherEntity.prototype, "totalDebit", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'total_credit', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], JournalVoucherEntity.prototype, "totalCredit", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'prepared_by', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "preparedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'prepared_by_name', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "preparedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'approved_by', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "approvedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'approved_by_name', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "approvedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'created_by', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
+    __metadata("design:type", Date)
+], JournalVoucherEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
+    __metadata("design:type", Date)
+], JournalVoucherEntity.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => JournalVoucherLineEntity, l => l.voucher, { cascade: true, eager: true }),
+    __metadata("design:type", Array)
+], JournalVoucherEntity.prototype, "lines", void 0);
+exports.JournalVoucherEntity = JournalVoucherEntity = __decorate([
+    (0, typeorm_1.Entity)('journal_vouchers'),
+    (0, typeorm_1.Index)(['tenantId'])
+], JournalVoucherEntity);
+let JournalVoucherLineEntity = class JournalVoucherLineEntity {
+};
+exports.JournalVoucherLineEntity = JournalVoucherLineEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'line_id' }),
+    __metadata("design:type", String)
+], JournalVoucherLineEntity.prototype, "lineId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'voucher_id' }),
+    __metadata("design:type", String)
+], JournalVoucherLineEntity.prototype, "voucherId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'line_number', default: 1 }),
+    __metadata("design:type", Number)
+], JournalVoucherLineEntity.prototype, "lineNumber", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'account_id', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherLineEntity.prototype, "accountId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'account_code', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherLineEntity.prototype, "accountCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'account_name', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherLineEntity.prototype, "accountName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherLineEntity.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'debit_amount', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], JournalVoucherLineEntity.prototype, "debitAmount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'credit_amount', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], JournalVoucherLineEntity.prototype, "creditAmount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'cost_center', nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherLineEntity.prototype, "costCenter", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherLineEntity.prototype, "reference", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], JournalVoucherLineEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => JournalVoucherEntity, v => v.lines),
+    (0, typeorm_1.JoinColumn)({ name: 'voucher_id' }),
+    __metadata("design:type", JournalVoucherEntity)
+], JournalVoucherLineEntity.prototype, "voucher", void 0);
+exports.JournalVoucherLineEntity = JournalVoucherLineEntity = __decorate([
+    (0, typeorm_1.Entity)('journal_voucher_lines')
+], JournalVoucherLineEntity);
+let WarehouseEntity = class WarehouseEntity {
+};
+exports.WarehouseEntity = WarehouseEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'warehouse_id' }),
+    __metadata("design:type", String)
+], WarehouseEntity.prototype, "warehouseId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tenant_id' }),
+    __metadata("design:type", String)
+], WarehouseEntity.prototype, "tenantId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'warehouse_code' }),
+    __metadata("design:type", String)
+], WarehouseEntity.prototype, "warehouseCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'warehouse_name' }),
+    __metadata("design:type", String)
+], WarehouseEntity.prototype, "warehouseName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'warehouse_type', default: 'MAIN' }),
+    __metadata("design:type", String)
+], WarehouseEntity.prototype, "warehouseType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], WarehouseEntity.prototype, "address", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WarehouseEntity.prototype, "city", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true, default: 'Oman' }),
+    __metadata("design:type", String)
+], WarehouseEntity.prototype, "country", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'manager_id', nullable: true }),
+    __metadata("design:type", String)
+], WarehouseEntity.prototype, "managerId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'manager_name', nullable: true }),
+    __metadata("design:type", String)
+], WarehouseEntity.prototype, "managerName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 18, scale: 3, nullable: true }),
+    __metadata("design:type", Number)
+], WarehouseEntity.prototype, "capacity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'is_active', default: true }),
+    __metadata("design:type", Boolean)
+], WarehouseEntity.prototype, "isActive", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WarehouseEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'created_by', nullable: true }),
+    __metadata("design:type", String)
+], WarehouseEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
+    __metadata("design:type", Date)
+], WarehouseEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
+    __metadata("design:type", Date)
+], WarehouseEntity.prototype, "updatedAt", void 0);
+exports.WarehouseEntity = WarehouseEntity = __decorate([
+    (0, typeorm_1.Entity)('warehouses'),
+    (0, typeorm_1.Index)(['tenantId', 'warehouseCode'], { unique: true })
+], WarehouseEntity);
+let WarehouseLocationEntity = class WarehouseLocationEntity {
+};
+exports.WarehouseLocationEntity = WarehouseLocationEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'location_id' }),
+    __metadata("design:type", String)
+], WarehouseLocationEntity.prototype, "locationId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tenant_id' }),
+    __metadata("design:type", String)
+], WarehouseLocationEntity.prototype, "tenantId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'warehouse_id' }),
+    __metadata("design:type", String)
+], WarehouseLocationEntity.prototype, "warehouseId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'location_code' }),
+    __metadata("design:type", String)
+], WarehouseLocationEntity.prototype, "locationCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'location_name', nullable: true }),
+    __metadata("design:type", String)
+], WarehouseLocationEntity.prototype, "locationName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WarehouseLocationEntity.prototype, "zone", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WarehouseLocationEntity.prototype, "rack", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WarehouseLocationEntity.prototype, "shelf", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WarehouseLocationEntity.prototype, "bin", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 18, scale: 3, nullable: true }),
+    __metadata("design:type", Number)
+], WarehouseLocationEntity.prototype, "capacity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'is_active', default: true }),
+    __metadata("design:type", Boolean)
+], WarehouseLocationEntity.prototype, "isActive", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WarehouseLocationEntity.prototype, "notes", void 0);
+exports.WarehouseLocationEntity = WarehouseLocationEntity = __decorate([
+    (0, typeorm_1.Entity)('warehouse_locations')
+], WarehouseLocationEntity);
+let StockTransferEntity = class StockTransferEntity {
+};
+exports.StockTransferEntity = StockTransferEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'transfer_id' }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "transferId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tenant_id' }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "tenantId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'transfer_number', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "transferNumber", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'transfer_date', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "transferDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'from_warehouse_id', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "fromWarehouseId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'from_warehouse', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "fromWarehouse", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'to_warehouse_id', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "toWarehouseId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'to_warehouse', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "toWarehouse", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'DRAFT' }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "reason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'prepared_by', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "preparedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'prepared_by_name', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "preparedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'created_by', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
+    __metadata("design:type", Date)
+], StockTransferEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
+    __metadata("design:type", Date)
+], StockTransferEntity.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => StockTransferItemEntity, i => i.transfer, { cascade: true, eager: true }),
+    __metadata("design:type", Array)
+], StockTransferEntity.prototype, "items", void 0);
+exports.StockTransferEntity = StockTransferEntity = __decorate([
+    (0, typeorm_1.Entity)('stock_transfers'),
+    (0, typeorm_1.Index)(['tenantId'])
+], StockTransferEntity);
+let StockTransferItemEntity = class StockTransferItemEntity {
+};
+exports.StockTransferItemEntity = StockTransferItemEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'item_id' }),
+    __metadata("design:type", String)
+], StockTransferItemEntity.prototype, "itemId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'transfer_id' }),
+    __metadata("design:type", String)
+], StockTransferItemEntity.prototype, "transferId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'product_id', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferItemEntity.prototype, "productId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'product_code', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferItemEntity.prototype, "productCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'product_name', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferItemEntity.prototype, "productName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'from_location_id', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferItemEntity.prototype, "fromLocationId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'to_location_id', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferItemEntity.prototype, "toLocationId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 18, scale: 3, default: 1 }),
+    __metadata("design:type", Number)
+], StockTransferItemEntity.prototype, "quantity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'unit_of_measure', nullable: true }),
+    __metadata("design:type", String)
+], StockTransferItemEntity.prototype, "unitOfMeasure", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], StockTransferItemEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'line_number', default: 1 }),
+    __metadata("design:type", Number)
+], StockTransferItemEntity.prototype, "lineNumber", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => StockTransferEntity, t => t.items),
+    (0, typeorm_1.JoinColumn)({ name: 'transfer_id' }),
+    __metadata("design:type", StockTransferEntity)
+], StockTransferItemEntity.prototype, "transfer", void 0);
+exports.StockTransferItemEntity = StockTransferItemEntity = __decorate([
+    (0, typeorm_1.Entity)('stock_transfer_items')
+], StockTransferItemEntity);
+let StockAdjustmentEntity = class StockAdjustmentEntity {
+};
+exports.StockAdjustmentEntity = StockAdjustmentEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'adjustment_id' }),
+    __metadata("design:type", String)
+], StockAdjustmentEntity.prototype, "adjustmentId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tenant_id' }),
+    __metadata("design:type", String)
+], StockAdjustmentEntity.prototype, "tenantId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'adjustment_number', nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentEntity.prototype, "adjustmentNumber", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'adjustment_date', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentEntity.prototype, "adjustmentDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'adjustment_type', default: 'IN' }),
+    __metadata("design:type", String)
+], StockAdjustmentEntity.prototype, "adjustmentType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'warehouse_id', nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentEntity.prototype, "warehouseId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'warehouse_name', nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentEntity.prototype, "warehouseName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentEntity.prototype, "reason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'DRAFT' }),
+    __metadata("design:type", String)
+], StockAdjustmentEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'prepared_by', nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentEntity.prototype, "preparedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'prepared_by_name', nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentEntity.prototype, "preparedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'created_by', nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
+    __metadata("design:type", Date)
+], StockAdjustmentEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
+    __metadata("design:type", Date)
+], StockAdjustmentEntity.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => StockAdjustmentItemEntity, i => i.adjustment, { cascade: true, eager: true }),
+    __metadata("design:type", Array)
+], StockAdjustmentEntity.prototype, "items", void 0);
+exports.StockAdjustmentEntity = StockAdjustmentEntity = __decorate([
+    (0, typeorm_1.Entity)('stock_adjustments'),
+    (0, typeorm_1.Index)(['tenantId'])
+], StockAdjustmentEntity);
+let StockAdjustmentItemEntity = class StockAdjustmentItemEntity {
+};
+exports.StockAdjustmentItemEntity = StockAdjustmentItemEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'item_id' }),
+    __metadata("design:type", String)
+], StockAdjustmentItemEntity.prototype, "itemId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'adjustment_id' }),
+    __metadata("design:type", String)
+], StockAdjustmentItemEntity.prototype, "adjustmentId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'product_id', nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentItemEntity.prototype, "productId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'product_code', nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentItemEntity.prototype, "productCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'product_name', nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentItemEntity.prototype, "productName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'location_id', nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentItemEntity.prototype, "locationId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 18, scale: 3, default: 1 }),
+    __metadata("design:type", Number)
+], StockAdjustmentItemEntity.prototype, "quantity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'unit_cost', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], StockAdjustmentItemEntity.prototype, "unitCost", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'unit_of_measure', nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentItemEntity.prototype, "unitOfMeasure", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], StockAdjustmentItemEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'line_number', default: 1 }),
+    __metadata("design:type", Number)
+], StockAdjustmentItemEntity.prototype, "lineNumber", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => StockAdjustmentEntity, a => a.items),
+    (0, typeorm_1.JoinColumn)({ name: 'adjustment_id' }),
+    __metadata("design:type", StockAdjustmentEntity)
+], StockAdjustmentItemEntity.prototype, "adjustment", void 0);
+exports.StockAdjustmentItemEntity = StockAdjustmentItemEntity = __decorate([
+    (0, typeorm_1.Entity)('stock_adjustment_items')
+], StockAdjustmentItemEntity);
+let FixedAssetEntity = class FixedAssetEntity {
+};
+exports.FixedAssetEntity = FixedAssetEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'asset_id' }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "assetId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tenant_id' }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "tenantId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'asset_code', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "assetCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'asset_name' }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "assetName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "category", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'sub_category', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "subCategory", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "brand", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "model", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'serial_number', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "serialNumber", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'purchase_date', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "purchaseDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'purchase_cost', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], FixedAssetEntity.prototype, "purchaseCost", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'supplier_name', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "supplierName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'useful_life_years', type: 'decimal', precision: 5, scale: 2, default: 5 }),
+    __metadata("design:type", Number)
+], FixedAssetEntity.prototype, "usefulLifeYears", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'salvage_value', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], FixedAssetEntity.prototype, "salvageValue", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'depreciation_method', default: 'STRAIGHT_LINE' }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "depreciationMethod", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'depreciation_rate', type: 'decimal', precision: 8, scale: 4, default: 0 }),
+    __metadata("design:type", Number)
+], FixedAssetEntity.prototype, "depreciationRate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'accumulated_depreciation', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], FixedAssetEntity.prototype, "accumulatedDepreciation", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'current_book_value', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], FixedAssetEntity.prototype, "currentBookValue", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'ACTIVE' }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'GOOD' }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "condition", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'location_name', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "locationName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'location_address', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "locationAddress", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'location_lat', type: 'decimal', precision: 10, scale: 7, nullable: true }),
+    __metadata("design:type", Number)
+], FixedAssetEntity.prototype, "locationLat", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'location_lng', type: 'decimal', precision: 10, scale: 7, nullable: true }),
+    __metadata("design:type", Number)
+], FixedAssetEntity.prototype, "locationLng", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "department", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'assigned_to_id', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "assignedToId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'assigned_to_name', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "assignedToName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'coa_asset_account', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "coaAssetAccount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'coa_accum_depr_account', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "coaAccumDeprAccount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'coa_depr_expense_account', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "coaDeprExpenseAccount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'invoice_number', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "invoiceNumber", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'warranty_expiry', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "warrantyExpiry", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'insurance_expiry', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "insuranceExpiry", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'last_maintenance_date', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "lastMaintenanceDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'next_maintenance_date', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "nextMaintenanceDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'jsonb', default: '[]' }),
+    __metadata("design:type", Array)
+], FixedAssetEntity.prototype, "photos", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'jsonb', default: '[]' }),
+    __metadata("design:type", Array)
+], FixedAssetEntity.prototype, "tags", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'is_active', default: true }),
+    __metadata("design:type", Boolean)
+], FixedAssetEntity.prototype, "isActive", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'disposed_date', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "disposedDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'disposal_reason', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "disposalReason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'disposal_value', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], FixedAssetEntity.prototype, "disposalValue", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'created_by', nullable: true }),
+    __metadata("design:type", String)
+], FixedAssetEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
+    __metadata("design:type", Date)
+], FixedAssetEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
+    __metadata("design:type", Date)
+], FixedAssetEntity.prototype, "updatedAt", void 0);
+exports.FixedAssetEntity = FixedAssetEntity = __decorate([
+    (0, typeorm_1.Entity)('fixed_assets')
+], FixedAssetEntity);
+let AssetDepreciationEntity = class AssetDepreciationEntity {
+};
+exports.AssetDepreciationEntity = AssetDepreciationEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'depreciation_id' }),
+    __metadata("design:type", String)
+], AssetDepreciationEntity.prototype, "depreciationId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tenant_id' }),
+    __metadata("design:type", String)
+], AssetDepreciationEntity.prototype, "tenantId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'asset_id', nullable: true }),
+    __metadata("design:type", String)
+], AssetDepreciationEntity.prototype, "assetId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'period_year' }),
+    __metadata("design:type", Number)
+], AssetDepreciationEntity.prototype, "periodYear", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'period_month' }),
+    __metadata("design:type", Number)
+], AssetDepreciationEntity.prototype, "periodMonth", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'opening_value', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], AssetDepreciationEntity.prototype, "openingValue", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'depreciation_amount', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], AssetDepreciationEntity.prototype, "depreciationAmount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'closing_value', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], AssetDepreciationEntity.prototype, "closingValue", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'accumulated_depreciation', type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], AssetDepreciationEntity.prototype, "accumulatedDepreciation", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'journal_voucher_id', nullable: true }),
+    __metadata("design:type", String)
+], AssetDepreciationEntity.prototype, "journalVoucherId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'PENDING' }),
+    __metadata("design:type", String)
+], AssetDepreciationEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'posted_date', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], AssetDepreciationEntity.prototype, "postedDate", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
+    __metadata("design:type", Date)
+], AssetDepreciationEntity.prototype, "createdAt", void 0);
+exports.AssetDepreciationEntity = AssetDepreciationEntity = __decorate([
+    (0, typeorm_1.Entity)('asset_depreciation')
+], AssetDepreciationEntity);
+let AssetMaintenanceEntity = class AssetMaintenanceEntity {
+};
+exports.AssetMaintenanceEntity = AssetMaintenanceEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'maintenance_id' }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "maintenanceId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tenant_id' }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "tenantId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'asset_id', nullable: true }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "assetId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'maintenance_type', default: 'PREVENTIVE' }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "maintenanceType", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "title", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'scheduled_date', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "scheduledDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'completed_date', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "completedDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'next_due_date', type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "nextDueDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'frequency_days', nullable: true }),
+    __metadata("design:type", Number)
+], AssetMaintenanceEntity.prototype, "frequencyDays", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'technician_id', nullable: true }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "technicianId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'technician_name', nullable: true }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "technicianName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'engineer_id', nullable: true }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "engineerId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'engineer_name', nullable: true }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "engineerName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'SCHEDULED' }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'MEDIUM' }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "priority", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 18, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], AssetMaintenanceEntity.prototype, "cost", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'parts_used', nullable: true }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "partsUsed", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "findings", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "resolution", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'created_by', nullable: true }),
+    __metadata("design:type", String)
+], AssetMaintenanceEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
+    __metadata("design:type", Date)
+], AssetMaintenanceEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
+    __metadata("design:type", Date)
+], AssetMaintenanceEntity.prototype, "updatedAt", void 0);
+exports.AssetMaintenanceEntity = AssetMaintenanceEntity = __decorate([
+    (0, typeorm_1.Entity)('asset_maintenance')
+], AssetMaintenanceEntity);
+let AssetTransferEntity = class AssetTransferEntity {
+};
+exports.AssetTransferEntity = AssetTransferEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'transfer_id' }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "transferId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tenant_id' }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "tenantId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'asset_id', nullable: true }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "assetId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'transfer_date', type: 'date' }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "transferDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'from_department', nullable: true }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "fromDepartment", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'from_location', nullable: true }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "fromLocation", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'from_user_name', nullable: true }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "fromUserName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'to_department', nullable: true }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "toDepartment", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'to_location', nullable: true }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "toLocation", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'to_user_id', nullable: true }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "toUserId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'to_user_name', nullable: true }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "toUserName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "reason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'approved_by', nullable: true }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "approvedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'COMPLETED' }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'created_by', nullable: true }),
+    __metadata("design:type", String)
+], AssetTransferEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
+    __metadata("design:type", Date)
+], AssetTransferEntity.prototype, "createdAt", void 0);
+exports.AssetTransferEntity = AssetTransferEntity = __decorate([
+    (0, typeorm_1.Entity)('asset_transfers')
+], AssetTransferEntity);
 //# sourceMappingURL=sales.entities.js.map

@@ -14,6 +14,8 @@ const passport_1 = require("@nestjs/passport");
 const sales_entities_1 = require("./sales.entities");
 const sales_controller_1 = require("./sales.controller");
 const sales_service_1 = require("./sales.service");
+const einvoice_service_1 = require("./einvoice.service");
+const einvoice_controller_1 = require("./einvoice.controller");
 const auth_guard_1 = require("./auth.guard");
 let AppModule = class AppModule {
 };
@@ -41,6 +43,11 @@ exports.AppModule = AppModule = __decorate([
                     sales_entities_1.PurchaseInvoiceEntity, sales_entities_1.PurchaseInvoiceItemEntity,
                     sales_entities_1.PaymentVoucherEntity,
                     sales_entities_1.PurchaseReturnEntity, sales_entities_1.PurchaseReturnItemEntity,
+                    sales_entities_1.JournalVoucherEntity, sales_entities_1.JournalVoucherLineEntity,
+                    sales_entities_1.WarehouseEntity, sales_entities_1.WarehouseLocationEntity,
+                    sales_entities_1.StockTransferEntity, sales_entities_1.StockTransferItemEntity,
+                    sales_entities_1.StockAdjustmentEntity, sales_entities_1.StockAdjustmentItemEntity,
+                    sales_entities_1.FixedAssetEntity, sales_entities_1.AssetDepreciationEntity, sales_entities_1.AssetMaintenanceEntity, sales_entities_1.AssetTransferEntity,
                 ],
                 synchronize: false,
             }),
@@ -57,14 +64,19 @@ exports.AppModule = AppModule = __decorate([
                 sales_entities_1.PurchaseInvoiceEntity, sales_entities_1.PurchaseInvoiceItemEntity,
                 sales_entities_1.PaymentVoucherEntity,
                 sales_entities_1.PurchaseReturnEntity, sales_entities_1.PurchaseReturnItemEntity,
+                sales_entities_1.JournalVoucherEntity, sales_entities_1.JournalVoucherLineEntity,
+                sales_entities_1.WarehouseEntity, sales_entities_1.WarehouseLocationEntity,
+                sales_entities_1.StockTransferEntity, sales_entities_1.StockTransferItemEntity,
+                sales_entities_1.StockAdjustmentEntity, sales_entities_1.StockAdjustmentItemEntity,
+                sales_entities_1.FixedAssetEntity, sales_entities_1.AssetDepreciationEntity, sales_entities_1.AssetMaintenanceEntity, sales_entities_1.AssetTransferEntity,
             ]),
             passport_1.PassportModule.register({ defaultStrategy: 'jwt' }),
             jwt_1.JwtModule.register({
                 secret: process.env.JWT_SECRET || 'crm_jwt_super_secret_2024_change_in_production',
             }),
         ],
-        controllers: [sales_controller_1.SalesController],
-        providers: [sales_service_1.SalesService, auth_guard_1.JwtStrategy],
+        controllers: [sales_controller_1.SalesController, einvoice_controller_1.EInvoiceController],
+        providers: [sales_service_1.SalesService, einvoice_service_1.EInvoiceService, auth_guard_1.JwtStrategy],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map
