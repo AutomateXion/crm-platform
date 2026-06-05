@@ -38,7 +38,7 @@ export default function PDFModal({ open, onClose, docType, data, companyInfo }: 
   const renderPDF = () => {
     switch (docType) {
       case 'quotation': return <QuotationPDF data={data} companyInfo={companyInfo} />;
-      case 'invoice': return <InvoicePDF data={data} companyInfo={companyInfo} />;
+      case 'invoice': return <InvoicePDF data={data} companyInfo={companyInfo} config={config} />;
       case 'delivery-note': return <DeliveryNotePDF data={data} companyInfo={companyInfo} config={config} />;
       case 'purchase-order': return <PurchaseOrderPDF data={data} companyInfo={companyInfo} />;
       case 'payment-voucher': return <PaymentVoucherPDF data={data} companyInfo={companyInfo} />;

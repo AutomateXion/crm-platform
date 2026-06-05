@@ -9,8 +9,9 @@ import {
   PlusOutlined, SearchOutlined, DeleteOutlined, DollarOutlined, FilePdfOutlined, FileTextOutlined,
   EditOutlined, ArrowRightOutlined,
 } from '@ant-design/icons';
-import { updateStatus, invoicesApi, receiptsApi, productsApi, deliveryNotesApi, quotationsApi } from '../../services/salesApi';
+import { updateStatus, invoicesApi, receiptsApi, productsApi, deliveryNotesApi, quotationsApi, signaturesApi } from '../../services/salesApi';
 import PDFModal from '../../components/pdf/PDFModal';
+import SignatureModal from '../../components/common/SignatureModal';
 import ProductSelect from '../../components/common/ProductSelect';
 import api from '../../services/api';
 
@@ -45,6 +46,10 @@ export default function InvoicesPage() {
   const [skipDN, setSkipDN] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfData, setPdfData] = useState<any>(null);
+  const [sigOpen, setSigOpen] = useState(false);
+  const [sigRec, setSigRec] = useState<any>(null);
+  const [sigViewMode, setSigViewMode] = useState(false);
+  const [signedMap, setSignedMap] = useState<Record<string, any>>({});
   const [receiptForm] = Form.useForm();
   const [form] = Form.useForm();
 
@@ -52,7 +57,7 @@ export default function InvoicesPage() {
     setLoading(true);
     try {
       const r = await invoicesApi.getAll({ page, limit: 20, search: search || undefined, status: statusFilter || undefined });
-      setItems(r.data.data || []); setTotal(r.data.total || 0);
+      setItems(r.data.data || []); setTotal(r.data.total || 0); try { const sg = await signaturesApi.getStatus('INVOICE'); const mm: Record<string, any> = {}; (sg.data || []).forEach((x: any) => { mm[x.docId] = x; }); setSignedMap(mm); } catch {}
     } catch {} finally { setLoading(false); }
   }, [page, search, statusFilter]);
 
@@ -196,6 +201,7 @@ export default function InvoicesPage() {
         <Space>
                     {r.status === 'DRAFT' && <Tooltip title="Send Invoice"><Button size="small" type="primary" style={{background:'#1890ff'}} onClick={async () => { await updateStatus.invoice(r.invoiceId, 'SENT'); load(); message.success('Invoice Sent!'); }}>Send</Button></Tooltip>}
           <Tooltip title="View PDF"><Button size="small" icon={<FilePdfOutlined />} onClick={async () => { try { const d = await invoicesApi.getOne(r.invoiceId); setPdfData(d.data); setPdfOpen(true); } catch {} }} /></Tooltip>
+          {signedMap[r.invoiceId] ? (<Tooltip title={`Signed by ${signedMap[r.invoiceId].signerName}`}><Button size="small" style={{ color: '#52c41a', borderColor: '#52c41a' }} onClick={() => { setSigRec(r); setSigViewMode(true); setSigOpen(true); }}>✓ Signed</Button></Tooltip>) : (<Tooltip title="Capture Signature"><Button size="small" onClick={() => { setSigRec(r); setSigViewMode(false); setSigOpen(true); }}>✍ Sign</Button></Tooltip>)}
           <Tooltip title="Generate E-Invoice XML (Fawtara)">
             <Button size="small" icon={<FileTextOutlined />} style={{color:'#722ed1',borderColor:'#722ed1'}}
               onClick={async () => {
@@ -405,6 +411,7 @@ export default function InvoicesPage() {
           </div>
         </Form>
       </Modal>
+      <SignatureModal docType="INVOICE" docId={sigRec?.invoiceId} docNumber={sigRec?.invoiceNumber} viewMode={sigViewMode} open={sigOpen} onClose={() => setSigOpen(false)} onSigned={() => load()} />
       <PDFModal open={pdfOpen} onClose={() => setPdfOpen(false)} docType="invoice" data={pdfData} />
     </div>
   );
