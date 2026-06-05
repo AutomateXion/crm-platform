@@ -133,6 +133,7 @@ const NAV_ITEMS = [
       { key: '/superadmin', icon: <SafetyCertificateOutlined />, label: '🛡️ Super Admin' },
       { key: '/admin/company-settings', icon: <ShopOutlined />, label: 'Company Settings' },
       { key: '/admin/accounting-config', icon: <SettingOutlined />, label: 'Accounting Configuration' },
+      { key: '/admin/document-config', icon: <SettingOutlined />, label: 'Document Configuration' },
       { key: '/admin/email-config', icon: <MailOutlined />, label: 'Email Configuration' },
       { key: '/permissions',  icon: <SafetyOutlined />,  label: 'Permissions' },
       { key: '/masters',      icon: <DatabaseOutlined />,label: 'Master Data' },

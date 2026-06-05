@@ -3,11 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TenantsService } from './tenants.service';
 import { TenantsController } from './tenants.controller';
 import { Tenant } from './entities/tenant.entity';
+import { DocumentConfig } from './entities/document-config.entity';
 import { UserGroup } from '../users/entities/user-group.entity';
 import { User } from '../users/entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tenant, UserGroup, User])],
+  imports: [TypeOrmModule.forFeature([Tenant, UserGroup, User, DocumentConfig])],
   controllers: [TenantsController],
   providers: [TenantsService],
   exports: [TenantsService],

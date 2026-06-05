@@ -94,6 +94,11 @@ export const tenantsApi = {
   updateModules: (modules: string[]) => api.patch('/tenants/me/modules', { modules }),
 };
 
+export const documentConfigApi = {
+  get: (docType: string) => api.get(`/tenants/document-config/${docType}`),
+  save: (docType: string, data: any) => api.put(`/tenants/document-config/${docType}`, data),
+};
+
 export const auditApi = {
   getLogs: (params?: any) => api.get('/audit', { params }),
 };

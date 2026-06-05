@@ -83,6 +83,7 @@ import PaymentVouchersPage   from './pages/purchase/PaymentVouchersPage';
 import ImportExportPage      from './pages/admin/ImportExportPage';
 import CompanySettingsPage    from './pages/admin/CompanySettingsPage';
 import AccountingConfigPage   from './pages/admin/AccountingConfigPage';
+import DocumentConfigPage     from './pages/admin/DocumentConfigPage';
 import EmailConfigPage       from './pages/admin/EmailConfigPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -173,6 +174,7 @@ export default function App() {
         <Route path="admin/import-export"        element={<ImportExportPage />} />
         <Route path="admin/company-settings"    element={<CompanySettingsPage />} />
         <Route path="admin/accounting-config"   element={<AccountingConfigPage />} />
+        <Route path="admin/document-config"     element={<DocumentConfigPage />} />
         <Route path="admin/email-config"         element={<EmailConfigPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

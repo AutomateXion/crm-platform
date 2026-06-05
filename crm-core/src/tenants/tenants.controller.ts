@@ -43,6 +43,16 @@ export class TenantsController {
     return this.tenantsService.updateTenant(user.tenantId, dto);
   }
 
+  @Get('document-config/:docType')
+  async getDocumentConfig(@CurrentUser() user: User, @Param('docType') docType: string) {
+    return this.tenantsService.getDocumentConfig(user.tenantId, docType);
+  }
+
+  @Put('document-config/:docType')
+  async saveDocumentConfig(@CurrentUser() user: User, @Param('docType') docType: string, @Body() dto: any) {
+    return this.tenantsService.saveDocumentConfig(user.tenantId, docType, dto);
+  }
+
   @Get('accounting-config')
   async getAccountingConfig(@CurrentUser() user: User) {
     return this.tenantsService.getAccountingConfig(user.tenantId);

@@ -3,6 +3,7 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Tenant } from './entities/tenant.entity';
+import { DocumentConfig } from './entities/document-config.entity';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UserGroup } from '../users/entities/user-group.entity';
@@ -13,6 +14,7 @@ import * as bcrypt from 'bcryptjs';
 export class TenantsService {
   constructor(
     @InjectRepository(Tenant) private readonly tenantRepo: Repository<Tenant>,
+    @InjectRepository(DocumentConfig) private documentConfigRepo: Repository<DocumentConfig>,
     @InjectRepository(UserGroup) private readonly groupRepo: Repository<UserGroup>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
   ) {}
@@ -148,4 +150,41 @@ export class TenantsService {
     await this.tenantRepo.update({ tenantId }, { settings } as any);
     return { success: true, config: dto };
   }
+
+  private docDefaults(docType: string) {
+    return {
+      docType,
+      termsText: '',
+      headerNote: '',
+      footerNote: '',
+      fields: {},
+      itemsPerPage: 15,
+      channels: { print: true, pdf: true, email: false, whatsapp: false },
+      showSignature: true,
+    };
+  }
+
+  async getDocumentConfig(tenantId: string, docType: string) {
+    const cfg = await this.documentConfigRepo.findOne({ where: { tenantId, docType } });
+    if (!cfg) return this.docDefaults(docType);
+    return cfg;
+  }
+
+  async saveDocumentConfig(tenantId: string, docType: string, dto: any) {
+    let cfg = await this.documentConfigRepo.findOne({ where: { tenantId, docType } });
+    if (!cfg) {
+      cfg = this.documentConfigRepo.create({ tenantId, docType });
+    }
+    Object.assign(cfg, {
+      termsText: dto.termsText ?? cfg.termsText,
+      headerNote: dto.headerNote ?? cfg.headerNote,
+      footerNote: dto.footerNote ?? cfg.footerNote,
+      fields: dto.fields ?? cfg.fields,
+      itemsPerPage: dto.itemsPerPage ?? cfg.itemsPerPage,
+      channels: dto.channels ?? cfg.channels,
+      showSignature: dto.showSignature ?? cfg.showSignature,
+    });
+    return this.documentConfigRepo.save(cfg);
+  }
+
 }
