@@ -47,7 +47,7 @@ exports.AppModule = AppModule = __decorate([
                     sales_entities_1.WarehouseEntity, sales_entities_1.WarehouseLocationEntity,
                     sales_entities_1.StockTransferEntity, sales_entities_1.StockTransferItemEntity,
                     sales_entities_1.StockAdjustmentEntity, sales_entities_1.StockAdjustmentItemEntity,
-                    sales_entities_1.FixedAssetEntity, sales_entities_1.AssetDepreciationEntity, sales_entities_1.AssetMaintenanceEntity, sales_entities_1.AssetTransferEntity,
+                    sales_entities_1.FixedAssetEntity, sales_entities_1.AssetDepreciationEntity, sales_entities_1.AssetMaintenanceEntity, sales_entities_1.AssetTransferEntity, sales_entities_1.DocumentSignatureEntity,
                 ],
                 synchronize: false,
             }),
@@ -68,7 +68,7 @@ exports.AppModule = AppModule = __decorate([
                 sales_entities_1.WarehouseEntity, sales_entities_1.WarehouseLocationEntity,
                 sales_entities_1.StockTransferEntity, sales_entities_1.StockTransferItemEntity,
                 sales_entities_1.StockAdjustmentEntity, sales_entities_1.StockAdjustmentItemEntity,
-                sales_entities_1.FixedAssetEntity, sales_entities_1.AssetDepreciationEntity, sales_entities_1.AssetMaintenanceEntity, sales_entities_1.AssetTransferEntity,
+                sales_entities_1.FixedAssetEntity, sales_entities_1.AssetDepreciationEntity, sales_entities_1.AssetMaintenanceEntity, sales_entities_1.AssetTransferEntity, sales_entities_1.DocumentSignatureEntity,
             ]),
             passport_1.PassportModule.register({ defaultStrategy: 'jwt' }),
             jwt_1.JwtModule.register({

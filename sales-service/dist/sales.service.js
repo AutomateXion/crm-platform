@@ -29,8 +29,9 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const sales_entities_1 = require("./sales.entities");
 let SalesService = class SalesService {
-    constructor(coaRepo, supplierRepo, poRepo, poItemRepo, grnRepo, grnItemRepo, purchaseInvoiceRepo, purchaseInvoiceItemRepo, voucherRepo, purchaseReturnRepo, purchaseReturnItemRepo, jvRepo, jvLineRepo, warehouseRepo, locationRepo, transferRepo, transferItemRepo, adjustmentRepo, fixedAssetRepo, assetDeprRepo, assetMaintRepo, assetTransferRepo, adjustmentItemRepo, productRepo, stockRepo, rateRepo, quotationRepo, quotationItemRepo, dnRepo, dnItemRepo, invoiceRepo, invoiceItemRepo, receiptRepo, returnRepo, returnItemRepo) {
+    constructor(coaRepo, sigRepo, supplierRepo, poRepo, poItemRepo, grnRepo, grnItemRepo, purchaseInvoiceRepo, purchaseInvoiceItemRepo, voucherRepo, purchaseReturnRepo, purchaseReturnItemRepo, jvRepo, jvLineRepo, warehouseRepo, locationRepo, transferRepo, transferItemRepo, adjustmentRepo, fixedAssetRepo, assetDeprRepo, assetMaintRepo, assetTransferRepo, adjustmentItemRepo, productRepo, stockRepo, rateRepo, quotationRepo, quotationItemRepo, dnRepo, dnItemRepo, invoiceRepo, invoiceItemRepo, receiptRepo, returnRepo, returnItemRepo) {
         this.coaRepo = coaRepo;
+        this.sigRepo = sigRepo;
         this.supplierRepo = supplierRepo;
         this.poRepo = poRepo;
         this.poItemRepo = poItemRepo;
@@ -2663,46 +2664,82 @@ let SalesService = class SalesService {
             pipeline, documentCounts, revenueByMonth,
         };
     }
+    async signInPerson(tenantId, userId, dto) {
+        var _a, _b;
+        const sig = this.sigRepo.create({
+            tenantId,
+            docType: dto.docType,
+            docId: dto.docId,
+            signerName: dto.signerName,
+            signerTitle: dto.signerTitle || null,
+            signatureImage: dto.signatureImage,
+            gpsLat: (_a = dto.gpsLat) !== null && _a !== void 0 ? _a : null,
+            gpsLng: (_b = dto.gpsLng) !== null && _b !== void 0 ? _b : null,
+            ipAddress: dto.ipAddress || null,
+            notes: dto.notes || null,
+            createdBy: userId || null,
+        });
+        return this.sigRepo.save(sig);
+    }
+    async getSignatures(tenantId, docType, docId) {
+        return this.sigRepo.find({
+            where: { tenantId, docType, docId },
+            order: { signedAt: 'DESC' },
+        });
+    }
+    async getSignatureStatus(tenantId, docType) {
+        const rows = await this.sigRepo.createQueryBuilder('s')
+            .select('s.docId', 'docId')
+            .addSelect('MAX(s.signerName)', 'signerName')
+            .addSelect('MAX(s.signedAt)', 'signedAt')
+            .where('s.tenantId = :tenantId', { tenantId })
+            .andWhere('s.docType = :docType', { docType })
+            .groupBy('s.docId')
+            .getRawMany();
+        return rows;
+    }
 };
 exports.SalesService = SalesService;
 exports.SalesService = SalesService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(sales_entities_1.ChartOfAccountEntity)),
-    __param(1, (0, typeorm_1.InjectRepository)(sales_entities_1.SupplierEntity)),
-    __param(2, (0, typeorm_1.InjectRepository)(sales_entities_1.PurchaseOrderEntity)),
-    __param(3, (0, typeorm_1.InjectRepository)(sales_entities_1.PurchaseOrderItemEntity)),
-    __param(4, (0, typeorm_1.InjectRepository)(sales_entities_1.GoodsReceiptNoteEntity)),
-    __param(5, (0, typeorm_1.InjectRepository)(sales_entities_1.GoodsReceiptNoteItemEntity)),
-    __param(6, (0, typeorm_1.InjectRepository)(sales_entities_1.PurchaseInvoiceEntity)),
-    __param(7, (0, typeorm_1.InjectRepository)(sales_entities_1.PurchaseInvoiceItemEntity)),
-    __param(8, (0, typeorm_1.InjectRepository)(sales_entities_1.PaymentVoucherEntity)),
-    __param(9, (0, typeorm_1.InjectRepository)(sales_entities_1.PurchaseReturnEntity)),
-    __param(10, (0, typeorm_1.InjectRepository)(sales_entities_1.PurchaseReturnItemEntity)),
-    __param(11, (0, typeorm_1.InjectRepository)(sales_entities_1.JournalVoucherEntity)),
-    __param(12, (0, typeorm_1.InjectRepository)(sales_entities_1.JournalVoucherLineEntity)),
-    __param(13, (0, typeorm_1.InjectRepository)(sales_entities_1.WarehouseEntity)),
-    __param(14, (0, typeorm_1.InjectRepository)(sales_entities_1.WarehouseLocationEntity)),
-    __param(15, (0, typeorm_1.InjectRepository)(sales_entities_1.StockTransferEntity)),
-    __param(16, (0, typeorm_1.InjectRepository)(sales_entities_1.StockTransferItemEntity)),
-    __param(17, (0, typeorm_1.InjectRepository)(sales_entities_1.StockAdjustmentEntity)),
-    __param(18, (0, typeorm_1.InjectRepository)(sales_entities_1.FixedAssetEntity)),
-    __param(19, (0, typeorm_1.InjectRepository)(sales_entities_1.AssetDepreciationEntity)),
-    __param(20, (0, typeorm_1.InjectRepository)(sales_entities_1.AssetMaintenanceEntity)),
-    __param(21, (0, typeorm_1.InjectRepository)(sales_entities_1.AssetTransferEntity)),
-    __param(22, (0, typeorm_1.InjectRepository)(sales_entities_1.StockAdjustmentItemEntity)),
-    __param(23, (0, typeorm_1.InjectRepository)(sales_entities_1.ProductEntity)),
-    __param(24, (0, typeorm_1.InjectRepository)(sales_entities_1.StockMovementEntity)),
-    __param(25, (0, typeorm_1.InjectRepository)(sales_entities_1.ExchangeRateEntity)),
-    __param(26, (0, typeorm_1.InjectRepository)(sales_entities_1.QuotationEntity)),
-    __param(27, (0, typeorm_1.InjectRepository)(sales_entities_1.QuotationItemEntity)),
-    __param(28, (0, typeorm_1.InjectRepository)(sales_entities_1.DeliveryNoteEntity)),
-    __param(29, (0, typeorm_1.InjectRepository)(sales_entities_1.DeliveryNoteItemEntity)),
-    __param(30, (0, typeorm_1.InjectRepository)(sales_entities_1.SalesInvoiceEntity)),
-    __param(31, (0, typeorm_1.InjectRepository)(sales_entities_1.SalesInvoiceItemEntity)),
-    __param(32, (0, typeorm_1.InjectRepository)(sales_entities_1.ReceiptEntity)),
-    __param(33, (0, typeorm_1.InjectRepository)(sales_entities_1.SalesReturnEntity)),
-    __param(34, (0, typeorm_1.InjectRepository)(sales_entities_1.SalesReturnItemEntity)),
+    __param(1, (0, typeorm_1.InjectRepository)(sales_entities_1.DocumentSignatureEntity)),
+    __param(2, (0, typeorm_1.InjectRepository)(sales_entities_1.SupplierEntity)),
+    __param(3, (0, typeorm_1.InjectRepository)(sales_entities_1.PurchaseOrderEntity)),
+    __param(4, (0, typeorm_1.InjectRepository)(sales_entities_1.PurchaseOrderItemEntity)),
+    __param(5, (0, typeorm_1.InjectRepository)(sales_entities_1.GoodsReceiptNoteEntity)),
+    __param(6, (0, typeorm_1.InjectRepository)(sales_entities_1.GoodsReceiptNoteItemEntity)),
+    __param(7, (0, typeorm_1.InjectRepository)(sales_entities_1.PurchaseInvoiceEntity)),
+    __param(8, (0, typeorm_1.InjectRepository)(sales_entities_1.PurchaseInvoiceItemEntity)),
+    __param(9, (0, typeorm_1.InjectRepository)(sales_entities_1.PaymentVoucherEntity)),
+    __param(10, (0, typeorm_1.InjectRepository)(sales_entities_1.PurchaseReturnEntity)),
+    __param(11, (0, typeorm_1.InjectRepository)(sales_entities_1.PurchaseReturnItemEntity)),
+    __param(12, (0, typeorm_1.InjectRepository)(sales_entities_1.JournalVoucherEntity)),
+    __param(13, (0, typeorm_1.InjectRepository)(sales_entities_1.JournalVoucherLineEntity)),
+    __param(14, (0, typeorm_1.InjectRepository)(sales_entities_1.WarehouseEntity)),
+    __param(15, (0, typeorm_1.InjectRepository)(sales_entities_1.WarehouseLocationEntity)),
+    __param(16, (0, typeorm_1.InjectRepository)(sales_entities_1.StockTransferEntity)),
+    __param(17, (0, typeorm_1.InjectRepository)(sales_entities_1.StockTransferItemEntity)),
+    __param(18, (0, typeorm_1.InjectRepository)(sales_entities_1.StockAdjustmentEntity)),
+    __param(19, (0, typeorm_1.InjectRepository)(sales_entities_1.FixedAssetEntity)),
+    __param(20, (0, typeorm_1.InjectRepository)(sales_entities_1.AssetDepreciationEntity)),
+    __param(21, (0, typeorm_1.InjectRepository)(sales_entities_1.AssetMaintenanceEntity)),
+    __param(22, (0, typeorm_1.InjectRepository)(sales_entities_1.AssetTransferEntity)),
+    __param(23, (0, typeorm_1.InjectRepository)(sales_entities_1.StockAdjustmentItemEntity)),
+    __param(24, (0, typeorm_1.InjectRepository)(sales_entities_1.ProductEntity)),
+    __param(25, (0, typeorm_1.InjectRepository)(sales_entities_1.StockMovementEntity)),
+    __param(26, (0, typeorm_1.InjectRepository)(sales_entities_1.ExchangeRateEntity)),
+    __param(27, (0, typeorm_1.InjectRepository)(sales_entities_1.QuotationEntity)),
+    __param(28, (0, typeorm_1.InjectRepository)(sales_entities_1.QuotationItemEntity)),
+    __param(29, (0, typeorm_1.InjectRepository)(sales_entities_1.DeliveryNoteEntity)),
+    __param(30, (0, typeorm_1.InjectRepository)(sales_entities_1.DeliveryNoteItemEntity)),
+    __param(31, (0, typeorm_1.InjectRepository)(sales_entities_1.SalesInvoiceEntity)),
+    __param(32, (0, typeorm_1.InjectRepository)(sales_entities_1.SalesInvoiceItemEntity)),
+    __param(33, (0, typeorm_1.InjectRepository)(sales_entities_1.ReceiptEntity)),
+    __param(34, (0, typeorm_1.InjectRepository)(sales_entities_1.SalesReturnEntity)),
+    __param(35, (0, typeorm_1.InjectRepository)(sales_entities_1.SalesReturnItemEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

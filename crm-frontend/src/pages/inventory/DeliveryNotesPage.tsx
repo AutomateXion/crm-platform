@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AutoComplete, Table, Card, Button, Input, Select, Tag, Space, Modal, Form, Typography, Row, Col, message, Popconfirm, Tooltip, InputNumber, Divider, Switch } from 'antd';
 import { FilePdfOutlined, PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { updateStatus, deliveryNotesApi, productsApi, quotationsApi } from '../../services/salesApi';
+import { updateStatus, deliveryNotesApi, productsApi, quotationsApi, signaturesApi } from '../../services/salesApi';
 import SalesmanSelect from '../../components/common/SalesmanSelect';
 import api from '../../services/api';
 import PDFModal from '../../components/pdf/PDFModal';
 import ProductSelect from '../../components/common/ProductSelect';
+import SignatureModal from '../../components/common/SignatureModal';
 const { Title, Text } = Typography;
 const { Option } = Select;
 const STATUS_COLORS: Record<string,string> = { DRAFT:'default', CONFIRMED:'blue', DELIVERED:'green', CANCELLED:'red' };
@@ -22,6 +23,10 @@ export default function DeliveryNotesPage() {
   const [saving, setSaving] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfData, setPdfData] = useState<any>(null);
+  const [sigOpen, setSigOpen] = useState(false);
+  const [sigRec, setSigRec] = useState<any>(null);
+  const [signedMap, setSignedMap] = useState<Record<string, any>>({});
+  const [sigViewMode, setSigViewMode] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [quotations, setQuotations] = useState<any[]>([]);
   const [accountOptions, setAccountOptions] = useState<any[]>([]);
@@ -30,7 +35,7 @@ export default function DeliveryNotesPage() {
   const navigate = useNavigate();
   const load = useCallback(async () => {
     setLoading(true);
-    try { const r = await deliveryNotesApi.getAll({ page, limit: 20, search: search || undefined, status: statusFilter || undefined }); setItems(r.data.data || []); setTotal(r.data.total || 0); }
+    try { const r = await deliveryNotesApi.getAll({ page, limit: 20, search: search || undefined, status: statusFilter || undefined }); setItems(r.data.data || []); setTotal(r.data.total || 0); try { const sg = await signaturesApi.getStatus('DN'); const m: Record<string, any> = {}; (sg.data || []).forEach((x: any) => { m[x.docId] = x; }); setSignedMap(m); } catch {} }
     catch {} finally { setLoading(false); }
   }, [page, search, statusFilter]);
   useEffect(() => { load(); }, [load]);
@@ -125,6 +130,7 @@ export default function DeliveryNotesPage() {
         {r.status === 'DRAFT' && <Tooltip title="Confirm DN"><Button size="small" type="primary" style={{background:'#1890ff'}} onClick={async () => { await updateStatus.deliveryNote(r.dnId, 'CONFIRMED'); load(); message.success('Confirmed!'); }}>Confirm</Button></Tooltip>}
         {r.status === 'CONFIRMED' && <Tooltip title="Mark as Delivered"><Button size="small" type="primary" style={{background:'#52c41a'}} onClick={async () => { await updateStatus.deliveryNote(r.dnId, 'DELIVERED'); load(); message.success('Marked as Delivered!'); }}>Deliver</Button></Tooltip>}
         <Tooltip title="View PDF"><Button size="small" icon={<FilePdfOutlined />} onClick={async () => { try { const d = await deliveryNotesApi.getOne(r.dnId); setPdfData(d.data); setPdfOpen(true); } catch {} }} /></Tooltip>
+        {signedMap[r.dnId] ? (<Tooltip title={`Signed by ${signedMap[r.dnId].signerName}`}><Button size="small" style={{ color: '#52c41a', borderColor: '#52c41a' }} onClick={() => { setSigRec(r); setSigViewMode(true); setSigOpen(true); }}>✓ Signed</Button></Tooltip>) : (<Tooltip title="Capture Signature"><Button size="small" onClick={() => { setSigRec(r); setSigViewMode(false); setSigOpen(true); }}>✍ Sign</Button></Tooltip>)}
         <Tooltip title="Edit"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
         {r.status === 'DELIVERED' && <Tooltip title="Convert to Invoice"><Button size="small" type="primary" icon={<ArrowRightOutlined />} onClick={() => handleConvertToInvoice(r.dnId)} style={{ background: '#52c41a', borderColor: '#52c41a' }} /></Tooltip>}
         <Popconfirm title="Delete?" onConfirm={async () => { await deliveryNotesApi.delete(r.dnId); load(); }}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
@@ -217,6 +223,7 @@ export default function DeliveryNotesPage() {
           </div>
         </Form>
       </Modal>
+      <SignatureModal docType="DN" docId={sigRec?.dnId} docNumber={sigRec?.dnNumber} viewMode={sigViewMode} open={sigOpen} onClose={() => setSigOpen(false)} onSigned={() => load()} />
       <PDFModal open={pdfOpen} onClose={() => setPdfOpen(false)} docType="delivery-note" data={pdfData} />
     </div>
   );

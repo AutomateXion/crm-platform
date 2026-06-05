@@ -19,6 +19,7 @@ import {
   StockTransferEntity, StockTransferItemEntity,
   StockAdjustmentEntity, StockAdjustmentItemEntity,
   FixedAssetEntity, AssetDepreciationEntity, AssetMaintenanceEntity, AssetTransferEntity,
+  DocumentSignatureEntity,
 } from './sales.entities';
 
 @Injectable()
@@ -26,6 +27,7 @@ export class SalesService {
 
   constructor(
     @InjectRepository(ChartOfAccountEntity) private coaRepo: Repository<ChartOfAccountEntity>,
+    @InjectRepository(DocumentSignatureEntity) private sigRepo: Repository<DocumentSignatureEntity>,
     @InjectRepository(SupplierEntity) private supplierRepo: Repository<SupplierEntity>,
     @InjectRepository(PurchaseOrderEntity) private poRepo: Repository<PurchaseOrderEntity>,
     @InjectRepository(PurchaseOrderItemEntity) private poItemRepo: Repository<PurchaseOrderItemEntity>,
@@ -2962,6 +2964,44 @@ export class SalesService {
       assetsByCategory, assetCostVsDepr, assetCondition,
       pipeline, documentCounts, revenueByMonth,
     };
+  }
+
+
+  async signInPerson(tenantId: string, userId: string, dto: any) {
+    const sig = this.sigRepo.create({
+      tenantId,
+      docType: dto.docType,
+      docId: dto.docId,
+      signerName: dto.signerName,
+      signerTitle: dto.signerTitle || null,
+      signatureImage: dto.signatureImage,
+      gpsLat: dto.gpsLat ?? null,
+      gpsLng: dto.gpsLng ?? null,
+      ipAddress: dto.ipAddress || null,
+      notes: dto.notes || null,
+      createdBy: userId || null,
+    });
+    return this.sigRepo.save(sig);
+  }
+
+  async getSignatures(tenantId: string, docType: string, docId: string) {
+    return this.sigRepo.find({
+      where: { tenantId, docType, docId },
+      order: { signedAt: 'DESC' },
+    });
+  }
+
+
+  async getSignatureStatus(tenantId: string, docType: string) {
+    const rows = await this.sigRepo.createQueryBuilder('s')
+      .select('s.docId', 'docId')
+      .addSelect('MAX(s.signerName)', 'signerName')
+      .addSelect('MAX(s.signedAt)', 'signedAt')
+      .where('s.tenantId = :tenantId', { tenantId })
+      .andWhere('s.docType = :docType', { docType })
+      .groupBy('s.docId')
+      .getRawMany();
+    return rows;
   }
 
 }

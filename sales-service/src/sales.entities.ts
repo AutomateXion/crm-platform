@@ -961,3 +961,22 @@ export class AssetTransferEntity {
   @Column({ name: 'created_by', nullable: true }) createdBy: string;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
 }
+
+// ── Document Signatures ────────────────────────────────
+@Entity('document_signatures')
+@Index(['tenantId', 'docType', 'docId'])
+export class DocumentSignatureEntity {
+  @PrimaryGeneratedColumn('uuid', { name: 'signature_id' }) signatureId: string;
+  @Column({ name: 'tenant_id' }) tenantId: string;
+  @Column({ name: 'doc_type' }) docType: string;
+  @Column({ name: 'doc_id' }) docId: string;
+  @Column({ name: 'signer_name' }) signerName: string;
+  @Column({ name: 'signer_title', nullable: true }) signerTitle: string;
+  @Column({ name: 'signature_image', type: 'text' }) signatureImage: string;
+  @Column({ name: 'gps_lat', type: 'decimal', precision: 10, scale: 7, nullable: true }) gpsLat: number;
+  @Column({ name: 'gps_lng', type: 'decimal', precision: 10, scale: 7, nullable: true }) gpsLng: number;
+  @Column({ name: 'ip_address', nullable: true }) ipAddress: string;
+  @Column({ type: 'text', nullable: true }) notes: string;
+  @Column({ name: 'signed_at', type: 'timestamptz', default: () => 'now()' }) signedAt: Date;
+  @Column({ name: 'created_by', nullable: true }) createdBy: string;
+}

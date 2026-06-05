@@ -805,3 +805,18 @@ export declare class AssetTransferEntity {
     createdBy: string;
     createdAt: Date;
 }
+export declare class DocumentSignatureEntity {
+    signatureId: string;
+    tenantId: string;
+    docType: string;
+    docId: string;
+    signerName: string;
+    signerTitle: string;
+    signatureImage: string;
+    gpsLat: number;
+    gpsLng: number;
+    ipAddress: string;
+    notes: string;
+    signedAt: Date;
+    createdBy: string;
+}

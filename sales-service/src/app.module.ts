@@ -19,7 +19,7 @@ import {
   WarehouseEntity, WarehouseLocationEntity,
   StockTransferEntity, StockTransferItemEntity,
   StockAdjustmentEntity, StockAdjustmentItemEntity,
-  FixedAssetEntity, AssetDepreciationEntity, AssetMaintenanceEntity, AssetTransferEntity,
+  FixedAssetEntity, AssetDepreciationEntity, AssetMaintenanceEntity, AssetTransferEntity, DocumentSignatureEntity,
 } from './sales.entities';
 import { SalesController } from './sales.controller';
 import { SalesService } from './sales.service';
@@ -53,7 +53,7 @@ import { JwtStrategy } from './auth.guard';
         WarehouseEntity, WarehouseLocationEntity,
         StockTransferEntity, StockTransferItemEntity,
         StockAdjustmentEntity, StockAdjustmentItemEntity,
-        FixedAssetEntity, AssetDepreciationEntity, AssetMaintenanceEntity, AssetTransferEntity,
+        FixedAssetEntity, AssetDepreciationEntity, AssetMaintenanceEntity, AssetTransferEntity, DocumentSignatureEntity,
       ],
       synchronize: false,
     }),
@@ -74,7 +74,7 @@ import { JwtStrategy } from './auth.guard';
       WarehouseEntity, WarehouseLocationEntity,
       StockTransferEntity, StockTransferItemEntity,
       StockAdjustmentEntity, StockAdjustmentItemEntity,
-      FixedAssetEntity, AssetDepreciationEntity, AssetMaintenanceEntity, AssetTransferEntity,
+      FixedAssetEntity, AssetDepreciationEntity, AssetMaintenanceEntity, AssetTransferEntity, DocumentSignatureEntity,
     ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({

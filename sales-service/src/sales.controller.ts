@@ -10,6 +10,22 @@ import { SalesService } from './sales.service';
 export class SalesController {
   constructor(private readonly svc: SalesService) {}
 
+  // ── Signatures ────────────────────────────────────────────────
+  @Post('signatures/in-person')
+  signInPerson(@Request() req: any, @Body() dto: any) {
+    return this.svc.signInPerson(req.user.tenantId, req.user.userId, dto);
+  }
+
+  @Get('signatures/status')
+  getSignatureStatus(@Request() req: any, @Query() q: any) {
+    return this.svc.getSignatureStatus(req.user.tenantId, q.docType);
+  }
+
+  @Get('signatures/:docType/:docId')
+  getSignatures(@Request() req: any, @Param('docType') docType: string, @Param('docId') docId: string) {
+    return this.svc.getSignatures(req.user.tenantId, docType, docId);
+  }
+
   // ── Products ──────────────────────────────────────────────────
   @Get('products')
   getProducts(@Request() req: any, @Query() q: any) {

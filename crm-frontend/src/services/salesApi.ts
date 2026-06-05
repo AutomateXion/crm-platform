@@ -185,3 +185,9 @@ export const updateStatus = {
   grn: (id: string, status: string) => salesApi.patch(`/sales/grns/${id}/status`, { status }),
   purchaseInvoice: (id: string, status: string) => salesApi.patch(`/sales/purchase-invoices/${id}/status`, { status }),
 };
+
+export const signaturesApi = {
+  getStatus: (docType: string) => salesApi.get('/sales/signatures/status', { params: { docType } }),
+  getOne: (docType: string, docId: string) => salesApi.get(`/sales/signatures/${docType}/${docId}`),
+  signInPerson: (data: any) => salesApi.post('/sales/signatures/in-person', data),
+};

@@ -20,6 +20,15 @@ let SalesController = class SalesController {
     constructor(svc) {
         this.svc = svc;
     }
+    signInPerson(req, dto) {
+        return this.svc.signInPerson(req.user.tenantId, req.user.userId, dto);
+    }
+    getSignatureStatus(req, q) {
+        return this.svc.getSignatureStatus(req.user.tenantId, q.docType);
+    }
+    getSignatures(req, docType, docId) {
+        return this.svc.getSignatures(req.user.tenantId, docType, docId);
+    }
     getProducts(req, q) {
         return this.svc.getProducts(req.user.tenantId, +q.page || 1, +q.limit || 20, q.search, q.category);
     }
@@ -505,6 +514,31 @@ let SalesController = class SalesController {
     }
 };
 exports.SalesController = SalesController;
+__decorate([
+    (0, common_1.Post)('signatures/in-person'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], SalesController.prototype, "signInPerson", null);
+__decorate([
+    (0, common_1.Get)('signatures/status'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], SalesController.prototype, "getSignatureStatus", null);
+__decorate([
+    (0, common_1.Get)('signatures/:docType/:docId'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('docType')),
+    __param(2, (0, common_1.Param)('docId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], SalesController.prototype, "getSignatures", null);
 __decorate([
     (0, common_1.Get)('products'),
     __param(0, (0, common_1.Request)()),

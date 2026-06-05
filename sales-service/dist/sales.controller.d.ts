@@ -2,6 +2,9 @@ import { SalesService } from './sales.service';
 export declare class SalesController {
     private readonly svc;
     constructor(svc: SalesService);
+    signInPerson(req: any, dto: any): Promise<import("./sales.entities").DocumentSignatureEntity>;
+    getSignatureStatus(req: any, q: any): Promise<any[]>;
+    getSignatures(req: any, docType: string, docId: string): Promise<import("./sales.entities").DocumentSignatureEntity[]>;
     getProducts(req: any, q: any): Promise<{
         data: import("./sales.entities").ProductEntity[];
         total: number;

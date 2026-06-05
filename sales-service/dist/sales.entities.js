@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AssetTransferEntity = exports.AssetMaintenanceEntity = exports.AssetDepreciationEntity = exports.FixedAssetEntity = exports.StockAdjustmentItemEntity = exports.StockAdjustmentEntity = exports.StockTransferItemEntity = exports.StockTransferEntity = exports.WarehouseLocationEntity = exports.WarehouseEntity = exports.JournalVoucherLineEntity = exports.JournalVoucherEntity = exports.PurchaseReturnItemEntity = exports.PurchaseReturnEntity = exports.PaymentVoucherEntity = exports.PurchaseInvoiceItemEntity = exports.PurchaseInvoiceEntity = exports.GoodsReceiptNoteItemEntity = exports.GoodsReceiptNoteEntity = exports.PurchaseOrderItemEntity = exports.PurchaseOrderEntity = exports.SupplierEntity = exports.ChartOfAccountEntity = exports.SalesReturnItemEntity = exports.SalesReturnEntity = exports.ReceiptEntity = exports.SalesInvoiceItemEntity = exports.SalesInvoiceEntity = exports.DeliveryNoteItemEntity = exports.DeliveryNoteEntity = exports.QuotationItemEntity = exports.QuotationEntity = exports.ExchangeRateEntity = exports.StockMovementEntity = exports.ProductEntity = void 0;
+exports.DocumentSignatureEntity = exports.AssetTransferEntity = exports.AssetMaintenanceEntity = exports.AssetDepreciationEntity = exports.FixedAssetEntity = exports.StockAdjustmentItemEntity = exports.StockAdjustmentEntity = exports.StockTransferItemEntity = exports.StockTransferEntity = exports.WarehouseLocationEntity = exports.WarehouseEntity = exports.JournalVoucherLineEntity = exports.JournalVoucherEntity = exports.PurchaseReturnItemEntity = exports.PurchaseReturnEntity = exports.PaymentVoucherEntity = exports.PurchaseInvoiceItemEntity = exports.PurchaseInvoiceEntity = exports.GoodsReceiptNoteItemEntity = exports.GoodsReceiptNoteEntity = exports.PurchaseOrderItemEntity = exports.PurchaseOrderEntity = exports.SupplierEntity = exports.ChartOfAccountEntity = exports.SalesReturnItemEntity = exports.SalesReturnEntity = exports.ReceiptEntity = exports.SalesInvoiceItemEntity = exports.SalesInvoiceEntity = exports.DeliveryNoteItemEntity = exports.DeliveryNoteEntity = exports.QuotationItemEntity = exports.QuotationEntity = exports.ExchangeRateEntity = exports.StockMovementEntity = exports.ProductEntity = void 0;
 const typeorm_1 = require("typeorm");
 let ProductEntity = class ProductEntity {
 };
@@ -3197,4 +3197,63 @@ __decorate([
 exports.AssetTransferEntity = AssetTransferEntity = __decorate([
     (0, typeorm_1.Entity)('asset_transfers')
 ], AssetTransferEntity);
+let DocumentSignatureEntity = class DocumentSignatureEntity {
+};
+exports.DocumentSignatureEntity = DocumentSignatureEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid', { name: 'signature_id' }),
+    __metadata("design:type", String)
+], DocumentSignatureEntity.prototype, "signatureId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tenant_id' }),
+    __metadata("design:type", String)
+], DocumentSignatureEntity.prototype, "tenantId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'doc_type' }),
+    __metadata("design:type", String)
+], DocumentSignatureEntity.prototype, "docType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'doc_id' }),
+    __metadata("design:type", String)
+], DocumentSignatureEntity.prototype, "docId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'signer_name' }),
+    __metadata("design:type", String)
+], DocumentSignatureEntity.prototype, "signerName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'signer_title', nullable: true }),
+    __metadata("design:type", String)
+], DocumentSignatureEntity.prototype, "signerTitle", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'signature_image', type: 'text' }),
+    __metadata("design:type", String)
+], DocumentSignatureEntity.prototype, "signatureImage", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'gps_lat', type: 'decimal', precision: 10, scale: 7, nullable: true }),
+    __metadata("design:type", Number)
+], DocumentSignatureEntity.prototype, "gpsLat", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'gps_lng', type: 'decimal', precision: 10, scale: 7, nullable: true }),
+    __metadata("design:type", Number)
+], DocumentSignatureEntity.prototype, "gpsLng", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'ip_address', nullable: true }),
+    __metadata("design:type", String)
+], DocumentSignatureEntity.prototype, "ipAddress", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], DocumentSignatureEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'signed_at', type: 'timestamptz', default: () => 'now()' }),
+    __metadata("design:type", Date)
+], DocumentSignatureEntity.prototype, "signedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'created_by', nullable: true }),
+    __metadata("design:type", String)
+], DocumentSignatureEntity.prototype, "createdBy", void 0);
+exports.DocumentSignatureEntity = DocumentSignatureEntity = __decorate([
+    (0, typeorm_1.Entity)('document_signatures'),
+    (0, typeorm_1.Index)(['tenantId', 'docType', 'docId'])
+], DocumentSignatureEntity);
 //# sourceMappingURL=sales.entities.js.map
