@@ -1,5 +1,7 @@
 import React from 'react';
 import { Modal } from 'antd';
+import { useState, useEffect } from 'react';
+import { documentConfigApi } from '../../services/api';
 import QuotationPDF from './QuotationPDF';
 import InvoicePDF from './InvoicePDF';
 import DeliveryNotePDF from './DeliveryNotePDF';
@@ -18,6 +20,12 @@ interface PDFModalProps {
 }
 
 export default function PDFModal({ open, onClose, docType, data, companyInfo }: PDFModalProps) {
+  const [config, setConfig] = useState<any>(null);
+  useEffect(() => {
+    if (open && docType) {
+      documentConfigApi.get(docType).then((r) => setConfig(r.data || null)).catch(() => setConfig(null));
+    }
+  }, [open, docType]);
   const titles: Record<string, string> = {
     'quotation': `Quotation — ${data?.quotationNumber || ''}`,
     'invoice': `Invoice — ${data?.invoiceNumber || ''}`,
@@ -31,7 +39,7 @@ export default function PDFModal({ open, onClose, docType, data, companyInfo }: 
     switch (docType) {
       case 'quotation': return <QuotationPDF data={data} companyInfo={companyInfo} />;
       case 'invoice': return <InvoicePDF data={data} companyInfo={companyInfo} />;
-      case 'delivery-note': return <DeliveryNotePDF data={data} companyInfo={companyInfo} />;
+      case 'delivery-note': return <DeliveryNotePDF data={data} companyInfo={companyInfo} config={config} />;
       case 'purchase-order': return <PurchaseOrderPDF data={data} companyInfo={companyInfo} />;
       case 'payment-voucher': return <PaymentVoucherPDF data={data} companyInfo={companyInfo} />;
       case 'receipt': return <ReceiptPDF data={data} companyInfo={companyInfo} />;
