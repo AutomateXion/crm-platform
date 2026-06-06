@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from './store';
 import AppLayout from './components/layout/AppLayout';
+import ComingSoon from './pages/ComingSoon';
 // Auth
 import LoginPage from './pages/auth/LoginPage';
 // Core
@@ -128,6 +129,33 @@ export default function App() {
         <Route path="reports/stock-movement"     element={<StockMovementReport />} />
         <Route path="reports/item-profile"       element={<ItemProfileReport />} />
         <Route path="reports/account-ledger"     element={<AccountLedgerReport />} />
+        <Route path="reports/outstanding-agewise" element={<ComingSoon />} />
+        <Route path="reports/outstanding-salesman" element={<ComingSoon />} />
+        <Route path="reports/outstanding-customer-group" element={<ComingSoon />} />
+        <Route path="reports/sales-register" element={<ComingSoon />} />
+        <Route path="reports/cash-register" element={<ComingSoon />} />
+        <Route path="reports/bank-register" element={<ComingSoon />} />
+        <Route path="reports/petty-cash-book" element={<ComingSoon />} />
+        <Route path="reports/bank-book" element={<ComingSoon />} />
+        <Route path="reports/pdc-report" element={<ComingSoon />} />
+        <Route path="reports/cheque-book" element={<ComingSoon />} />
+        <Route path="reports/cash-flow-projection" element={<ComingSoon />} />
+        <Route path="reports/collection-projection" element={<ComingSoon />} />
+        <Route path="reports/monthly-cash-management" element={<ComingSoon />} />
+        <Route path="reports/stock-summary" element={<ComingSoon />} />
+        <Route path="reports/net-stock-available" element={<ComingSoon />} />
+        <Route path="reports/stock-in-transit" element={<ComingSoon />} />
+        <Route path="reports/stock-by-location" element={<ComingSoon />} />
+        <Route path="reports/stock-aging" element={<ComingSoon />} />
+        <Route path="reports/item-sales-purchase-history" element={<ComingSoon />} />
+        <Route path="reports/stock-expiry" element={<ComingSoon />} />
+        <Route path="reports/batch-expiry" element={<ComingSoon />} />
+        <Route path="reports/physical-stock-variation" element={<ComingSoon />} />
+        <Route path="reports/stock-valuation" element={<ComingSoon />} />
+        <Route path="reports/reorder-management" element={<ComingSoon />} />
+        <Route path="reports/dn-vs-so" element={<ComingSoon />} />
+        <Route path="reports/partial-delivery" element={<ComingSoon />} />
+        <Route path="reports/partial-receipt" element={<ComingSoon />} />
         <Route path="documents"   element={<DocumentsPage />} />
         {/* Phase 3 — PM */}
         <Route path="pm/dashboard"     element={<PMDashboardPage />} />
