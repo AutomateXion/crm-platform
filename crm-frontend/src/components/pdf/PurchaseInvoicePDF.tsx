@@ -1,89 +1,187 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { Button, Space, Spin } from 'antd';
+import { PrinterOutlined, DownloadOutlined } from '@ant-design/icons';
+import { generateQRCode, downloadMultiPagePDF, printMultiPage } from '../../utils/pdfGenerator';
+import { useCompanySettings } from '../../hooks/useCompanySettings';
 
-export default function PurchaseInvoicePDF({ data }: { data: any }) {
-  if (!data) return null;
+interface Props { data: any; companyInfo?: any; config?: any; }
+
+const DEFAULT_CONFIG = {
+  termsText: '', headerNote: '', footerNote: '',
+  fields: {} as Record<string, boolean>, itemsPerPage: 16, showSignature: true,
+};
+
+const C = '#722ed1';
+
+export default function PurchaseInvoicePDF({ data, companyInfo, config }: Props) {
+  const [qrCode, setQrCode] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  const cfg = { ...DEFAULT_CONFIG, ...(config || {}) };
+  const show = (key: string) => cfg.fields?.[key] !== false;
+  const perPage = Number(cfg.itemsPerPage) || 16;
+
+  useEffect(() => {
+    let active = true;
+    generateQRCode({
+      'Doc Type': 'PURCHASE INVOICE', 'Number': data.invoiceNumber,
+      'Date': data.invoiceDate ? new Date(data.invoiceDate).toLocaleDateString() : '',
+      'Supplier': data.supplierName, 'Total': `OMR ${Number(data.totalAmount || 0).toFixed(3)}`, 'Status': data.status,
+    }).then((qr) => { if (active) { setQrCode(qr); setLoading(false); } });
+    return () => { active = false; };
+  }, [data]);
+
+  const { settings: companySettings } = useCompanySettings();
+  const company = companyInfo || {
+    name: companySettings.companyName,
+    address: [companySettings.addressLine1, companySettings.city, companySettings.country].filter(Boolean).join(', '),
+    phone: companySettings.phone, email: companySettings.email, trn: companySettings.trn,
+    logoUrl: companySettings.logoUrl, primaryColor: companySettings.primaryColor || C,
+  };
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>;
+
   const items = data.items || [];
   const subtotal = items.reduce((s: number, i: any) => s + Number(i.lineTotal || 0), 0);
   const vatAmount = Number(data.vatAmount || subtotal * 0.05);
   const total = Number(data.totalAmount || subtotal + vatAmount);
 
-  return (
-    <div style={{ fontFamily: 'Arial, sans-serif', padding: 32, maxWidth: 800, margin: '0 auto', color: '#1a1a2e' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 32, borderBottom: '3px solid #722ed1', paddingBottom: 16 }}>
+  const chunks: any[][] = [];
+  for (let i = 0; i < items.length; i += perPage) chunks.push(items.slice(i, i + perPage));
+  if (chunks.length === 0) chunks.push([]);
+  const totalPages = chunks.length;
+  const pageIds = chunks.map((_, i) => `pinv-page-${i}`);
+
+  const Header = ({ pageNo }: { pageNo: number }) => (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, borderBottom: `3px solid ${C}`, paddingBottom: 10 }}>
         <div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: '#722ed1' }}>PURCHASE INVOICE</div>
-          <div style={{ fontSize: 14, color: '#666', marginTop: 4 }}>#{data.invoiceNumber}</div>
-          {data.supplierInvoiceNo && <div style={{ fontSize: 12, color: '#666' }}>Supplier Inv#: {data.supplierInvoiceNo}</div>}
+          {company.logoUrl && <img src={company.logoUrl} alt="logo" style={{ height: 40, objectFit: 'contain', marginBottom: 4, display: 'block' }} />}
+          <div style={{ fontSize: 18, fontWeight: 700, color: company.primaryColor || C, marginBottom: 4 }}>{company.name}</div>
+          <div style={{ fontSize: 9, color: '#666', lineHeight: 1.5 }}>
+            {company.address}<br />
+            {company.phone && `Tel: ${company.phone}`}{company.trn && ` | TRN: ${company.trn}`}
+          </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 13 }}>Date: <strong>{data.invoiceDate ? new Date(data.invoiceDate).toLocaleDateString() : '—'}</strong></div>
-          {data.dueDate && <div style={{ fontSize: 13 }}>Due: <strong>{new Date(data.dueDate).toLocaleDateString()}</strong></div>}
-          <div style={{ fontSize: 13 }}>Status: <strong style={{ color: '#722ed1' }}>{data.status}</strong></div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: C, marginBottom: 4 }}>PURCHASE INVOICE</div>
+          <div style={{ fontSize: 10, color: '#666' }}>
+            <strong>{data.invoiceNumber}</strong><br />
+            {show('supplierInvoiceNo') && data.supplierInvoiceNo && <>Supplier Inv#: {data.supplierInvoiceNo}<br /></>}
+            Date: {data.invoiceDate ? new Date(data.invoiceDate).toLocaleDateString() : '—'}<br />
+            {show('dueDate') && data.dueDate && <>Due: {new Date(data.dueDate).toLocaleDateString()}<br /></>}
+            <span style={{ color: C, fontWeight: 700 }}>{data.status}</span>
+          </div>
+          {pageNo === 1 && qrCode && <img src={qrCode} alt="QR" style={{ width: 64, height: 64, marginTop: 4 }} />}
         </div>
       </div>
-
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', marginBottom: 4 }}>Supplier</div>
-        <div style={{ fontSize: 16, fontWeight: 700 }}>{data.supplierName}</div>
-        {data.supplierAddress && <div style={{ fontSize: 12, color: '#666' }}>{data.supplierAddress}</div>}
-        {data.supplierTrn && <div style={{ fontSize: 12 }}>TRN: {data.supplierTrn}</div>}
+      {pageNo === 1 && cfg.headerNote && <div style={{ fontSize: 9, color: '#555', marginBottom: 8, padding: '6px 10px', background: '#f9f0ff', borderRadius: 4 }}>{cfg.headerNote}</div>}
+      <div style={{ marginBottom: 8 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, color: C, textTransform: 'uppercase', letterSpacing: 1 }}>Supplier: </span>
+        <span style={{ fontWeight: 600, fontSize: 11 }}>{data.supplierName}</span>
+        {show('supplierTrn') && data.supplierTrn && <span style={{ color: '#666', fontSize: 9 }}>  ·  TRN: {data.supplierTrn}</span>}
+        {pageNo === 1 && show('supplierAddress') && data.supplierAddress && <div style={{ color: '#666', fontSize: 9 }}>{data.supplierAddress}</div>}
       </div>
+    </div>
+  );
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
-        <thead>
-          <tr style={{ background: '#722ed1', color: '#fff' }}>
-            <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12 }}>#</th>
-            <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12 }}>Description</th>
-            <th style={{ padding: '8px 12px', textAlign: 'center', fontSize: 12 }}>UOM</th>
-            <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12 }}>Qty</th>
-            <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12 }}>Unit Price</th>
-            <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12 }}>Total</th>
+  const ItemsTable = ({ chunk, startIndex }: { chunk: any[]; startIndex: number }) => (
+    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <thead>
+        <tr style={{ background: C, color: '#fff' }}>
+          <th style={{ padding: '7px 10px', textAlign: 'left', fontSize: 9, width: 28 }}>#</th>
+          <th style={{ padding: '7px 10px', textAlign: 'left', fontSize: 9 }}>Description</th>
+          <th style={{ padding: '7px 10px', textAlign: 'center', fontSize: 9, width: 45 }}>UOM</th>
+          <th style={{ padding: '7px 10px', textAlign: 'right', fontSize: 9, width: 50 }}>Qty</th>
+          <th style={{ padding: '7px 10px', textAlign: 'right', fontSize: 9, width: 70 }}>Unit Price</th>
+          <th style={{ padding: '7px 10px', textAlign: 'right', fontSize: 9, width: 80 }}>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {chunk.map((item: any, i: number) => (
+          <tr key={i} style={{ background: (startIndex + i) % 2 === 0 ? '#fff' : '#f9f9f9', borderBottom: '1px solid #eee' }}>
+            <td style={{ padding: '6px 10px', fontSize: 9 }}>{startIndex + i + 1}</td>
+            <td style={{ padding: '6px 10px', fontSize: 9 }}>{item.description}</td>
+            <td style={{ padding: '6px 10px', textAlign: 'center', fontSize: 9 }}>{item.unitOfMeasure}</td>
+            <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 9 }}>{Number(item.quantity).toFixed(3)}</td>
+            <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 9 }}>{Number(item.unitPrice).toFixed(3)}</td>
+            <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 9, fontWeight: 600 }}>{Number(item.lineTotal).toFixed(3)}</td>
           </tr>
-        </thead>
-        <tbody>
-          {items.map((item: any, idx: number) => (
-            <tr key={idx} style={{ background: idx % 2 === 0 ? '#f9f9f9' : '#fff' }}>
-              <td style={{ padding: '8px 12px', fontSize: 12 }}>{idx + 1}</td>
-              <td style={{ padding: '8px 12px', fontSize: 12 }}>{item.description}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: 12 }}>{item.unitOfMeasure}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12 }}>{Number(item.quantity).toFixed(3)}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12 }}>OMR {Number(item.unitPrice).toFixed(3)}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12 }}>OMR {Number(item.lineTotal).toFixed(3)}</td>
+        ))}
+      </tbody>
+    </table>
+  );
+
+  const TotalsBlock = () => (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <table style={{ width: 290 }}>
+          <tbody>
+            <tr style={{ borderBottom: '1px solid #eee' }}><td style={{ padding: '4px 10px', fontSize: 10, color: '#666' }}>Subtotal:</td><td style={{ padding: '4px 10px', textAlign: 'right', fontSize: 10 }}>OMR {subtotal.toFixed(3)}</td></tr>
+            {show('vat') && <tr style={{ borderBottom: '1px solid #eee' }}><td style={{ padding: '4px 10px', fontSize: 10, color: '#666' }}>VAT (5%):</td><td style={{ padding: '4px 10px', textAlign: 'right', fontSize: 10 }}>OMR {vatAmount.toFixed(3)}</td></tr>}
+            <tr style={{ background: C, color: '#fff' }}>
+              <td style={{ padding: '7px 10px', fontSize: 11, fontWeight: 700 }}>Total:</td>
+              <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: 11, fontWeight: 700 }}>OMR {total.toFixed(3)}</td>
             </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 32 }}>
-        <div style={{ width: 280 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #eee' }}>
-            <span style={{ fontSize: 13 }}>Subtotal:</span>
-            <span style={{ fontSize: 13 }}>OMR {subtotal.toFixed(3)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #eee' }}>
-            <span style={{ fontSize: 13 }}>VAT (5%):</span>
-            <span style={{ fontSize: 13 }}>OMR {vatAmount.toFixed(3)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#722ed1', color: '#fff', borderRadius: 4, marginTop: 4 }}>
-            <span style={{ fontSize: 15, fontWeight: 700 }}>Total:</span>
-            <span style={{ fontSize: 15, fontWeight: 700 }}>OMR {total.toFixed(3)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', marginTop: 8 }}>
-            <span style={{ fontSize: 13, color: '#52c41a' }}>Paid:</span>
-            <span style={{ fontSize: 13, color: '#52c41a' }}>OMR {Number(data.paidAmount || 0).toFixed(3)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
-            <span style={{ fontSize: 13, color: '#ff4d4f', fontWeight: 700 }}>Balance Due:</span>
-            <span style={{ fontSize: 13, color: '#ff4d4f', fontWeight: 700 }}>OMR {Number(data.balanceDue || 0).toFixed(3)}</span>
-          </div>
-        </div>
+            {Number(data.paidAmount || 0) > 0 && <tr><td style={{ padding: '4px 10px', fontSize: 10, color: '#52c41a' }}>Paid:</td><td style={{ padding: '4px 10px', textAlign: 'right', fontSize: 10, color: '#52c41a' }}>OMR {Number(data.paidAmount).toFixed(3)}</td></tr>}
+            {Number(data.balanceDue || 0) > 0 && <tr style={{ background: '#fff2f0' }}><td style={{ padding: '4px 10px', fontSize: 10, fontWeight: 700, color: '#ff4d4f' }}>Balance Due:</td><td style={{ padding: '4px 10px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: '#ff4d4f' }}>OMR {Number(data.balanceDue).toFixed(3)}</td></tr>}
+          </tbody>
+        </table>
       </div>
-
-      {data.notes && (
-        <div style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, fontSize: 12, color: '#666' }}>
-          <strong>Notes:</strong> {data.notes}
+      {show('notes') && data.notes && <div style={{ fontSize: 9, color: '#666', marginBottom: 8 }}><strong>Notes:</strong> {data.notes}</div>}
+      {cfg.termsText && (
+        <div style={{ fontSize: 8.5, color: '#666', marginBottom: 10, padding: '8px 10px', background: '#fafafa', borderRadius: 4, lineHeight: 1.4 }}>
+          <div style={{ fontWeight: 700, color: C, marginBottom: 3, fontSize: 8.5, textTransform: 'uppercase', letterSpacing: 1 }}>Terms &amp; Conditions</div>
+          {cfg.termsText}
         </div>
       )}
+      {cfg.showSignature && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
+          <div style={{ textAlign: 'center', width: 200 }}>
+            <div style={{ borderTop: '1px solid #333', paddingTop: 5, fontSize: 9 }}>Prepared By</div>
+            <div style={{ fontSize: 9, color: '#666', marginTop: 3 }}>{data.preparedByName || '________________'}</div>
+          </div>
+          <div style={{ textAlign: 'center', width: 200 }}>
+            <div style={{ borderTop: '1px solid #333', paddingTop: 5, fontSize: 9 }}>Approved By</div>
+            <div style={{ fontSize: 9, color: '#666', marginTop: 3 }}>________________</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const pageBoxStyle: React.CSSProperties = {
+    width: '210mm', height: '297mm', background: '#fff', padding: '14mm',
+    fontFamily: 'Arial, sans-serif', color: '#333', margin: '0 auto 16px',
+    border: '1px solid #e0e0e0', boxSizing: 'border-box', display: 'flex', flexDirection: 'column',
+  };
+
+  return (
+    <div>
+      <Space style={{ marginBottom: 16 }}>
+        <Button icon={<PrinterOutlined />} onClick={() => printMultiPage(pageIds)}>Print</Button>
+        <Button type="primary" icon={<DownloadOutlined />} onClick={() => downloadMultiPagePDF(pageIds, `${data.invoiceNumber}.pdf`)}>Download PDF</Button>
+      </Space>
+
+      {chunks.map((chunk, p) => {
+        const isLast = p === totalPages - 1;
+        const startIndex = p * perPage;
+        return (
+          <div id={`pinv-page-${p}`} key={p} style={pageBoxStyle}>
+            <Header pageNo={p + 1} />
+            <div style={{ flex: 1 }}>
+              <ItemsTable chunk={chunk} startIndex={startIndex} />
+              {!isLast && <div style={{ textAlign: 'right', fontSize: 10, fontStyle: 'italic', color: '#888', marginTop: 8 }}>Continued on next page →</div>}
+            </div>
+            {isLast ? <TotalsBlock /> : null}
+            <div style={{ borderTop: `2px solid ${C}`, paddingTop: 8, marginTop: 10, fontSize: 8, color: '#999', display: 'flex', justifyContent: 'space-between' }}>
+              <div>{company.name}{company.trn ? ` | TRN: ${company.trn}` : ''}</div>
+              <div>{cfg.footerNote || 'Computer-generated Purchase Invoice'}</div>
+              <div>Page {p + 1} of {totalPages}</div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
