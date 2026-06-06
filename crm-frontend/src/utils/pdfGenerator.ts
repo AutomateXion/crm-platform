@@ -48,3 +48,45 @@ export async function printDocument(elementId: string) {
   win.document.close();
   setTimeout(() => { win.print(); }, 500);
 }
+
+// ── Multi-page output: each pageId is a pre-sized A4 div, rendered as its own page ──
+export async function downloadMultiPagePDF(pageIds: string[], filename: string) {
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  let first = true;
+  for (const id of pageIds) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    const imgData = canvas.toDataURL('image/png');
+    if (!first) pdf.addPage();
+    first = false;
+    // Fit the page image to A4 (each div is already A4-proportioned)
+    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+  }
+  pdf.save(filename);
+}
+
+export function printMultiPage(pageIds: string[]) {
+  const win = window.open('', '_blank');
+  if (!win) return;
+  const html = pageIds
+    .map((id) => {
+      const el = document.getElementById(id);
+      return el ? `<div class="print-page">${el.innerHTML}</div>` : '';
+    })
+    .join('');
+  win.document.write(`<html><head><title>Print</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: Arial, sans-serif; background: white; }
+      @page { size: A4; margin: 12mm; }
+      .print-page { width: 100%; min-height: 273mm; page-break-after: always; position: relative; }
+      .print-page:last-child { page-break-after: auto; }
+      @media print { body { -webkit-print-color-adjust: exact; } }
+    </style>
+    </head><body>${html}</body></html>`);
+  win.document.close();
+  setTimeout(() => { win.print(); }, 500);
+}
