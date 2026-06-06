@@ -4,6 +4,8 @@ import { useSelector } from 'react-redux';
 import { RootState } from './store';
 import AppLayout from './components/layout/AppLayout';
 import ComingSoon from './pages/ComingSoon';
+import StockSummaryReport from './pages/reports/StockSummaryReport';
+import ReorderManagementReport from './pages/reports/ReorderManagementReport';
 // Auth
 import LoginPage from './pages/auth/LoginPage';
 // Core
@@ -142,7 +144,7 @@ export default function App() {
         <Route path="reports/cash-flow-projection" element={<ComingSoon />} />
         <Route path="reports/collection-projection" element={<ComingSoon />} />
         <Route path="reports/monthly-cash-management" element={<ComingSoon />} />
-        <Route path="reports/stock-summary" element={<ComingSoon />} />
+        <Route path="reports/stock-summary" element={<StockSummaryReport />} />
         <Route path="reports/net-stock-available" element={<ComingSoon />} />
         <Route path="reports/stock-in-transit" element={<ComingSoon />} />
         <Route path="reports/stock-by-location" element={<ComingSoon />} />
@@ -152,7 +154,7 @@ export default function App() {
         <Route path="reports/batch-expiry" element={<ComingSoon />} />
         <Route path="reports/physical-stock-variation" element={<ComingSoon />} />
         <Route path="reports/stock-valuation" element={<ComingSoon />} />
-        <Route path="reports/reorder-management" element={<ComingSoon />} />
+        <Route path="reports/reorder-management" element={<ReorderManagementReport />} />
         <Route path="reports/dn-vs-so" element={<ComingSoon />} />
         <Route path="reports/partial-delivery" element={<ComingSoon />} />
         <Route path="reports/partial-receipt" element={<ComingSoon />} />

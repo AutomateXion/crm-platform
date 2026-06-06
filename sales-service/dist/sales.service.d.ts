@@ -838,4 +838,53 @@ export declare class SalesService {
     signInPerson(tenantId: string, userId: string, dto: any): Promise<DocumentSignatureEntity>;
     getSignatures(tenantId: string, docType: string, docId: string): Promise<DocumentSignatureEntity[]>;
     getSignatureStatus(tenantId: string, docType: string): Promise<any[]>;
+    getStockSummary(tenantId: string, filters?: any): Promise<{
+        rows: {
+            productId: any;
+            productCode: any;
+            productName: any;
+            category: any;
+            productType: any;
+            unitOfMeasure: any;
+            stockQty: number;
+            costPrice: number;
+            unitPrice: number;
+            minStockQty: number;
+            stockValue: number;
+            status: string;
+        }[];
+        summary: {
+            totalSkus: number;
+            totalStockValue: number;
+            lowStockCount: number;
+            outOfStockCount: number;
+            totalQty: number;
+        };
+        categories: any[];
+    }>;
+    getReorderReport(tenantId: string, filters?: any): Promise<{
+        rows: {
+            productId: any;
+            productCode: any;
+            productName: any;
+            category: any;
+            unitOfMeasure: any;
+            stockQty: number;
+            reorderPoint: number;
+            minStockQty: number;
+            reorderQty: number;
+            triggerLevel: number;
+            suggestedQty: number;
+            costPrice: number;
+            estimatedCost: number;
+            needsReorder: boolean;
+            isOut: boolean;
+        }[];
+        summary: {
+            itemsToReorder: number;
+            outOfStock: number;
+            totalEstimatedCost: number;
+        };
+        categories: any[];
+    }>;
 }

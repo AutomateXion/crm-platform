@@ -20,6 +20,12 @@ let SalesController = class SalesController {
     constructor(svc) {
         this.svc = svc;
     }
+    getReorderReport(req, q) {
+        return this.svc.getReorderReport(req.user.tenantId, q);
+    }
+    getStockSummary(req, q) {
+        return this.svc.getStockSummary(req.user.tenantId, q);
+    }
     signInPerson(req, dto) {
         return this.svc.signInPerson(req.user.tenantId, req.user.userId, dto);
     }
@@ -514,6 +520,22 @@ let SalesController = class SalesController {
     }
 };
 exports.SalesController = SalesController;
+__decorate([
+    (0, common_1.Get)('reports/reorder-management'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], SalesController.prototype, "getReorderReport", null);
+__decorate([
+    (0, common_1.Get)('reports/stock-summary'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], SalesController.prototype, "getStockSummary", null);
 __decorate([
     (0, common_1.Post)('signatures/in-person'),
     __param(0, (0, common_1.Request)()),

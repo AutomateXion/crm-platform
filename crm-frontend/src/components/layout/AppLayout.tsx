@@ -130,7 +130,7 @@ const NAV_ITEMS = [
         { key: 'rep-inventory', icon: <FolderOutlined />, label: 'Inventory / Stock', children: [
           { key: '/reports/stock-movement',           label: 'Stock Movement' },
           { key: '/reports/item-profile',             label: 'Item Profile & History' },
-          { key: '/reports/stock-summary',            label: 'Stock Summary ·soon' },
+          { key: '/reports/stock-summary',            label: 'Stock Summary' },
           { key: '/reports/net-stock-available',      label: 'Net Stock Available ·soon' },
           { key: '/reports/stock-in-transit',         label: 'Stock in Transit ·soon' },
           { key: '/reports/stock-by-location',        label: 'Stock by Location ·soon' },
@@ -140,7 +140,7 @@ const NAV_ITEMS = [
           { key: '/reports/batch-expiry',             label: 'Batch Expiry ·soon' },
           { key: '/reports/physical-stock-variation', label: 'Physical Stock Variation ·soon' },
           { key: '/reports/stock-valuation',          label: 'Stock Valuation (FIFO/WA) ·soon' },
-          { key: '/reports/reorder-management',       label: 'Reorder Management ·soon' },
+          { key: '/reports/reorder-management',       label: 'Reorder Management' },
           { key: '/reports/dn-vs-so',                 label: 'DN vs Sales Order ·soon' },
           { key: '/reports/partial-delivery',         label: 'Partial Delivery ·soon' },
           { key: '/reports/partial-receipt',          label: 'Partial Receipt ·soon' },

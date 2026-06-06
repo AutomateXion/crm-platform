@@ -10,6 +10,17 @@ import { SalesService } from './sales.service';
 export class SalesController {
   constructor(private readonly svc: SalesService) {}
 
+  // ── Reports ───────────────────────────
+  @Get('reports/reorder-management')
+  getReorderReport(@Request() req: any, @Query() q: any) {
+    return this.svc.getReorderReport(req.user.tenantId, q);
+  }
+
+  @Get('reports/stock-summary')
+  getStockSummary(@Request() req: any, @Query() q: any) {
+    return this.svc.getStockSummary(req.user.tenantId, q);
+  }
+
   // ── Signatures ────────────────────────────────────────────────
   @Post('signatures/in-person')
   signInPerson(@Request() req: any, @Body() dto: any) {

@@ -2698,6 +2698,75 @@ let SalesService = class SalesService {
             .getRawMany();
         return rows;
     }
+    async getStockSummary(tenantId, filters = {}) {
+        const qb = this.productRepo.createQueryBuilder('p')
+            .where('p.tenantId = :tenantId', { tenantId });
+        if (filters.category)
+            qb.andWhere('p.category = :category', { category: filters.category });
+        if (filters.productType)
+            qb.andWhere('p.productType = :pt', { pt: filters.productType });
+        const products = await qb.orderBy('p.productName', 'ASC').getMany();
+        const rows = products.map((p) => {
+            const qty = Number(p.stockQty || 0);
+            const cost = Number(p.costPrice || 0);
+            const minQty = Number(p.minStockQty || 0);
+            const value = qty * cost;
+            let status = 'IN_STOCK';
+            if (qty <= 0)
+                status = 'OUT_OF_STOCK';
+            else if (minQty > 0 && qty <= minQty)
+                status = 'LOW_STOCK';
+            return {
+                productId: p.productId, productCode: p.productCode, productName: p.productName,
+                category: p.category || '', productType: p.productType || 'STOCK',
+                unitOfMeasure: p.unitOfMeasure, stockQty: qty, costPrice: cost,
+                unitPrice: Number(p.unitPrice || 0), minStockQty: minQty, stockValue: value, status,
+            };
+        });
+        const filtered = filters.status ? rows.filter((r) => r.status === filters.status) : rows;
+        const summary = {
+            totalSkus: filtered.length,
+            totalStockValue: filtered.reduce((s2, r) => s2 + r.stockValue, 0),
+            lowStockCount: rows.filter((r) => r.status === 'LOW_STOCK').length,
+            outOfStockCount: rows.filter((r) => r.status === 'OUT_OF_STOCK').length,
+            totalQty: filtered.reduce((s2, r) => s2 + r.stockQty, 0),
+        };
+        const categories = [...new Set(rows.map((r) => r.category).filter(Boolean))].sort();
+        return { rows: filtered, summary, categories };
+    }
+    async getReorderReport(tenantId, filters = {}) {
+        const qb = this.productRepo.createQueryBuilder('p')
+            .where('p.tenantId = :tenantId', { tenantId })
+            .andWhere('p.trackStock = true');
+        if (filters.category)
+            qb.andWhere('p.category = :category', { category: filters.category });
+        const products = await qb.orderBy('p.productName', 'ASC').getMany();
+        const rows = products.map((p) => {
+            const qty = Number(p.stockQty || 0);
+            const reorderPoint = Number(p.reorderPoint || 0);
+            const minQty = Number(p.minStockQty || 0);
+            const trigger = reorderPoint > 0 ? reorderPoint : minQty;
+            const reorderQty = Number(p.reorderQty || 0);
+            const cost = Number(p.costPrice || 0);
+            const needsReorder = trigger > 0 && qty <= trigger;
+            const suggestedQty = reorderQty > 0 ? reorderQty : Math.max(trigger - qty, 0);
+            return {
+                productId: p.productId, productCode: p.productCode, productName: p.productName,
+                category: p.category || '', unitOfMeasure: p.unitOfMeasure,
+                stockQty: qty, reorderPoint, minStockQty: minQty, reorderQty,
+                triggerLevel: trigger, suggestedQty, costPrice: cost,
+                estimatedCost: suggestedQty * cost,
+                needsReorder, isOut: qty <= 0,
+            };
+        }).filter((r) => r.needsReorder);
+        const summary = {
+            itemsToReorder: rows.length,
+            outOfStock: rows.filter((r) => r.isOut).length,
+            totalEstimatedCost: rows.reduce((s2, r) => s2 + r.estimatedCost, 0),
+        };
+        const categories = [...new Set(products.map((p) => p.category).filter(Boolean))].sort();
+        return { rows, summary, categories };
+    }
 };
 exports.SalesService = SalesService;
 exports.SalesService = SalesService = __decorate([
