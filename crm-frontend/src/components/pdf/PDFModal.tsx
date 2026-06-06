@@ -40,7 +40,7 @@ export default function PDFModal({ open, onClose, docType, data, companyInfo }: 
       case 'quotation': return <QuotationPDF data={data} companyInfo={companyInfo} config={config} />;
       case 'invoice': return <InvoicePDF data={data} companyInfo={companyInfo} config={config} />;
       case 'delivery-note': return <DeliveryNotePDF data={data} companyInfo={companyInfo} config={config} />;
-      case 'purchase-order': return <PurchaseOrderPDF data={data} companyInfo={companyInfo} />;
+      case 'purchase-order': return <PurchaseOrderPDF data={data} companyInfo={companyInfo} config={config} />;
       case 'payment-voucher': return <PaymentVoucherPDF data={data} companyInfo={companyInfo} />;
       case 'receipt': return <ReceiptPDF data={data} companyInfo={companyInfo} />;
       case 'grn': return <GRNPDF data={data} />;
