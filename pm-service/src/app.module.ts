@@ -24,6 +24,7 @@ import {
       database: process.env.DB_NAME || 'crm_core',
       username: process.env.DB_USER || 'crm_user',
       password: process.env.DB_PASS || 'crm_password_2024',
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       entities: [
         ProjectEntity, StageEntity, TaskEntity, TaskDocumentEntity,
         TaskCommentEntity, ResourceEntity, MilestoneEntity, BudgetEntryEntity,
