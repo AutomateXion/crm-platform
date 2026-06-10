@@ -264,11 +264,11 @@ export default function AppLayout() {
           <Space>
             <Button type="text" icon={(isMobile ? mobileOpen : !collapsed) ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
               onClick={() => isMobile ? setMobileOpen(!mobileOpen) : setCollapsed(!collapsed)}
-              style={{ fontSize: 16, color: '#595959', marginRight: 4 }} />
+              style={{ fontSize: 18, color: '#595959', marginRight: 4, flexShrink: 0 }} />
             <Text style={{ fontSize: 18, fontWeight: 600, color: '#1a1a2e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '45vw', display: 'inline-block', lineHeight: '64px' }}>{pageLabel}</Text>
           </Space>
 
-          <Space size={16}>
+          <Space size={isMobile ? 8 : 16}>
             <Tooltip title="Notifications">
               <Badge count={3} size="small">
                 <Button type="text" icon={<BellOutlined style={{ fontSize: 18 }} />} />
@@ -282,10 +282,12 @@ export default function AppLayout() {
                 <Avatar style={{ background: 'linear-gradient(135deg, #1890ff, #722ed1)' }}>
                   {user?.fullName?.[0]?.toUpperCase()}
                 </Avatar>
-                <div style={{ lineHeight: 1.2 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{user?.fullName}</div>
-                  <div style={{ fontSize: 11, color: '#8c8c8c' }}>{user?.groupCode}</div>
-                </div>
+                {!isMobile && (
+                  <div style={{ lineHeight: 1.2 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{user?.fullName}</div>
+                    <div style={{ fontSize: 11, color: '#8c8c8c' }}>{user?.groupCode}</div>
+                  </div>
+                )}
               </Space>
             </Dropdown>
           </Space>
