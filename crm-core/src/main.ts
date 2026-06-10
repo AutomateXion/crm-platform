@@ -17,8 +17,8 @@ async function bootstrap() {
   app.use(compression());
 
   // ─── CORS ─────────────────────────────────────────────────────
-  app.use(bodyParser.json({ limit: '10mb' }));
-  app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+  app.use(bodyParser.json({ limit: '25mb' }));
+  app.use(bodyParser.urlencoded({ limit: '25mb', extended: true }));
   app.enableCors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
