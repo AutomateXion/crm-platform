@@ -175,6 +175,13 @@ const NAV_ITEMS = [
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 992);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  React.useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 992);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch<AppDispatch>();
@@ -205,9 +212,10 @@ export default function AppLayout() {
     <Layout style={{ minHeight: '100vh' }}>
       {/* ─── Sidebar ─────────────────────────────────────────── */}
       <Sider
-        collapsible collapsed={collapsed} onCollapse={setCollapsed}
+        collapsible collapsed={isMobile ? false : collapsed} onCollapse={setCollapsed}
         trigger={null} width={240}
-        style={{ background: '#001529', position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 100, overflow: 'auto' }}
+        style={{ background: '#001529', position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 100, overflow: 'auto',
+          transform: isMobile && !mobileOpen ? 'translateX(-240px)' : 'translateX(0)', transition: 'transform 0.2s' }}
       >
         {/* Logo */}
         <div style={{
@@ -235,14 +243,18 @@ export default function AppLayout() {
           theme="dark" mode="inline" selectedKeys={[activeKey]}
           defaultOpenKeys={[]}
           items={NAV_ITEMS}
-          onClick={({ key }) => { if (key.startsWith('/')) navigate(key); }}
+          onClick={({ key }) => { if (key.startsWith('/')) { navigate(key); if (isMobile) setMobileOpen(false); } }}
           style={{ borderRight: 0, marginTop: 8 }}
         />
 
 
       </Sider>
+      {isMobile && mobileOpen && (
+        <div className="mobile-backdrop" onClick={() => setMobileOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 99 }} />
+      )}
 
-      <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'margin-left 0.2s' }}>
+      <Layout style={{ marginLeft: isMobile ? 0 : (collapsed ? 80 : 240), transition: 'margin-left 0.2s' }}>
         {/* ─── Header ─────────────────────────────────────────── */}
         <Header style={{
           background: '#fff', padding: '0 16px', height: 64,
@@ -250,8 +262,8 @@ export default function AppLayout() {
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)', position: 'sticky', top: 0, zIndex: 99,
         }}>
           <Space>
-            <Button type="text" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
+            <Button type="text" icon={(isMobile ? mobileOpen : !collapsed) ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
+              onClick={() => isMobile ? setMobileOpen(!mobileOpen) : setCollapsed(!collapsed)}
               style={{ fontSize: 16, color: '#595959', marginRight: 4 }} />
             <Text style={{ fontSize: 18, fontWeight: 600, color: '#1a1a2e' }}>{pageLabel}</Text>
           </Space>
