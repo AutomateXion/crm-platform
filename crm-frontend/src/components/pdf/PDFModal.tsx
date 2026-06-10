@@ -1,5 +1,7 @@
 import React from 'react';
-import { Modal } from 'antd';
+import { Modal, Button } from 'antd';
+import { MailOutlined } from '@ant-design/icons';
+import EmailDocumentModal from '../common/EmailDocumentModal';
 import { useState, useEffect } from 'react';
 import { documentConfigApi } from '../../services/api';
 import QuotationPDF from './QuotationPDF';
@@ -26,7 +28,40 @@ export default function PDFModal({ open, onClose, docType, data, companyInfo }: 
       documentConfigApi.get(docType).then((r) => setConfig(r.data || null)).catch(() => setConfig(null));
     }
   }, [open, docType]);
-  const titles: Record<string, string> = {
+  const [emailOpen, setEmailOpen] = useState(false);
+
+  // Map each doc type to its rendered page-div id prefix (multi-page) or single id
+  const pageIdInfo: Record<string, { prefix?: string; single?: string }> = {
+    'invoice': { prefix: 'inv-page-' },
+    'quotation': { prefix: 'quo-page-' },
+    'purchase-order': { prefix: 'po-page-' },
+    'grn': { prefix: 'grn-page-' },
+    'purchase-invoice': { prefix: 'pinv-page-' },
+    'delivery-note': { single: 'dn-pdf-content' },
+    'receipt': { single: 'receipt-pdf-content' },
+    'payment-voucher': { single: 'pv-pdf-content' },
+  };
+  const collectPageIds = (): string[] => {
+    const info = pageIdInfo[docType] || {};
+    if (info.single) return [info.single];
+    if (info.prefix) {
+      const ids: string[] = [];
+      let i = 0;
+      while (document.getElementById(`${info.prefix}${i}`)) { ids.push(`${info.prefix}${i}`); i++; }
+      return ids;
+    }
+    return [];
+  };
+  const docNumbers: Record<string, string> = {
+    'invoice': data?.invoiceNumber, 'quotation': data?.quotationNumber,
+    'delivery-note': data?.dnNumber, 'purchase-order': data?.poNumber,
+    'payment-voucher': data?.voucherNumber, 'receipt': data?.receiptNumber,
+    'grn': data?.grnNumber, 'purchase-invoice': data?.invoiceNumber,
+  };
+  const docNumber = docNumbers[docType] || 'document';
+  const recipientEmail = data?.customerEmail || data?.supplierEmail || '';
+
+    const titles: Record<string, string> = {
     'quotation': `Quotation — ${data?.quotationNumber || ''}`,
     'invoice': `Invoice — ${data?.invoiceNumber || ''}`,
     'delivery-note': `Delivery Note — ${data?.dnNumber || ''}`,
@@ -58,6 +93,18 @@ export default function PDFModal({ open, onClose, docType, data, companyInfo }: 
       width={900}
       style={{ top: 20 }}
     >
+      <div style={{ marginBottom: 12, textAlign: 'right' }}>
+        <Button icon={<MailOutlined />} onClick={() => setEmailOpen(true)}>Email this document</Button>
+      </div>
+      <EmailDocumentModal
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        pageIds={collectPageIds()}
+        fileName={`${docNumber}.pdf`}
+        defaultTo={recipientEmail}
+        defaultSubject={titles[docType] || docNumber}
+        docLabel={titles[docType] || docNumber}
+      />
       {data && renderPDF()}
     </Modal>
   );

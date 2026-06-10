@@ -90,3 +90,34 @@ export function printMultiPage(pageIds: string[]) {
   win.document.close();
   setTimeout(() => { win.print(); }, 500);
 }
+
+// Returns multi-page PDF as base64 (for emailing instead of downloading)
+export async function getMultiPagePdfBase64(pageIds: string[]): Promise<string> {
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  let first = true;
+  for (const id of pageIds) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    const imgData = canvas.toDataURL('image/png');
+    if (!first) pdf.addPage();
+    first = false;
+    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+  }
+  return pdf.output('datauristring'); // returns "data:application/pdf;base64,...."
+}
+
+// Returns single-element PDF as base64
+export async function getPdfBase64(elementId: string): Promise<string> {
+  const element = document.getElementById(elementId);
+  if (!element) return '';
+  const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+  const imgData = canvas.toDataURL('image/png');
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const imgHeight = (canvas.height * pageWidth) / canvas.width;
+  pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, imgHeight);
+  return pdf.output('datauristring');
+}
