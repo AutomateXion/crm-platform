@@ -171,3 +171,44 @@ body {
     padding: 16px !important;
   }
 }
+
+/* ============================================================
+   MOBILE FIX v2 — prevent text crushing & column overlap
+   ============================================================ */
+@media (max-width: 991px) {
+  /* Stop flex children from being squeezed so narrow that text goes vertical */
+  .ant-space-item { min-width: 0; }
+  .ant-space { flex-wrap: wrap; }
+
+  /* Any page header title: never shrink below readable width */
+  h1, h2, h3, h4, .ant-typography {
+    min-width: 0;
+    word-break: normal;
+    overflow-wrap: break-word;
+    white-space: normal;
+    writing-mode: horizontal-tb !important;
+  }
+
+  /* Force side-by-side Row/Col layouts to STACK on mobile */
+  .ant-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .ant-col {
+    max-width: 100%;
+  }
+
+  /* Kill absolute positioning overlap on report/profile pages:
+     make absolutely-positioned content flow normally on mobile */
+  .report-two-col, .balance-sheet-grid, .two-column-layout {
+    display: block !important;
+  }
+  .report-two-col > *, .balance-sheet-grid > *, .two-column-layout > * {
+    width: 100% !important;
+    position: static !important;
+    margin-bottom: 16px;
+  }
+
+  /* Generic: prevent any flex item from collapsing text to vertical */
+  [class*="flex"] > * { min-width: 0; }
+}
