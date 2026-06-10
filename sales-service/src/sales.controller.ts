@@ -16,6 +16,11 @@ export class SalesController {
     return this.svc.getReorderReport(req.user.tenantId, q);
   }
 
+  @Get('reports/sales-report')
+  getSalesReport(@Request() req: any, @Query() q: any) {
+    return this.svc.getSalesReport(req.user.tenantId, q);
+  }
+
   @Get('reports/stock-summary')
   getStockSummary(@Request() req: any, @Query() q: any) {
     return this.svc.getStockSummary(req.user.tenantId, q);
