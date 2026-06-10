@@ -92,3 +92,82 @@ body {
   letter-spacing: 0.5px !important;
   color: #8c8c8c !important;
 }
+
+/* ============================================================
+   MOBILE RESPONSIVE RULES (applies to all pages)
+   ============================================================ */
+@media (max-width: 991px) {
+  /* Prevent any element from forcing horizontal page scroll */
+  html, body, #root {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Tables: scroll horizontally inside their own container instead of breaking layout */
+  .ant-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ant-table {
+    min-width: 100%;
+  }
+  .ant-table-content,
+  .ant-table-body {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Reduce default page padding so content uses screen width */
+  .ant-layout-content {
+    padding: 12px !important;
+  }
+
+  /* Cards: full width, tighter margins */
+  .ant-card {
+    border-radius: 12px;
+  }
+
+  /* Modals: nearly full-width on phones, not cramped */
+  .ant-modal {
+    max-width: 96vw !important;
+    margin: 8px auto !important;
+  }
+
+  /* Touch-friendly minimum heights for buttons & inputs */
+  .ant-btn {
+    min-height: 38px;
+  }
+  .ant-input, .ant-select-selector, .ant-picker {
+    min-height: 38px;
+  }
+
+  /* Page titles / headings shouldn't overflow */
+  h1, h2, h3, h4 {
+    word-break: break-word;
+  }
+
+  /* Descriptions / detail grids stack on mobile */
+  .ant-descriptions-item-label,
+  .ant-descriptions-item-content {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  /* Tabs scroll horizontally if too many */
+  .ant-tabs-nav {
+    overflow-x: auto;
+  }
+
+  /* Forms: full-width controls */
+  .ant-form-item-control-input-content .ant-input,
+  .ant-form-item-control-input-content .ant-select {
+    width: 100% !important;
+  }
+}
+
+/* Tablet fine-tuning */
+@media (min-width: 992px) and (max-width: 1199px) {
+  .ant-layout-content {
+    padding: 16px !important;
+  }
+}
