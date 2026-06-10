@@ -265,7 +265,7 @@ export default function AppLayout() {
             <Button type="text" icon={(isMobile ? mobileOpen : !collapsed) ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
               onClick={() => isMobile ? setMobileOpen(!mobileOpen) : setCollapsed(!collapsed)}
               style={{ fontSize: 16, color: '#595959', marginRight: 4 }} />
-            <Text style={{ fontSize: 18, fontWeight: 600, color: '#1a1a2e' }}>{pageLabel}</Text>
+            <Text style={{ fontSize: 18, fontWeight: 600, color: '#1a1a2e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '45vw', display: 'inline-block', lineHeight: '64px' }}>{pageLabel}</Text>
           </Space>
 
           <Space size={16}>
