@@ -212,3 +212,29 @@ body {
   /* Generic: prevent any flex item from collapsing text to vertical */
   [class*="flex"] > * { min-width: 0; }
 }
+
+/* ============================================================
+   MOBILE FIX v3 — force fixed-span columns to stack on phones
+   ============================================================ */
+@media (max-width: 767px) {
+  /* Any Col using fixed span (no responsive props) becomes full-width.
+     Ant applies .ant-col-N classes for span={N}. On phones, override
+     the narrow ones so content doesn't crush/overlap. */
+  .ant-col-2, .ant-col-3, .ant-col-4, .ant-col-5, .ant-col-6,
+  .ant-col-7, .ant-col-8, .ant-col-9, .ant-col-10, .ant-col-11,
+  .ant-col-12 {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+  /* Statistics: prevent value overlap, give breathing room */
+  .ant-statistic { margin-bottom: 12px; }
+  .ant-statistic-content { font-size: 18px !important; }
+}
+
+/* Small tablets: allow 2-up, not the cramped 3/4-up */
+@media (min-width: 768px) and (max-width: 991px) {
+  .ant-col-4, .ant-col-6, .ant-col-8 {
+    flex: 0 0 50% !important;
+    max-width: 50% !important;
+  }
+}
