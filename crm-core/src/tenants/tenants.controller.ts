@@ -73,6 +73,11 @@ export class TenantsController {
     return this.tenantsService.saveEmailConfig(user.tenantId, dto);
   }
 
+  @Post('email/send-document')
+  async sendDocumentEmail(@CurrentUser() user: User, @Body() dto: any) {
+    return this.tenantsService.sendDocumentEmail(user.tenantId, dto);
+  }
+
   @Post('email-config/test')
   async testEmailConfig(@CurrentUser() user: User, @Body() dto: any) {
     return this.tenantsService.testEmailConfig(user.tenantId, dto.to);

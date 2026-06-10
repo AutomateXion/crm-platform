@@ -187,4 +187,41 @@ export class TenantsService {
     return this.documentConfigRepo.save(cfg);
   }
 
+
+  async sendDocumentEmail(tenantId: string, dto: any) {
+    const tenant = await this.getTenant(tenantId);
+    const settings = (tenant as any).settings || {};
+    const cfg = settings.emailConfig;
+    if (!cfg?.host || !cfg?.username || !cfg?.password) {
+      throw new Error('Email not configured. Please save configuration first.');
+    }
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: cfg.host, port: cfg.port || 587, secure: cfg.secure || false,
+      auth: { user: cfg.username, pass: cfg.password },
+    });
+
+    const attachments = [];
+    if (dto.pdfBase64 && dto.fileName) {
+      const data = dto.pdfBase64.includes(',') ? dto.pdfBase64.split(',')[1] : dto.pdfBase64;
+      attachments.push({ filename: dto.fileName, content: data, encoding: 'base64' });
+    }
+
+    const bodyHtml = (dto.message
+      ? dto.message.replace(/\n/g, '<br>')
+      : 'Please find the attached document.')
+      + (cfg.signature ? '<br><br>' + cfg.signature : '');
+
+    await transporter.sendMail({
+      from: `"${cfg.fromName || tenant.companyName || 'CRM System'}" <${cfg.fromEmail || cfg.username}>`,
+      to: dto.to,
+      cc: dto.cc || undefined,
+      subject: dto.subject || 'Document from ' + (tenant.companyName || 'us'),
+      html: bodyHtml,
+      attachments,
+    });
+    return { success: true, message: `Email sent to ${dto.to}` };
+  }
+
 }
