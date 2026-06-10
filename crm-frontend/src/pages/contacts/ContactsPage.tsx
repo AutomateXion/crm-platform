@@ -315,6 +315,7 @@ export default function ContactsPage() {
               <Divider style={{margin:'8px 0'}}>Financial & Banking</Divider>
               <Row gutter={12}>
                 <Col span={8}><Form.Item name="creditLimit" label="Credit Limit (OMR)"><Input type="number" /></Form.Item></Col>
+                <Col span={8}><Form.Item name="creditPeriodDays" label="Credit Period (Days)"><Input type="number" placeholder="e.g. 30" /></Form.Item></Col>
                 <Col span={8}><Form.Item name="paymentTerms" label="Payment Terms"><Input placeholder="Net 30" /></Form.Item></Col>
                 <Col span={8}><Form.Item name="currencyCode" label="Currency"><Select defaultValue="OMR"><Select.Option value="OMR">OMR</Select.Option><Select.Option value="USD">USD</Select.Option></Select></Form.Item></Col>
               </Row>

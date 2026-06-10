@@ -21,6 +21,7 @@ export class AccountEntity {
   @Column({ name: 'is_supplier', default: false }) isSupplier: boolean;
   @Column({ nullable: true }) trn: string;
   @Column({ name: 'credit_limit', type: 'decimal', precision: 18, scale: 3, default: 0 }) creditLimit: number;
+  @Column({ name: 'credit_period_days', type: 'int', default: 0 }) creditPeriodDays: number;
   @Column({ name: 'payment_terms', nullable: true }) paymentTerms: string;
   @Column({ name: 'currency_code', default: 'OMR' }) currencyCode: string;
   @Column({ name: 'bank_name', nullable: true }) bankName: string;
