@@ -49,6 +49,19 @@ import { ContactsInlineModule } from './contacts/contacts.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         uri: config.get('MONGO_URI', 'mongodb://localhost:27017/crm_audit'),
+        serverSelectionTimeoutMS: 5000,
+        retryAttempts: 2,
+        retryDelay: 2000,
+        connectionFactory: (connection: any) => {
+          connection.on('error', (err: any) => {
+            console.warn('[Mongo] connection error (audit logging unavailable):', err?.message);
+          });
+          return connection;
+        },
+        connectionErrorFactory: (error: any) => {
+          console.warn('[Mongo] could not connect (continuing without audit):', error?.message);
+          return error;
+        },
       }),
     }),
 
