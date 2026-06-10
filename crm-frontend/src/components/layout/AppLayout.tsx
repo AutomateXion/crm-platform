@@ -126,6 +126,7 @@ const NAV_ITEMS = [
           { key: '/reports/sales-vs-target',      label: '🎯 Sales vs Target' },
           { key: '/reports/salesman',             label: 'Salesman Performance' },
           { key: '/reports/sales-report',         label: '📈 Sales Report' },
+          { key: '/reports/purchase-report',      label: '📦 Purchase Report' },
           { key: '/reports/sales-purchase',       label: 'Sales & Purchase Reports' },
         ]},
         { key: 'rep-inventory', icon: <FolderOutlined />, label: 'Inventory / Stock', children: [

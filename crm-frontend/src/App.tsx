@@ -6,6 +6,7 @@ import AppLayout from './components/layout/AppLayout';
 import ComingSoon from './pages/ComingSoon';
 import StockSummaryReport from './pages/reports/StockSummaryReport';
 import SalesReport from './pages/reports/SalesReport';
+import PurchaseReport from './pages/reports/PurchaseReport';
 import ReorderManagementReport from './pages/reports/ReorderManagementReport';
 // Auth
 import LoginPage from './pages/auth/LoginPage';
@@ -147,6 +148,7 @@ export default function App() {
         <Route path="reports/monthly-cash-management" element={<ComingSoon />} />
         <Route path="reports/stock-summary" element={<StockSummaryReport />} />
         <Route path="reports/sales-report" element={<SalesReport />} />
+        <Route path="reports/purchase-report" element={<PurchaseReport />} />
         <Route path="reports/net-stock-available" element={<ComingSoon />} />
         <Route path="reports/stock-in-transit" element={<ComingSoon />} />
         <Route path="reports/stock-by-location" element={<ComingSoon />} />
