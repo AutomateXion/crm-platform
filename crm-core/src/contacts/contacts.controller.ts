@@ -29,7 +29,27 @@ export class ContactsController {
 
   @Post('accounts')
   async createAccount(@CurrentUser() user: any, @Body() body: any) {
-    return this.accountRepo.save(this.accountRepo.create({ ...body, tenantId: user.tenantId, createdBy: user.userId }));
+    const account: any = await this.accountRepo.save(this.accountRepo.create({ ...body, tenantId: user.tenantId, createdBy: user.userId }) as any);
+    // Auto-create a primary contact from the account's contactPerson
+    if (body.contactPerson && body.contactPerson.trim()) {
+      const parts = body.contactPerson.trim().split(' ');
+      const firstName = parts.shift();
+      const lastName = parts.join(' ') || null;
+      try {
+        await this.contactRepo.save(this.contactRepo.create({
+          accountId: account.accountId,
+          firstName,
+          lastName,
+          email: body.email || null,
+          phone: body.phone || null,
+          tenantId: user.tenantId,
+          createdBy: user.userId,
+        } as any));
+      } catch (e) {
+        console.warn('Could not auto-create contact:', (e as any)?.message);
+      }
+    }
+    return account;
   }
 
   @Get('accounts/:id')
