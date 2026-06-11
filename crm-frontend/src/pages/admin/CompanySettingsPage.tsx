@@ -51,7 +51,7 @@ export default function CompanySettingsPage() {
       else localStorage.removeItem('company_logo');
       
       // Send settings without large logo data
-      await api.put('/tenants/company-settings', { ...values, primaryColor, logoUrl: logoUrl ? 'local' : '' });
+      await api.put('/tenants/company-settings', { ...values, primaryColor, logoUrl: logoUrl || '' });
       message.success('Company settings saved successfully!');
     } catch (e: any) {
       message.error(e.response?.data?.message || 'Failed to save');
