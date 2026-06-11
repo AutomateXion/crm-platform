@@ -64,6 +64,10 @@ export default function DeliveryNotesPage() {
         customerPhone: option.account.phone,
         customerAddress: [option.account.addressLine1, option.account.city, option.account.country].filter(Boolean).join(', '),
         customerTrn: option.account.trn,
+        salesmanId: option.account.salesmanId,
+        salesmanName: option.account.salesmanName,
+        creditLimit: Number(option.account.creditLimit || 0),
+        creditPeriodDays: Number(option.account.creditPeriodDays || 0),
         quotationId: undefined,
       });
       // Filter quotations for this customer only

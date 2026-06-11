@@ -230,6 +230,10 @@ export default function QuotationsPage() {
                         customerPhone: acc.phone || '',
                         customerAddress: addrParts.join(', '),
                         customerTrn: acc.trn || '',
+                        salesmanId: acc.salesmanId,
+                        salesmanName: acc.salesmanName,
+                        creditLimit: Number(acc.creditLimit || 0),
+                        creditPeriodDays: Number(acc.creditPeriodDays || 0),
                         opportunityId: undefined,
                       });
                       // Filter opportunities for this customer only
