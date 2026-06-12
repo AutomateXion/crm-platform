@@ -240,21 +240,14 @@ body {
 }
 
 /* ============================================================
-   AMOUNT DISPLAY — keep currency amounts on one line
+   STICKY TABLE HEADERS + amount handling
    ============================================================ */
-/* Prevent amounts (OMR ...) from wrapping mid-number in tables */
-.ant-table-cell {
-  white-space: nowrap;
+/* Keep column headers visible when scrolling down inside a scrollable table */
+.ant-table-thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #fafafa;
 }
-/* But allow specific long-text columns to still wrap (customer/description names)
-   by re-enabling wrap on cells that contain a lot of text */
-.ant-table-cell.wrap-text,
-.ant-table-cell .wrap-text {
-  white-space: normal;
-}
-/* On desktop, tables fit; on smaller screens they scroll horizontally */
-@media (max-width: 991px) {
-  .ant-table-wrapper { overflow-x: auto; }
-}
-/* Statistic values (summary cards) never wrap */
+/* Summary card values never wrap */
 .ant-statistic-content-value { white-space: nowrap; }
