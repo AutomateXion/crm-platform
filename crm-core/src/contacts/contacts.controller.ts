@@ -67,6 +67,28 @@ export class ContactsController {
   @Put('accounts/:id')
   async updateAccount(@CurrentUser() user: any, @Param('id') id: string, @Body() body: any) {
     await this.accountRepo.update(id, body);
+    // Backfill a primary contact if the account has a contactPerson but no contacts yet
+    if (body.contactPerson && body.contactPerson.trim()) {
+      const existing = await this.contactRepo.count({ where: { accountId: id, tenantId: user.tenantId } });
+      if (existing === 0) {
+        const parts = body.contactPerson.trim().split(' ');
+        const firstName = parts.shift();
+        const lastName = parts.join(' ') || null;
+        try {
+          await this.contactRepo.save(this.contactRepo.create({
+            accountId: id,
+            firstName,
+            lastName,
+            email: body.email || null,
+            phone: body.phone || null,
+            tenantId: user.tenantId,
+            createdBy: user.userId,
+          } as any));
+        } catch (e) {
+          console.warn('Could not backfill contact:', (e as any)?.message);
+        }
+      }
+    }
     return this.accountRepo.findOne({ where: { accountId: id } });
   }
 
