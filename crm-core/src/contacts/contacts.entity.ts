@@ -143,6 +143,7 @@ export class OpportunityEntity {
   @OppCol({ name: 'stage_entered_at', nullable: true }) stageEnteredAt: Date;
   @OppCol({ name: 'stage_history', type: 'jsonb', default: '[]' }) stageHistory: any[];
   @OppCol({ name: 'is_active', default: true }) isActive: boolean;
+  @OppCol({ name: 'converted_to_quotation', default: false }) convertedToQuotation: boolean;
   @OppCol({ name: 'created_by', nullable: true }) createdBy: string;
   @OppCDC({ name: 'created_at' }) createdAt: Date;
   @OppUDC({ name: 'updated_at' }) updatedAt: Date;

@@ -123,7 +123,13 @@ export default function QuotationsPage() {
       const totalAmount = subtotal + vatAmount;
       const payload = { ...values, items: lineItems, subtotal, vatAmount, totalAmount };
       if (editRecord) await quotationsApi.update(editRecord.quotationId, payload);
-      else await quotationsApi.create(payload);
+      else {
+        await quotationsApi.create(payload);
+        // Mark linked opportunity as converted so it won't appear again
+        if (values.opportunityId) {
+          try { await api.patch(`/opportunities/${values.opportunityId}/mark-converted`); } catch {}
+        }
+      }
       message.success('Saved'); setModalOpen(false); load();
     } catch (e: any) { message.error(e.response?.data?.message || 'Failed'); }
     finally { setSaving(false); }

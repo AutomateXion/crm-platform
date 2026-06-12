@@ -27,6 +27,11 @@ export class OpportunitiesController {
     return { data, total, page, limit, totalPages: Math.ceil(total/limit) };
   }
 
+  @Patch(':id/mark-converted')
+  async markConverted(@CurrentUser() user: any, @Param('id') id: string) {
+    await this.repo.update(id, { convertedToQuotation: true } as any);
+    return { success: true };
+  }
   @Post()
   async create(@CurrentUser() user: any, @Body() body: any) {
     const count = await this.repo.count({ where: { tenantId: user.tenantId } });
