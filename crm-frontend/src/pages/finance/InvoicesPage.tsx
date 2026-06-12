@@ -192,14 +192,12 @@ export default function InvoicesPage() {
     { title: 'Invoice #', dataIndex: 'invoiceNumber', render: (v: string) => <Tag color="blue">{v}</Tag> },
     { title: 'Date', dataIndex: 'invoiceDate', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
     { title: 'Due Date', dataIndex: 'dueDate', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
-    { title: 'Customer', dataIndex: 'customerName', render: (v: string) => <Text strong>{v}</Text> },
-    { title: 'Salesman', dataIndex: 'salesmanName', render: (v: string) => v ? <Tag color="blue">{v}</Tag> : <Text type="secondary">—</Text> },
+    { title: 'Customer', dataIndex: 'customerName', width: 260, render: (v: string) => <Text strong>{v}</Text> },
 
 
     { title: 'Total', dataIndex: 'totalAmount', width: 130, align: 'right' as const, render: (v: number) => <Text strong style={{ whiteSpace: 'nowrap' }}>OMR {Number(v).toFixed(3)}</Text> },
     { title: 'Paid', dataIndex: 'paidAmount', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ color: '#52c41a', whiteSpace: 'nowrap' }}>OMR {Number(v).toFixed(3)}</Text> },
     { title: 'Balance', dataIndex: 'balanceDue', width: 130, align: 'right' as const, render: (v: number) => <Text strong style={{ color: Number(v) > 0 ? '#ff4d4f' : '#52c41a', whiteSpace: 'nowrap' }}>OMR {Number(v).toFixed(3)}</Text> },
-    { title: 'Status', dataIndex: 'status', render: (v: string) => <Tag color={STATUS_COLORS[v]}>{v?.replace('_', ' ')}</Tag> },
     {
       title: '', key: 'actions', render: (_: any, r: any) => (
         <Space>
@@ -242,6 +240,8 @@ export default function InvoicesPage() {
         </Space>
       ),
     },
+    { title: 'Status', dataIndex: 'status', width: 130, render: (v: string) => <Tag color={STATUS_COLORS[v]}>{v?.replace('_', ' ')}</Tag> },
+    { title: 'Salesman', dataIndex: 'salesmanName', width: 140, render: (v: string) => v ? <Tag color="blue">{v}</Tag> : <Text type="secondary">—</Text> },
   ];
 
   return (
