@@ -251,3 +251,17 @@ body {
 }
 /* Summary card values never wrap */
 .ant-statistic-content-value { white-space: nowrap; }
+
+/* ============================================================
+   TABLE BACKGROUND — consistent on horizontal scroll/overflow
+   ============================================================ */
+.ant-table,
+.ant-table-container,
+.ant-table-content,
+.ant-table-body {
+  background: #ffffff;
+}
+.ant-table-cell-fix-right,
+.ant-table-cell-fix-left {
+  background: #ffffff;
+}
