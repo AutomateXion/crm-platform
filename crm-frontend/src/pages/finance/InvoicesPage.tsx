@@ -264,7 +264,7 @@ export default function InvoicesPage() {
             {Object.keys(STATUS_COLORS).map(s => <Option key={s} value={s}><Tag color={STATUS_COLORS[s]}>{s.replace('_',' ')}</Tag></Option>)}
           </Select>
         </Space>
-        <Table dataSource={items} columns={columns} rowKey="invoiceId" loading={loading} size="middle"
+        <Table dataSource={items} columns={columns} rowKey="invoiceId" loading={loading} size="middle" scroll={{ x: 'max-content' }}
           pagination={{ current: page, total, pageSize: 20, onChange: setPage }} />
       </Card>
 
