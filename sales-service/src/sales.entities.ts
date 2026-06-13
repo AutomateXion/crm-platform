@@ -308,6 +308,11 @@ export class ReceiptEntity {
   @Column({ name: 'payment_method', default: 'BANK_TRANSFER' }) paymentMethod: string;
   @Column({ name: 'payment_reference', nullable: true }) paymentReference: string;
   @Column({ name: 'bank_name', nullable: true }) bankName: string;
+  @Column({ name: 'cheque_number', nullable: true }) chequeNumber: string;
+  @Column({ name: 'cheque_date', type: 'date', nullable: true }) chequeDate: string;
+  @Column({ name: 'cheque_bank_name', nullable: true }) chequeBankName: string;
+  @Column({ name: 'deposit_bank_account_id', nullable: true }) depositBankAccountId: string;
+  @Column({ name: 'cheque_status', nullable: true }) chequeStatus: string;
   @Column({ nullable: true }) notes: string;
   @Column({ default: 'CONFIRMED' }) status: string;
   @Column({ name: 'prepared_by', nullable: true }) preparedBy: string;
@@ -612,6 +617,8 @@ export class PaymentVoucherEntity {
   @Column({ name: 'bank_name', nullable: true }) bankName: string;
   @Column({ name: 'cheque_number', nullable: true }) chequeNumber: string;
   @Column({ name: 'cheque_date', type: 'date', nullable: true }) chequeDate: string;
+  @Column({ name: 'bank_account_id', nullable: true }) bankAccountId: string;
+  @Column({ name: 'cheque_leaf_id', nullable: true }) chequeLeafId: string;
   @Column({ nullable: true }) notes: string;
   @Column({ default: 'DRAFT' }) status: string;
   @Column({ name: 'approved_by', nullable: true }) approvedBy: string;

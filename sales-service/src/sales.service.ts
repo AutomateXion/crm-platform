@@ -423,6 +423,9 @@ export class SalesService {
   async createReceipt(tenantId: string, dto: any, userId: string) {
     const number = await this.generateNumber('RCT', this.receiptRepo, 'receiptNumber');
     const { invoiceIds, receiptNumber: _rn, ...receiptData } = dto;
+    if (receiptData.paymentMethod === 'CHEQUE' && !receiptData.chequeStatus) {
+      receiptData.chequeStatus = 'RECEIVED';
+    }
     const r = this.receiptRepo.create({ ...receiptData, tenantId, receiptNumber: number, createdBy: userId });
     const saved = await this.receiptRepo.save(r);
     // Update single invoice (backward compat)
@@ -964,8 +967,24 @@ export class SalesService {
   }
   async createPaymentVoucher(tenantId: string, dto: any, userId: string) {
     const number = await this.generateNumber('PV', this.voucherRepo, 'voucherNumber');
-    const v = this.voucherRepo.create({ ...dto, tenantId, voucherNumber: number, createdBy: userId });
+    let voucherData = { ...dto };
+    let leaf: any = null;
+    if (voucherData.paymentMethod === 'CHEQUE' && voucherData.bankAccountId) {
+      leaf = await this.chequeLeafRepo.findOne({ where: { tenantId, bankAccountId: voucherData.bankAccountId, status: 'AVAILABLE' } as any, order: { leafNumber: 'ASC' } as any });
+      if (!leaf) throw new NotFoundException('No available cheque leaves for this bank account');
+      voucherData.chequeNumber = leaf.leafNumber;
+      voucherData.chequeLeafId = leaf.leafId;
+      const acc = await this.bankAccountRepo.findOne({ where: { tenantId, bankAccountId: voucherData.bankAccountId } as any });
+      if (acc) voucherData.bankName = acc.bankName;
+    }
+    const v = this.voucherRepo.create({ ...voucherData, tenantId, voucherNumber: number, createdBy: userId });
     const saved = await this.voucherRepo.save(v) as any;
+    if (leaf) {
+      await this.chequeLeafRepo.update({ leafId: leaf.leafId } as any, {
+        status: 'USED', usedInVoucherId: saved.voucherId, usedDate: voucherData.voucherDate || new Date().toISOString().slice(0,10),
+        payeeName: voucherData.supplierName, amount: voucherData.amount,
+      });
+    }
     if (dto.invoiceId) {
       const invoice = await this.purchaseInvoiceRepo.findOne({ where: { invoiceId: dto.invoiceId } });
       if (invoice) {
