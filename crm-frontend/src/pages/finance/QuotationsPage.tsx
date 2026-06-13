@@ -146,12 +146,12 @@ export default function QuotationsPage() {
   const columns = [
     { title: 'Quotation #', dataIndex: 'quotationNumber', render: (v: string) => <Tag color="blue">{v}</Tag> },
     { title: 'Date', dataIndex: 'quotationDate', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
-    { title: 'Customer', dataIndex: 'customerName', render: (v: string) => <Text strong>{v}</Text> },
+    { title: 'Customer', dataIndex: 'customerName', width: 260, render: (v: string) => <Text strong>{v}</Text> },
     { title: 'Salesman', dataIndex: 'salesmanName', render: (v: string) => v ? <Tag color="blue">{v}</Tag> : <Text type="secondary">—</Text> },
 
 
     { title: 'Subject', dataIndex: 'subject', render: (v: string) => v ? <Text ellipsis style={{ maxWidth: 150 }}>{v}</Text> : '—' },
-    { title: 'Total (OMR)', dataIndex: 'totalAmount', render: (v: number) => <Text strong style={{ color: '#52c41a' }}>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Total (OMR)', dataIndex: 'totalAmount', width: 130, align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#52c41a', whiteSpace: 'nowrap' }}>OMR {Number(v).toFixed(3)}</Text> },
     { title: 'Status', dataIndex: 'status', render: (v: string) => <Tag color={STATUS_COLORS[v]}>{v}</Tag> },
     { title: 'Valid Until', dataIndex: 'validUntil', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
     {
@@ -196,7 +196,7 @@ export default function QuotationsPage() {
             {Object.keys(STATUS_COLORS).map(s => <Option key={s} value={s}><Tag color={STATUS_COLORS[s]}>{s}</Tag></Option>)}
           </Select>
         </Space>
-        <Table dataSource={items} columns={columns} rowKey="quotationId" loading={loading} size="middle"
+        <Table dataSource={items} columns={columns} rowKey="quotationId" loading={loading} size="middle" scroll={{ x: 'max-content' }} sticky={{ offsetHeader: 0 }}
           pagination={{ current: page, total, pageSize: 20, onChange: setPage, showTotal: t => `${t} quotations` }} />
       </Card>
 
