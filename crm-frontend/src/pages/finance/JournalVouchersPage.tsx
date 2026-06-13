@@ -116,10 +116,10 @@ export default function JournalVouchersPage() {
     { title: 'Voucher #', dataIndex: 'voucherNumber', render: (v: string) => <Tag color="blue">{v}</Tag> },
     { title: 'Date', dataIndex: 'voucherDate', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
     { title: 'Type', dataIndex: 'voucherType', render: (v: string) => <Tag color={TYPE_COLORS[v]}>{v?.replace('_', ' ')}</Tag> },
-    { title: 'Description', dataIndex: 'description', render: (v: string) => <Text ellipsis style={{ maxWidth: 200 }}>{v || '—'}</Text> },
+    { title: 'Description', dataIndex: 'description', width: 260, render: (v: string) => <Text ellipsis style={{ maxWidth: 260 }}>{v || '—'}</Text> },
     { title: 'Reference', dataIndex: 'reference', render: (v: string) => v || '—' },
-    { title: 'Debit (OMR)', dataIndex: 'totalDebit', render: (v: number) => <Text strong>OMR {Number(v).toFixed(3)}</Text> },
-    { title: 'Credit (OMR)', dataIndex: 'totalCredit', render: (v: number) => <Text strong>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Debit (OMR)', dataIndex: 'totalDebit', width: 130, align: 'right' as const, render: (v: number) => <Text strong style={{ whiteSpace: 'nowrap' }}>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Credit (OMR)', dataIndex: 'totalCredit', width: 130, align: 'right' as const, render: (v: number) => <Text strong style={{ whiteSpace: 'nowrap' }}>OMR {Number(v).toFixed(3)}</Text> },
     { title: 'Status', dataIndex: 'status', render: (v: string) => <Tag color={STATUS_COLORS[v]}>{v}</Tag> },
     {
       title: '', key: 'actions', render: (_: any, r: any) => (
@@ -167,7 +167,7 @@ export default function JournalVouchersPage() {
             {Object.keys(STATUS_COLORS).map(s => <Option key={s} value={s}><Tag color={STATUS_COLORS[s]}>{s}</Tag></Option>)}
           </Select>
         </Space>
-        <Table dataSource={items} columns={columns} rowKey="voucherId" loading={loading} size="middle"
+        <Table dataSource={items} columns={columns} rowKey="voucherId" loading={loading} size="middle" scroll={{ x: 'max-content' }} sticky={{ offsetHeader: 0 }}
           pagination={{ current: page, total, pageSize: 20, onChange: setPage,
             showTotal: t => `${t} vouchers` }} />
       </Card>
