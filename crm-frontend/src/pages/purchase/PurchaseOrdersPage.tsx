@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, FilePdfOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { updateStatus, purchaseOrdersApi, suppliersApi, productsApi } from '../../services/salesApi';
+import { updateStatus, purchaseOrdersApi, suppliersApi, productsApi, warehousesApi, warehouseLocationsApi } from '../../services/salesApi';
 import PDFModal from '../../components/pdf/PDFModal';
 import ProductSelect from '../../components/common/ProductSelect';
 import SupplierSelect from '../../components/common/SupplierSelect';
@@ -27,6 +27,8 @@ export default function PurchaseOrdersPage() {
   const [pdfData, setPdfData] = useState<any>(null);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
   const [vatRates, setVatRates] = useState<any[]>([]);
   const [lineItems, setLineItems] = useState<any[]>([]);
   const [form] = Form.useForm();
@@ -42,10 +44,12 @@ export default function PurchaseOrdersPage() {
   useEffect(() => {
     suppliersApi.getAll({ limit: 100 }).then(r => setSuppliers(r.data.data||[])).catch(()=>{});
     productsApi.getAll({ limit: 100 }).then(r => setProducts(r.data.data||[])).catch(()=>{});
+    warehousesApi.getAll().then(r => setWarehouses(r.data||[])).catch(()=>{});
+    warehouseLocationsApi.getAll().then(r => setLocations(r.data||[])).catch(()=>{});
     api.post('/masters/bulk-values', { categoryCodes: ['vat_rates'] }).then(r => setVatRates(r.data.vat_rates||[])).catch(()=>{});
     fetch('/sales-api/sales/asset-brands', {headers:{Authorization:'Bearer '+localStorage.getItem('accessToken')}}).then(r=>r.json()).then(d=>setBrands((d||[]).map((b:any)=>b.brand_name))).catch(()=>{});
   }, []);
-  const defaultLine = () => ({ description:'', quantity:1, unitPrice:0, discountPct:0, lineTotal:0, isTaxable:true, unitOfMeasure:'PCS', isFixedAsset:false, brand:'', model:'', serialNumber:'', warrantyMonths:0, assetCategory:'' });
+  const defaultLine = () => ({ description:'', quantity:1, unitPrice:0, discountPct:0, lineTotal:0, isTaxable:true, unitOfMeasure:'PCS', isFixedAsset:false, brand:'', model:'', serialNumber:'', warrantyMonths:0, assetCategory:'', warehouseLocationId:'' });
   const openCreate = () => {
     setEditRecord(null); form.resetFields();
     form.setFieldsValue({ status:'DRAFT', currencyCode:'OMR', vatRate:5, isInventory:true, isAssetPurchase:false, poDate: new Date().toISOString().slice(0,10) });
@@ -153,7 +157,29 @@ export default function PurchaseOrdersPage() {
           {lineItems.map((item, idx) => (<React.Fragment key={idx}>
             <Row gutter={8} style={{marginBottom:8}} align="middle">
               <Col span={1}><Text type="secondary">{idx+1}</Text></Col>
-              <Col span={5}><ProductSelect value={item.productId} onProductSelect={p => { if(p) updateLine(idx,'productId',p.productId); }} /></Col>
+              <Col span={5}>
+                <ProductSelect value={item.productId} onProductSelect={p => { if(p) updateLine(idx,'productId',p.productId); }} />
+                {item.productId && (
+                  <Select
+                    size="small"
+                    style={{ width:'100%', marginTop:4 }}
+                    placeholder="→ Warehouse Location"
+                    allowClear
+                    showSearch
+                    optionFilterProp="children"
+                    value={item.warehouseLocationId || undefined}
+                    onChange={v => updateLine(idx,'warehouseLocationId',v)}
+                  >
+                    {warehouses.map((w: any) => (
+                      <Select.OptGroup key={w.warehouseId} label={w.warehouseName}>
+                        {locations.filter((l: any) => l.warehouseId === w.warehouseId).map((l: any) => (
+                          <Option key={l.locationId} value={l.locationId}>{l.locationCode}{l.locationName ? ` – ${l.locationName}` : ''}</Option>
+                        ))}
+                      </Select.OptGroup>
+                    ))}
+                  </Select>
+                )}
+              </Col>
               <Col span={5}><Input value={item.description} onChange={e => updateLine(idx,'description',e.target.value)} placeholder="Description" /></Col>
               <Col span={2}><Input value={item.unitOfMeasure} onChange={e => updateLine(idx,'unitOfMeasure',e.target.value)} /></Col>
               <Col span={2}><InputNumber style={{width:'100%'}} min={0} step={0.001} value={item.quantity} onChange={v => updateLine(idx,'quantity',v)} /></Col>
