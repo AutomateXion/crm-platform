@@ -804,6 +804,10 @@ export class SalesController {
   updateChequeBookStatus(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
     return this.svc.updateChequeBookStatus(req.user.tenantId, id, dto.status);
   }
+  @Delete('cheque-books/:id')
+  deleteChequeBook(@Request() req: any, @Param('id') id: string) {
+    return this.svc.deleteChequeBook(req.user.tenantId, id);
+  }
 
   // ── Cheque Leaves ──────────────────────────────────────────────
   @Get('cheque-leaves')

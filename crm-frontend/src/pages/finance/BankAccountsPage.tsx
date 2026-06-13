@@ -134,6 +134,11 @@ export default function BankAccountsPage() {
     message.success(`Marked as ${newStatus}`); load();
   };
 
+  const deleteBook = async (id: string) => {
+    try { await chequeBooksApi.delete(id); message.success('Cheque book deleted'); load(); }
+    catch (e: any) { message.error(e.response?.data?.message || 'Failed to delete'); }
+  };
+
   // ── Leaves drawer ────────────────────────────────────────────
   const viewLeaves = async (book: any) => {
     setActiveBook(book);
@@ -197,6 +202,9 @@ export default function BankAccountsPage() {
           <Tooltip title={r.status === 'ACTIVE' ? 'Mark Exhausted' : 'Mark Active'}>
             <Button size="small" icon={<StopOutlined />} onClick={() => toggleBookStatus(r)} />
           </Tooltip>
+          <Popconfirm title="Delete cheque book? Only allowed if no leaves have been used." onConfirm={() => deleteBook(r.chequeBookId)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
         </Space>
       ),
     },

@@ -3133,6 +3133,13 @@ export class SalesService {
     await this.chequeBookRepo.update({ tenantId, chequeBookId: id } as any, { status });
     return { success: true };
   }
+  async deleteChequeBook(tenantId: string, id: string) {
+    const usedCount = await this.chequeLeafRepo.count({ where: { tenantId, chequeBookId: id, status: 'USED' } as any });
+    if (usedCount > 0) throw new NotFoundException('Cannot delete: cheque book has used leaves');
+    await this.chequeLeafRepo.delete({ tenantId, chequeBookId: id } as any);
+    await this.chequeBookRepo.delete({ tenantId, chequeBookId: id } as any);
+    return { success: true };
+  }
 
   // ── Cheque Leaves ──────────────────────────────────────────────
   async getChequeLeaves(tenantId: string, chequeBookId?: string, status?: string) {

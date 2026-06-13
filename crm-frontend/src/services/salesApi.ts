@@ -202,6 +202,7 @@ export const chequeBooksApi = {
   getAll: (bankAccountId?: string) => salesApi.get('/sales/cheque-books', { params: { bankAccountId } }),
   create: (data: any) => salesApi.post('/sales/cheque-books', data),
   updateStatus: (id: string, status: string) => salesApi.put(`/sales/cheque-books/${id}/status`, { status }),
+  delete: (id: string) => salesApi.delete(`/sales/cheque-books/${id}`),
 };
 export const chequeLeavesApi = {
   getAll: (params?: any) => salesApi.get('/sales/cheque-leaves', { params }),
