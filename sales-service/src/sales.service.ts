@@ -3181,4 +3181,16 @@ export class SalesService {
     await this.chequeLeafRepo.update({ tenantId, leafId: id } as any, { status: 'CANCELLED', voidReason: reason });
     return { success: true };
   }
+  async markLeafRealized(tenantId: string, id: string, date: string) {
+    const leaf = await this.chequeLeafRepo.findOne({ where: { tenantId, leafId: id } as any });
+    if (!leaf || leaf.status !== 'USED') throw new NotFoundException('Leaf not found or not in USED state');
+    await this.chequeLeafRepo.update({ tenantId, leafId: id } as any, { status: 'REALIZED', realizedDate: date });
+    return { success: true };
+  }
+  async markLeafReconciled(tenantId: string, id: string, date: string) {
+    const leaf = await this.chequeLeafRepo.findOne({ where: { tenantId, leafId: id } as any });
+    if (!leaf || leaf.status !== 'REALIZED') throw new NotFoundException('Leaf not found or not in REALIZED state');
+    await this.chequeLeafRepo.update({ tenantId, leafId: id } as any, { status: 'RECONCILED', reconciledDate: date });
+    return { success: true };
+  }
 }

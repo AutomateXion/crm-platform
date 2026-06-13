@@ -208,4 +208,6 @@ export const chequeLeavesApi = {
   getAll: (params?: any) => salesApi.get('/sales/cheque-leaves', { params }),
   getNext: (bankAccountId: string) => salesApi.get('/sales/cheque-leaves/next', { params: { bankAccountId } }),
   void: (id: string, reason: string) => salesApi.put(`/sales/cheque-leaves/${id}/void`, { reason }),
+  realize: (id: string, date: string) => salesApi.put(`/sales/cheque-leaves/${id}/realize`, { date }),
+  reconcile: (id: string, date: string) => salesApi.put(`/sales/cheque-leaves/${id}/reconcile`, { date }),
 };

@@ -822,4 +822,12 @@ export class SalesController {
   voidLeaf(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
     return this.svc.voidChequeLeaf(req.user.tenantId, id, dto.reason);
   }
+  @Put('cheque-leaves/:id/realize')
+  realizeLeaf(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.markLeafRealized(req.user.tenantId, id, dto.date);
+  }
+  @Put('cheque-leaves/:id/reconcile')
+  reconcileLeaf(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.markLeafReconciled(req.user.tenantId, id, dto.date);
+  }
 }

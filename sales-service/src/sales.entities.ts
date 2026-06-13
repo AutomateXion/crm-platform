@@ -1044,6 +1044,8 @@ export class ChequeLeafEntity {
   @Column({ name: 'payee_name', nullable: true }) payeeName: string;
   @Column({ type: 'decimal', precision: 18, scale: 3, nullable: true }) amount: number;
   @Column({ name: 'void_reason', nullable: true }) voidReason: string;
+  @Column({ name: 'realized_date', type: 'date', nullable: true }) realizedDate: string;
+  @Column({ name: 'reconciled_date', type: 'date', nullable: true }) reconciledDate: string;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
 }

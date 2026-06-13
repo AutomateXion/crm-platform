@@ -156,10 +156,24 @@ export default function BankAccountsPage() {
     if (activeBook) viewLeaves(activeBook);
   };
 
+  const markRealized = async (leafId: string) => {
+    const date = new Date().toISOString().slice(0, 10);
+    await chequeLeavesApi.realize(leafId, date);
+    message.success('Marked as Realized');
+    if (activeBook) viewLeaves(activeBook);
+  };
+
+  const markReconciled = async (leafId: string) => {
+    const date = new Date().toISOString().slice(0, 10);
+    await chequeLeavesApi.reconcile(leafId, date);
+    message.success('Marked as Reconciled');
+    if (activeBook) viewLeaves(activeBook);
+  };
+
   const accountName = (id: string) => accounts.find(a => a.bankAccountId === id)?.accountName || '—';
 
   const LEAF_COLORS: Record<string, string> = {
-    AVAILABLE: 'green', USED: 'blue', CANCELLED: 'red',
+    AVAILABLE: 'green', USED: 'blue', REALIZED: 'orange', RECONCILED: 'purple', CANCELLED: 'red',
   };
 
   // ── Columns ──────────────────────────────────────────────────
@@ -211,18 +225,37 @@ export default function BankAccountsPage() {
   ];
 
   const leafColumns = [
-    { title: 'Leaf No', dataIndex: 'leafNumber', width: 100 },
+    { title: 'Leaf No', dataIndex: 'leafNumber', width: 90 },
     { title: 'Status', dataIndex: 'status', width: 110, render: (v: string) => <Tag color={LEAF_COLORS[v] || 'default'}>{v}</Tag> },
     { title: 'Payee', dataIndex: 'payeeName', render: (v: string) => v || '—' },
-    { title: 'Amount', dataIndex: 'amount', width: 120, align: 'right' as const, render: (v: number) => v ? `OMR ${Number(v).toFixed(3)}` : '—' },
-    { title: 'Used Date', dataIndex: 'usedDate', width: 120, render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
+    { title: 'Amount', dataIndex: 'amount', width: 110, align: 'right' as const, render: (v: number) => v ? `OMR ${Number(v).toFixed(3)}` : '—' },
     {
-      title: '', key: 'actions', width: 60,
-      render: (_: any, r: any) => r.status === 'AVAILABLE' ? (
-        <Popconfirm title="Void this leaf?" onConfirm={() => voidLeaf(r.leafId)}>
-          <Button size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
-      ) : null,
+      title: 'Date', key: 'date', width: 110,
+      render: (_: any, r: any) => {
+        const d = r.status === 'RECONCILED' ? r.reconciledDate : r.status === 'REALIZED' ? r.realizedDate : r.usedDate;
+        return d ? new Date(d).toLocaleDateString() : '—';
+      },
+    },
+    {
+      title: '', key: 'actions', width: 140,
+      render: (_: any, r: any) => {
+        if (r.status === 'AVAILABLE') return (
+          <Popconfirm title="Void this leaf?" onConfirm={() => voidLeaf(r.leafId)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        );
+        if (r.status === 'USED') return (
+          <Popconfirm title="Mark this cheque as Realized (cleared the bank) today?" onConfirm={() => markRealized(r.leafId)}>
+            <Button size="small">Mark Realized</Button>
+          </Popconfirm>
+        );
+        if (r.status === 'REALIZED') return (
+          <Popconfirm title="Mark this cheque as Reconciled today?" onConfirm={() => markReconciled(r.leafId)}>
+            <Button size="small">Mark Reconciled</Button>
+          </Popconfirm>
+        );
+        return null;
+      },
     },
   ];
 
