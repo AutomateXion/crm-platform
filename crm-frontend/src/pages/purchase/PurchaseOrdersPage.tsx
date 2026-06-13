@@ -166,27 +166,30 @@ export default function PurchaseOrdersPage() {
               <Col span={3}><Text strong style={{color:'#1890ff'}}>{Number(item.lineTotal).toFixed(3)}</Text></Col>
               <Col span={1}><Button size="small" danger onClick={() => { const u = lineItems.filter((_,i)=>i!==idx); setLineItems(u); calcTotals(u, Number(form.getFieldValue('vatRate')||5)); }}>×</Button></Col>
             </Row>
+            <Row gutter={8} style={{marginBottom:4, background:'#e6f7ff', padding:'4px 0', borderRadius:6}} align="middle">
+              <Col span={1}></Col>
+              <Col span={8} style={{display:'flex',alignItems:'center',gap:6}}>
+                <Text type="secondary" style={{fontSize:11,whiteSpace:'nowrap'}}>📦 Location:</Text>
+                <Select
+                  size="small"
+                  style={{ flex:1 }}
+                  placeholder="Select warehouse location"
+                  allowClear showSearch optionFilterProp="children"
+                  value={item.warehouseLocationId || undefined}
+                  onChange={v => updateLine(idx,'warehouseLocationId',v)}
+                >
+                  {warehouses.map((w: any) => (
+                    <Select.OptGroup key={w.warehouseId} label={w.warehouseName}>
+                      {locations.filter((l: any) => l.warehouseId === w.warehouseId).map((l: any) => (
+                        <Option key={l.locationId} value={l.locationId}>{l.locationCode}{l.locationName ? ` – ${l.locationName}` : ''}</Option>
+                      ))}
+                    </Select.OptGroup>
+                  ))}
+                </Select>
+              </Col>
+            </Row>
             {isAssetPurchase && <Row gutter={8} style={{marginBottom:8, background:'#f6ffed', padding:'4px 0', borderRadius:6}} align="middle">
                 <Col span={1}></Col>
-                <Col span={6} style={{display:'flex',alignItems:'center',gap:6}}>
-                  <Text type="secondary" style={{fontSize:11,whiteSpace:'nowrap'}}>📦 Location:</Text>
-                  <Select
-                    size="small"
-                    style={{ flex:1 }}
-                    placeholder="Select warehouse location"
-                    allowClear showSearch optionFilterProp="children"
-                    value={item.warehouseLocationId || undefined}
-                    onChange={v => updateLine(idx,'warehouseLocationId',v)}
-                  >
-                    {warehouses.map((w: any) => (
-                      <Select.OptGroup key={w.warehouseId} label={w.warehouseName}>
-                        {locations.filter((l: any) => l.warehouseId === w.warehouseId).map((l: any) => (
-                          <Option key={l.locationId} value={l.locationId}>{l.locationCode}{l.locationName ? ` – ${l.locationName}` : ''}</Option>
-                        ))}
-                      </Select.OptGroup>
-                    ))}
-                  </Select>
-                </Col>
                 <Col span={4}><Select style={{width:'100%'}} placeholder="Brand" allowClear showSearch value={item.brand} onChange={v=>updateLine(idx,'brand',v)}>
                   {brands.map((b:string)=><Option key={b} value={b}>{b}</Option>)}
                 </Select></Col>
