@@ -125,8 +125,8 @@ export default function DeliveryNotesPage() {
   const columns = [
     { title: 'DN #', dataIndex: 'dnNumber', render: (v: string) => <Tag color="blue">{v}</Tag> },
     { title: 'Date', dataIndex: 'dnDate', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
-    { title: 'Customer', dataIndex: 'customerName', render: (v: string) => <Text strong>{v}</Text> },
-    { title: 'Total', dataIndex: 'totalAmount', render: (v: number) => <Text strong>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Customer', dataIndex: 'customerName', width: 260, render: (v: string) => <Text strong>{v}</Text> },
+    { title: 'Total', dataIndex: 'totalAmount', width: 130, align: 'right' as const, render: (v: number) => <Text strong style={{ whiteSpace: 'nowrap' }}>OMR {Number(v).toFixed(3)}</Text> },
     { title: 'Status', dataIndex: 'status', render: (v: string) => <Tag color={STATUS_COLORS[v]}>{v}</Tag> },
     { title: 'Delivery Date', dataIndex: 'deliveryDate', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
     { title: '', key: 'actions', render: (_: any, r: any) => (
@@ -154,7 +154,7 @@ export default function DeliveryNotesPage() {
             {Object.keys(STATUS_COLORS).map(s => <Option key={s} value={s}><Tag color={STATUS_COLORS[s]}>{s}</Tag></Option>)}
           </Select>
         </Space>
-        <Table dataSource={items} columns={columns} rowKey="dnId" loading={loading} size="middle"
+        <Table dataSource={items} columns={columns} rowKey="dnId" loading={loading} size="middle" scroll={{ x: 'max-content' }} sticky={{ offsetHeader: 0 }}
           pagination={{ current: page, total, pageSize: 20, onChange: setPage }} />
       </Card>
       <Modal title={editRecord ? 'Edit Delivery Note' : 'New Delivery Note'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={900} style={{ top: 20 }}>
