@@ -69,6 +69,27 @@ export default function ReceiptsPage() {
     { title: 'Customer', dataIndex: 'customerName', width: 260, render: (v: string) => <Text strong>{v}</Text> },
     { title: 'Amount', dataIndex: 'amount', width: 130, align: 'right' as const, render: (v: number, r: any) => <Text strong style={{ color: '#52c41a', whiteSpace: 'nowrap' }}>{r.currencyCode} {Number(v).toFixed(3)}</Text> },
     { title: 'Payment Method', dataIndex: 'paymentMethod', render: (v: string) => <Tag>{v?.replace('_', ' ')}</Tag> },
+    {
+      title: 'Cheque Status', key: 'chequeStatus', width: 160,
+      render: (_: any, r: any) => {
+        if (r.paymentMethod !== 'CHEQUE') return null;
+        const CHEQUE_COLORS: Record<string, string> = { RECEIVED: 'blue', DEPOSITED: 'orange', CLEARED: 'green', BOUNCED: 'red' };
+        const next: Record<string, string> = { RECEIVED: 'DEPOSITED', DEPOSITED: 'CLEARED' };
+        return (
+          <Space size={4}>
+            <Tag color={CHEQUE_COLORS[r.chequeStatus] || 'default'}>{r.chequeStatus || '—'}</Tag>
+            {next[r.chequeStatus] && (
+              <Popconfirm title={`Mark as ${next[r.chequeStatus]}?`} onConfirm={async () => {
+                await receiptsApi.update(r.receiptId, { chequeStatus: next[r.chequeStatus] });
+                message.success(`Marked as ${next[r.chequeStatus]}`); load();
+              }}>
+                <Button size="small" style={{ fontSize: 11 }}>→ {next[r.chequeStatus]}</Button>
+              </Popconfirm>
+            )}
+          </Space>
+        );
+      },
+    },
     { title: 'Reference', dataIndex: 'paymentReference', render: (v: string) => v || '—' },
     { title: 'Status', dataIndex: 'status', render: (v: string) => <Tag color="green">{v}</Tag> },
     { title: '', key: 'actions', render: (_: any, r: any) => (

@@ -72,6 +72,7 @@ export const invoicesApi = {
 export const receiptsApi = {
   getAll: (params?: any) => salesApi.get('/sales/receipts', { params }),
   create: (data: any) => salesApi.post('/sales/receipts', data),
+  update: (id: string, data: any) => salesApi.put(`/sales/receipts/${id}`, data),
   delete: (id: string) => salesApi.delete(`/sales/receipts/${id}`),
 };
 

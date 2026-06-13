@@ -420,6 +420,10 @@ export class SalesService {
     return { data, total, page, limit };
   }
 
+  async updateReceipt(tenantId: string, id: string, dto: any) {
+    await this.receiptRepo.update({ tenantId, receiptId: id } as any, dto);
+    return this.receiptRepo.findOne({ where: { tenantId, receiptId: id } as any });
+  }
   async createReceipt(tenantId: string, dto: any, userId: string) {
     const number = await this.generateNumber('RCT', this.receiptRepo, 'receiptNumber');
     const { invoiceIds, receiptNumber: _rn, ...receiptData } = dto;

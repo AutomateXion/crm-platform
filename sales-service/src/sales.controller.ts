@@ -205,6 +205,10 @@ export class SalesController {
     return this.svc.createReceipt(req.user.tenantId, dto, req.user.userId);
   }
 
+  @Put('receipts/:id')
+  updateReceipt(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateReceipt(req.user.tenantId, id, dto);
+  }
   @Delete('receipts/:id')
   deleteReceipt(@Request() req: any, @Param('id') id: string) {
     return this.svc.deleteReceipt(req.user.tenantId, id);
