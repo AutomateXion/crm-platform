@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Table, Card, Button, Tag, Space, Modal, Form, Input,
-  Typography, Row, Col, message, Popconfirm, Tooltip, Select, InputNumber, Drawer, Empty,
+  Typography, Row, Col, message, Popconfirm, Tooltip, Select, InputNumber, Drawer, Empty, Divider,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, BankOutlined,
   BookOutlined, EyeOutlined, StopOutlined,
 } from '@ant-design/icons';
 import { bankAccountsApi, chequeBooksApi, chequeLeavesApi } from '../../services/salesApi';
+import salesApi from '../../services/salesApi';
+import { mastersApi } from '../../services/api';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -18,6 +20,11 @@ export default function BankAccountsPage() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [books, setBooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [bankOptions, setBankOptions] = useState<any[]>([]);
+  const [glAccounts, setGlAccounts] = useState<any[]>([]);
+  const [newBankName, setNewBankName] = useState('');
+  const [newBankCountry, setNewBankCountry] = useState('Oman');
+  const [addingBank, setAddingBank] = useState(false);
 
   // Bank account modal
   const [accModalOpen, setAccModalOpen] = useState(false);
@@ -44,7 +51,22 @@ export default function BankAccountsPage() {
     } catch {} finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const loadBankList = useCallback(async () => {
+    try {
+      const r = await mastersApi.getValues('BANK_LIST');
+      setBankOptions(r.data || []);
+    } catch {}
+  }, []);
+
+  const loadGlAccounts = useCallback(async () => {
+    try {
+      const r = await salesApi.get('/sales/chart-of-accounts', { params: { search: 'Bank' } });
+      const list = (r.data || []).filter((a: any) => a.accountSubtype !== 'HEADER' && /bank/i.test(a.accountName));
+      setGlAccounts(list);
+    } catch {}
+  }, []);
+
+  useEffect(() => { load(); loadBankList(); loadGlAccounts(); }, [load, loadBankList, loadGlAccounts]);
 
   // ── Bank Account handlers ─────────────────────────────────────
   const openCreateAcc = () => {
@@ -73,6 +95,22 @@ export default function BankAccountsPage() {
   const deleteAcc = async (id: string) => {
     try { await bankAccountsApi.delete(id); message.success('Deleted'); load(); }
     catch (e: any) { message.error(e.response?.data?.message || 'Failed to delete'); }
+  };
+
+  const addNewBank = async () => {
+    if (!newBankName.trim()) return;
+    setAddingBank(true);
+    try {
+      const code = newBankName.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').slice(0, 50);
+      const r = await mastersApi.createValue('BANK_LIST', {
+        valueCode: code, valueLabel: newBankName.trim(), description: newBankCountry,
+      });
+      await loadBankList();
+      accForm.setFieldsValue({ bankName: r.data?.valueLabel || newBankName.trim() });
+      setNewBankName('');
+      message.success('Bank added');
+    } catch (e: any) { message.error(e.response?.data?.message || 'Failed to add bank'); }
+    finally { setAddingBank(false); }
   };
 
   // ── Cheque Book handlers ──────────────────────────────────────
@@ -218,7 +256,34 @@ export default function BankAccountsPage() {
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="bankName" label="Bank Name" rules={[{ required: true }]}>
-                <Input placeholder="e.g. Bank Muscat" />
+                <Select
+                  placeholder="Select bank"
+                  showSearch
+                  optionFilterProp="label"
+                  dropdownRender={(menu) => (
+                    <>
+                      {menu}
+                      <Divider style={{ margin: '8px 0' }} />
+                      <div style={{ display: 'flex', gap: 6, padding: '0 8px 8px' }}>
+                        <Select size="small" value={newBankCountry} onChange={setNewBankCountry} style={{ width: 110 }}>
+                          {['Oman','Sri Lanka','UAE','KSA','Qatar','Bahrain','Kuwait'].map(c => <Option key={c} value={c}>{c}</Option>)}
+                        </Select>
+                        <Input size="small" placeholder="New bank name" value={newBankName}
+                          onChange={e => setNewBankName(e.target.value)}
+                          onKeyDown={e => e.stopPropagation()} />
+                        <Button size="small" type="primary" loading={addingBank} onClick={addNewBank}>Add</Button>
+                      </div>
+                    </>
+                  )}
+                >
+                  {['Oman','Sri Lanka','UAE','KSA','Qatar','Bahrain','Kuwait'].map(country => (
+                    <Select.OptGroup key={country} label={country}>
+                      {bankOptions.filter(b => b.description === country).map(b => (
+                        <Option key={b.valueId} value={b.valueLabel} label={b.valueLabel}>{b.valueLabel}</Option>
+                      ))}
+                    </Select.OptGroup>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -227,6 +292,11 @@ export default function BankAccountsPage() {
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item name="glAccountId" label="GL Account (Chart of Accounts)" rules={[{ required: true }]}>
+            <Select placeholder="Select linked GL account" showSearch optionFilterProp="children">
+              {glAccounts.map(a => <Option key={a.accountId} value={a.accountId}>{a.accountCode} – {a.accountName}</Option>)}
+            </Select>
+          </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="accountNumber" label="Account Number">
