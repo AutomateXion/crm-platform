@@ -63,8 +63,8 @@ export default function ReceiptsPage() {
   const columns = [
     { title: 'Receipt #', dataIndex: 'receiptNumber', render: (v: string) => <Tag color="green">{v}</Tag> },
     { title: 'Date', dataIndex: 'receiptDate', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
-    { title: 'Customer', dataIndex: 'customerName', render: (v: string) => <Text strong>{v}</Text> },
-    { title: 'Amount', dataIndex: 'amount', render: (v: number, r: any) => <Text strong style={{ color: '#52c41a' }}>{r.currencyCode} {Number(v).toFixed(3)}</Text> },
+    { title: 'Customer', dataIndex: 'customerName', width: 260, render: (v: string) => <Text strong>{v}</Text> },
+    { title: 'Amount', dataIndex: 'amount', width: 130, align: 'right' as const, render: (v: number, r: any) => <Text strong style={{ color: '#52c41a', whiteSpace: 'nowrap' }}>{r.currencyCode} {Number(v).toFixed(3)}</Text> },
     { title: 'Payment Method', dataIndex: 'paymentMethod', render: (v: string) => <Tag>{v?.replace('_', ' ')}</Tag> },
     { title: 'Reference', dataIndex: 'paymentReference', render: (v: string) => v || '—' },
     { title: 'Status', dataIndex: 'status', render: (v: string) => <Tag color="green">{v}</Tag> },
@@ -94,7 +94,7 @@ export default function ReceiptsPage() {
       </Row>
       <Card style={{ borderRadius: 12 }}>
         <Input prefix={<SearchOutlined />} placeholder="Search receipts..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} allowClear style={{ width: 260, marginBottom: 16 }} />
-        <Table dataSource={items} columns={columns} rowKey="receiptId" loading={loading} size="middle"
+        <Table dataSource={items} columns={columns} rowKey="receiptId" loading={loading} size="middle" scroll={{ x: 'max-content' }} sticky={{ offsetHeader: 0 }}
           pagination={{ current: page, total, pageSize: 20, onChange: setPage }} />
       </Card>
       <Modal title="New Receipt" open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={520}>
