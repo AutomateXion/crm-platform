@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Card, Button, Input, Select, Tag, Space, Modal, Form, Typography, Row, Col, message, Popconfirm, Tooltip, InputNumber, Statistic } from 'antd';
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, FilePdfOutlined } from '@ant-design/icons';
 import SupplierSelect from '../../components/common/SupplierSelect';
-import { paymentVouchersApi, purchaseInvoicesApi, suppliersApi, bankAccountsApi } from '../../services/salesApi';
+import { paymentVouchersApi, purchaseInvoicesApi, suppliersApi, bankAccountsApi, chequeBooksApi } from '../../services/salesApi';
 import api from '../../services/api';
 import PDFModal from '../../components/pdf/PDFModal';
 
@@ -22,11 +22,13 @@ export default function PaymentVouchersPage() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  const [chequeBooks, setChequeBooks] = useState<any[]>([]);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfData, setPdfData] = useState<any>(null);
   const [editRecord, setEditRecord] = useState<any>(null);
   const [form] = Form.useForm();
   const paymentMethod = Form.useWatch('paymentMethod', form);
+  const selectedBankAccountId = Form.useWatch('bankAccountId', form);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,6 +40,13 @@ export default function PaymentVouchersPage() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { bankAccountsApi.getAll().then(r => setBankAccounts(r.data || [])).catch(() => {}); }, []);
+  useEffect(() => {
+    if (selectedBankAccountId) {
+      chequeBooksApi.getAll(selectedBankAccountId).then(r => setChequeBooks((r.data || []).filter((b: any) => b.status === 'ACTIVE'))).catch(() => setChequeBooks([]));
+    } else {
+      setChequeBooks([]);
+    }
+  }, [selectedBankAccountId]);
   useEffect(() => {
     suppliersApi.getAll({ limit: 100 }).then(r => setSuppliers(r.data.data||[])).catch(()=>{});
     purchaseInvoicesApi.getAll({ limit: 100, excludePaid: true }).then(r => setInvoices(r.data.data||[])).catch(()=>{});
@@ -149,10 +158,17 @@ export default function PaymentVouchersPage() {
           {paymentMethod === 'CHEQUE' ? (
             <>
               <Form.Item name="bankAccountId" label="Pay From Bank Account" rules={[{ required: true, message: 'Select a bank account to issue the cheque from' }]}>
-                <Select placeholder="Select bank account" showSearch optionFilterProp="children">
+                <Select placeholder="Select bank account" showSearch optionFilterProp="children" onChange={() => form.setFieldsValue({ chequeBookId: undefined })}>
                   {bankAccounts.map((a: any) => <Option key={a.bankAccountId} value={a.bankAccountId}>{a.accountName} ({a.bankName})</Option>)}
                 </Select>
               </Form.Item>
+              {selectedBankAccountId && (
+                <Form.Item name="chequeBookId" label="Cheque Book" extra="The next available leaf in this book will be auto-assigned. Leave blank to use the oldest available leaf from any active book.">
+                  <Select placeholder="Select cheque book (optional)" allowClear>
+                    {chequeBooks.map((b: any) => <Option key={b.chequeBookId} value={b.chequeBookId}>Book #{b.bookNumber} ({b.startLeafNo}–{b.endLeafNo})</Option>)}
+                  </Select>
+                </Form.Item>
+              )}
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
                 The next available cheque leaf from this account will be automatically allocated and marked as used.
               </Text>

@@ -970,8 +970,10 @@ export class SalesService {
     let voucherData = { ...dto };
     let leaf: any = null;
     if (voucherData.paymentMethod === 'CHEQUE' && voucherData.bankAccountId) {
-      leaf = await this.chequeLeafRepo.findOne({ where: { tenantId, bankAccountId: voucherData.bankAccountId, status: 'AVAILABLE' } as any, order: { leafNumber: 'ASC' } as any });
-      if (!leaf) throw new NotFoundException('No available cheque leaves for this bank account');
+      const leafWhere: any = { tenantId, bankAccountId: voucherData.bankAccountId, status: 'AVAILABLE' };
+      if (voucherData.chequeBookId) leafWhere.chequeBookId = voucherData.chequeBookId;
+      leaf = await this.chequeLeafRepo.findOne({ where: leafWhere, order: { leafNumber: 'ASC' } as any });
+      if (!leaf) throw new NotFoundException('No available cheque leaves for this bank account/cheque book');
       voucherData.chequeNumber = leaf.leafNumber;
       voucherData.chequeLeafId = leaf.leafId;
       const acc = await this.bankAccountRepo.findOne({ where: { tenantId, bankAccountId: voucherData.bankAccountId } as any });
