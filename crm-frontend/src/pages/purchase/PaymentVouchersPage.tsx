@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Card, Button, Input, Select, Tag, Space, Modal, Form, Typography, Row, Col, message, Popconfirm, Tooltip, InputNumber, Statistic } from 'antd';
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, FilePdfOutlined } from '@ant-design/icons';
 import SupplierSelect from '../../components/common/SupplierSelect';
-import { paymentVouchersApi, purchaseInvoicesApi, suppliersApi, bankAccountsApi, chequeBooksApi } from '../../services/salesApi';
+import { paymentVouchersApi, purchaseInvoicesApi, suppliersApi, bankAccountsApi, chequeBooksApi, chequeLeavesApi } from '../../services/salesApi';
 import api from '../../services/api';
 import PDFModal from '../../components/pdf/PDFModal';
 
@@ -23,12 +23,14 @@ export default function PaymentVouchersPage() {
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [chequeBooks, setChequeBooks] = useState<any[]>([]);
+  const [chequeLeaves, setChequeLeaves] = useState<any[]>([]);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfData, setPdfData] = useState<any>(null);
   const [editRecord, setEditRecord] = useState<any>(null);
   const [form] = Form.useForm();
   const paymentMethod = Form.useWatch('paymentMethod', form);
   const selectedBankAccountId = Form.useWatch('bankAccountId', form);
+  const selectedChequeBookId = Form.useWatch('chequeBookId', form);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,6 +49,13 @@ export default function PaymentVouchersPage() {
       setChequeBooks([]);
     }
   }, [selectedBankAccountId]);
+  useEffect(() => {
+    if (selectedChequeBookId) {
+      chequeLeavesApi.getAll({ chequeBookId: selectedChequeBookId, status: 'AVAILABLE' }).then(r => setChequeLeaves(r.data || [])).catch(() => setChequeLeaves([]));
+    } else {
+      setChequeLeaves([]);
+    }
+  }, [selectedChequeBookId]);
   useEffect(() => {
     suppliersApi.getAll({ limit: 100 }).then(r => setSuppliers(r.data.data||[])).catch(()=>{});
     purchaseInvoicesApi.getAll({ limit: 100, excludePaid: true }).then(r => setInvoices(r.data.data||[])).catch(()=>{});
@@ -163,9 +172,16 @@ export default function PaymentVouchersPage() {
                 </Select>
               </Form.Item>
               {selectedBankAccountId && (
-                <Form.Item name="chequeBookId" label="Cheque Book" extra="The next available leaf in this book will be auto-assigned. Leave blank to use the oldest available leaf from any active book.">
-                  <Select placeholder="Select cheque book (optional)" allowClear>
+                <Form.Item name="chequeBookId" label="Cheque Book" extra="Leave blank to use the oldest available leaf from any active book." rules={selectedChequeBookId ? [] : []}>
+                  <Select placeholder="Select cheque book (optional)" allowClear onChange={() => form.setFieldsValue({ chequeLeafId: undefined })}>
                     {chequeBooks.map((b: any) => <Option key={b.chequeBookId} value={b.chequeBookId}>Book #{b.bookNumber} ({b.startLeafNo}–{b.endLeafNo})</Option>)}
+                  </Select>
+                </Form.Item>
+              )}
+              {selectedChequeBookId && (
+                <Form.Item name="chequeLeafId" label="Cheque Leaf" extra="Leave blank to auto-assign the next available leaf.">
+                  <Select placeholder="Select leaf (optional)" allowClear>
+                    {chequeLeaves.map((l: any) => <Option key={l.leafId} value={l.leafId}>Leaf {l.leafNumber}</Option>)}
                   </Select>
                 </Form.Item>
               )}
