@@ -157,16 +157,24 @@ export default function PurchaseOrdersPage() {
           {lineItems.map((item, idx) => (<React.Fragment key={idx}>
             <Row gutter={8} style={{marginBottom:8}} align="middle">
               <Col span={1}><Text type="secondary">{idx+1}</Text></Col>
-              <Col span={5}>
-                <ProductSelect value={item.productId} onProductSelect={p => { if(p) updateLine(idx,'productId',p.productId); }} />
-                {item.productId && (
+              <Col span={5}><ProductSelect value={item.productId} onProductSelect={p => { if(p) updateLine(idx,'productId',p.productId); }} /></Col>
+              <Col span={5}><Input value={item.description} onChange={e => updateLine(idx,'description',e.target.value)} placeholder="Description" /></Col>
+              <Col span={2}><Input value={item.unitOfMeasure} onChange={e => updateLine(idx,'unitOfMeasure',e.target.value)} /></Col>
+              <Col span={2}><InputNumber style={{width:'100%'}} min={0} step={0.001} value={item.quantity} onChange={v => updateLine(idx,'quantity',v)} /></Col>
+              <Col span={3}><InputNumber style={{width:'100%'}} min={0} step={0.001} value={item.unitPrice} onChange={v => updateLine(idx,'unitPrice',v)} /></Col>
+              <Col span={2}><InputNumber style={{width:'100%'}} min={0} max={100} value={item.discountPct} onChange={v => updateLine(idx,'discountPct',v)} /></Col>
+              <Col span={3}><Text strong style={{color:'#1890ff'}}>{Number(item.lineTotal).toFixed(3)}</Text></Col>
+              <Col span={1}><Button size="small" danger onClick={() => { const u = lineItems.filter((_,i)=>i!==idx); setLineItems(u); calcTotals(u, Number(form.getFieldValue('vatRate')||5)); }}>×</Button></Col>
+            </Row>
+            {isAssetPurchase && <Row gutter={8} style={{marginBottom:8, background:'#f6ffed', padding:'4px 0', borderRadius:6}} align="middle">
+                <Col span={1}></Col>
+                <Col span={6} style={{display:'flex',alignItems:'center',gap:6}}>
+                  <Text type="secondary" style={{fontSize:11,whiteSpace:'nowrap'}}>📦 Location:</Text>
                   <Select
                     size="small"
-                    style={{ width:'100%', marginTop:4 }}
-                    placeholder="→ Warehouse Location"
-                    allowClear
-                    showSearch
-                    optionFilterProp="children"
+                    style={{ flex:1 }}
+                    placeholder="Select warehouse location"
+                    allowClear showSearch optionFilterProp="children"
                     value={item.warehouseLocationId || undefined}
                     onChange={v => updateLine(idx,'warehouseLocationId',v)}
                   >
@@ -178,18 +186,7 @@ export default function PurchaseOrdersPage() {
                       </Select.OptGroup>
                     ))}
                   </Select>
-                )}
-              </Col>
-              <Col span={5}><Input value={item.description} onChange={e => updateLine(idx,'description',e.target.value)} placeholder="Description" /></Col>
-              <Col span={2}><Input value={item.unitOfMeasure} onChange={e => updateLine(idx,'unitOfMeasure',e.target.value)} /></Col>
-              <Col span={2}><InputNumber style={{width:'100%'}} min={0} step={0.001} value={item.quantity} onChange={v => updateLine(idx,'quantity',v)} /></Col>
-              <Col span={3}><InputNumber style={{width:'100%'}} min={0} step={0.001} value={item.unitPrice} onChange={v => updateLine(idx,'unitPrice',v)} /></Col>
-              <Col span={2}><InputNumber style={{width:'100%'}} min={0} max={100} value={item.discountPct} onChange={v => updateLine(idx,'discountPct',v)} /></Col>
-              <Col span={3}><Text strong style={{color:'#1890ff'}}>{Number(item.lineTotal).toFixed(3)}</Text></Col>
-              <Col span={1}><Button size="small" danger onClick={() => { const u = lineItems.filter((_,i)=>i!==idx); setLineItems(u); calcTotals(u, Number(form.getFieldValue('vatRate')||5)); }}>×</Button></Col>
-            </Row>
-            {isAssetPurchase && <Row gutter={8} style={{marginBottom:8, background:'#f6ffed', padding:'4px 0', borderRadius:6}} align="middle">
-                <Col span={1}></Col>
+                </Col>
                 <Col span={4}><Select style={{width:'100%'}} placeholder="Brand" allowClear showSearch value={item.brand} onChange={v=>updateLine(idx,'brand',v)}>
                   {brands.map((b:string)=><Option key={b} value={b}>{b}</Option>)}
                 </Select></Col>
