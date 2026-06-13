@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Card, Button, Input, Select, Tag, Space, Modal, Form, Typography, Row, Col, message, Popconfirm, Tooltip, InputNumber, Statistic } from 'antd';
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, FilePdfOutlined } from '@ant-design/icons';
 import SupplierSelect from '../../components/common/SupplierSelect';
-import { paymentVouchersApi, purchaseInvoicesApi, suppliersApi } from '../../services/salesApi';
+import { paymentVouchersApi, purchaseInvoicesApi, suppliersApi, bankAccountsApi } from '../../services/salesApi';
 import api from '../../services/api';
 import PDFModal from '../../components/pdf/PDFModal';
 
