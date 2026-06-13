@@ -407,7 +407,7 @@ export default function SalesPage() {
 
       {/* Kanban / Table */}
       {viewMode === "kanban" ? (
-        <div style={{ display:"flex", gap:14, overflowX:"auto", paddingBottom:16 }}>
+        <div style={{ display:"flex", gap:14, overflowX:"auto", paddingBottom:16, maxHeight:"calc(100vh - 320px)" }}>
           {STAGES.map(stage => {
             const sOpps = opps.filter(o => (o.stageCode||"PROSPECTING") === stage);
             const sVal = sOpps.reduce((s,o) => s+(Number(o.dealValue)||0), 0);
@@ -417,7 +417,7 @@ export default function SalesPage() {
                   <Text style={{ color:"#fff", fontWeight:700, fontSize:12 }}>{stage.replace("_"," ")}</Text>
                   <Text style={{ color:"rgba(255,255,255,0.8)", fontSize:11 }}>{sOpps.length} · OMR {sVal.toLocaleString()}</Text>
                 </div>
-                <div style={{ background:"#f5f6fa", borderRadius:"0 0 10px 10px", padding:8, minHeight:150 }}>
+                <div style={{ background:"#f5f6fa", borderRadius:"0 0 10px 10px", padding:8, minHeight:150, maxHeight:"calc(100vh - 380px)", overflowY:"auto" }}>
                   {sOpps.map(opp => (
                     <Card key={opp.opportunityId} size="small" hoverable style={{ marginBottom:8, borderRadius:8 }} onClick={() => openEdit(opp)}>
                       <div style={{ fontWeight:600, fontSize:12, marginBottom:4 }}>{opp.opportunityName}</div>
