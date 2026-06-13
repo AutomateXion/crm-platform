@@ -20,6 +20,7 @@ import {
   StockAdjustmentEntity, StockAdjustmentItemEntity,
   FixedAssetEntity, AssetDepreciationEntity, AssetMaintenanceEntity, AssetTransferEntity,
   DocumentSignatureEntity,
+  BankAccountEntity, ChequeBookEntity, ChequeLeafEntity,
 } from './sales.entities';
 
 @Injectable()
@@ -46,6 +47,9 @@ export class SalesService {
     @InjectRepository(StockTransferItemEntity) private transferItemRepo: Repository<StockTransferItemEntity>,
     @InjectRepository(StockAdjustmentEntity) private adjustmentRepo: Repository<StockAdjustmentEntity>,
     @InjectRepository(FixedAssetEntity) private fixedAssetRepo: Repository<FixedAssetEntity>,
+    @InjectRepository(BankAccountEntity) private bankAccountRepo: Repository<BankAccountEntity>,
+    @InjectRepository(ChequeBookEntity) private chequeBookRepo: Repository<ChequeBookEntity>,
+    @InjectRepository(ChequeLeafEntity) private chequeLeafRepo: Repository<ChequeLeafEntity>,
     @InjectRepository(AssetDepreciationEntity) private assetDeprRepo: Repository<AssetDepreciationEntity>,
     @InjectRepository(AssetMaintenanceEntity) private assetMaintRepo: Repository<AssetMaintenanceEntity>,
     @InjectRepository(AssetTransferEntity) private assetTransferRepo: Repository<AssetTransferEntity>,
@@ -3078,4 +3082,70 @@ export class SalesService {
     return { rows, summary, categories };
   }
 
+
+  // ── Bank Accounts ──────────────────────────────────────────────
+  async getBankAccounts(tenantId: string) {
+    return this.bankAccountRepo.find({ where: { tenantId } as any, order: { createdAt: 'DESC' } as any });
+  }
+  async getBankAccount(tenantId: string, id: string) {
+    const acc = await this.bankAccountRepo.findOne({ where: { tenantId, bankAccountId: id } as any });
+    if (!acc) throw new NotFoundException('Bank account not found');
+    return acc;
+  }
+  async createBankAccount(tenantId: string, dto: any, userId: string) {
+    const acc = this.bankAccountRepo.create({ ...dto, tenantId, createdBy: userId, currentBalance: dto.openingBalance || 0 } as any);
+    return this.bankAccountRepo.save(acc);
+  }
+  async updateBankAccount(tenantId: string, id: string, dto: any) {
+    await this.bankAccountRepo.update({ tenantId, bankAccountId: id } as any, dto);
+    return this.getBankAccount(tenantId, id);
+  }
+  async deleteBankAccount(tenantId: string, id: string) {
+    await this.bankAccountRepo.delete({ tenantId, bankAccountId: id } as any);
+    return { success: true };
+  }
+
+  // ── Cheque Books ───────────────────────────────────────────────
+  async getChequeBooks(tenantId: string, bankAccountId?: string) {
+    const where: any = { tenantId };
+    if (bankAccountId) where.bankAccountId = bankAccountId;
+    return this.chequeBookRepo.find({ where, order: { createdAt: 'DESC' } as any });
+  }
+  async createChequeBook(tenantId: string, dto: any, userId: string) {
+    const start = parseInt(dto.startLeafNo, 10);
+    const end = parseInt(dto.endLeafNo, 10);
+    if (isNaN(start) || isNaN(end) || end < start) throw new NotFoundException('Invalid leaf range');
+    const totalLeaves = end - start + 1;
+    const book = this.chequeBookRepo.create({ ...dto, tenantId, totalLeaves, createdBy: userId } as any) as any;
+    const saved = await this.chequeBookRepo.save(book);
+    const pad = dto.startLeafNo.length;
+    const leaves = [];
+    for (let i = start; i <= end; i++) {
+      leaves.push(this.chequeLeafRepo.create({
+        tenantId, chequeBookId: saved.chequeBookId, bankAccountId: dto.bankAccountId,
+        leafNumber: String(i).padStart(pad, '0'), status: 'AVAILABLE',
+      } as any));
+    }
+    await this.chequeLeafRepo.save(leaves);
+    return saved;
+  }
+  async updateChequeBookStatus(tenantId: string, id: string, status: string) {
+    await this.chequeBookRepo.update({ tenantId, chequeBookId: id } as any, { status });
+    return { success: true };
+  }
+
+  // ── Cheque Leaves ──────────────────────────────────────────────
+  async getChequeLeaves(tenantId: string, chequeBookId?: string, status?: string) {
+    const where: any = { tenantId };
+    if (chequeBookId) where.chequeBookId = chequeBookId;
+    if (status) where.status = status;
+    return this.chequeLeafRepo.find({ where, order: { leafNumber: 'ASC' } as any });
+  }
+  async getNextAvailableLeaf(tenantId: string, bankAccountId: string) {
+    return this.chequeLeafRepo.findOne({ where: { tenantId, bankAccountId, status: 'AVAILABLE' } as any, order: { leafNumber: 'ASC' } as any });
+  }
+  async voidChequeLeaf(tenantId: string, id: string, reason: string) {
+    await this.chequeLeafRepo.update({ tenantId, leafId: id } as any, { status: 'CANCELLED', voidReason: reason });
+    return { success: true };
+  }
 }

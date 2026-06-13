@@ -191,3 +191,20 @@ export const signaturesApi = {
   getOne: (docType: string, docId: string) => salesApi.get(`/sales/signatures/${docType}/${docId}`),
   signInPerson: (data: any) => salesApi.post('/sales/signatures/in-person', data),
 };
+export const bankAccountsApi = {
+  getAll: () => salesApi.get('/sales/bank-accounts'),
+  getOne: (id: string) => salesApi.get(`/sales/bank-accounts/${id}`),
+  create: (data: any) => salesApi.post('/sales/bank-accounts', data),
+  update: (id: string, data: any) => salesApi.put(`/sales/bank-accounts/${id}`, data),
+  delete: (id: string) => salesApi.delete(`/sales/bank-accounts/${id}`),
+};
+export const chequeBooksApi = {
+  getAll: (bankAccountId?: string) => salesApi.get('/sales/cheque-books', { params: { bankAccountId } }),
+  create: (data: any) => salesApi.post('/sales/cheque-books', data),
+  updateStatus: (id: string, status: string) => salesApi.put(`/sales/cheque-books/${id}/status`, { status }),
+};
+export const chequeLeavesApi = {
+  getAll: (params?: any) => salesApi.get('/sales/cheque-leaves', { params }),
+  getNext: (bankAccountId: string) => salesApi.get('/sales/cheque-leaves/next', { params: { bankAccountId } }),
+  void: (id: string, reason: string) => salesApi.put(`/sales/cheque-leaves/${id}/void`, { reason }),
+};

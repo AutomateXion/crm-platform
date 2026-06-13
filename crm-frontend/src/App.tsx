@@ -56,6 +56,7 @@ import SalesReturnsPage     from './pages/finance/SalesReturnsPage';
 import ExchangeRatesPage    from './pages/finance/ExchangeRatesPage';
 import ChartOfAccountsPage    from './pages/finance/ChartOfAccountsPage';
 import JournalVouchersPage   from './pages/finance/JournalVouchersPage';
+import BankAccountsPage      from './pages/finance/BankAccountsPage';
 import GeneralLedgerPage     from './pages/finance/GeneralLedgerPage';
 import TrialBalancePage          from './pages/finance/TrialBalancePage';
 import ProfitLossPage           from './pages/finance/reports/ProfitLossPage';
@@ -176,6 +177,7 @@ export default function App() {
         <Route path="finance/exchange-rates"  element={<ExchangeRatesPage />} />
         <Route path="finance/chart-of-accounts"  element={<ChartOfAccountsPage />} />
         <Route path="finance/journal-vouchers"   element={<JournalVouchersPage />} />
+        <Route path="finance/bank-accounts"      element={<BankAccountsPage />} />
         <Route path="finance/general-ledger"      element={<GeneralLedgerPage />} />
         <Route path="finance/trial-balance"          element={<TrialBalancePage />} />
         <Route path="finance/profit-loss"            element={<ProfitLossPage />} />

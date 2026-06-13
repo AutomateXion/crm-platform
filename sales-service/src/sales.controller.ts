@@ -768,4 +768,54 @@ export class SalesController {
   createTransfer(@Request() req: any, @Body() dto: any) {
     return this.svc.createTransfer(req.user.tenantId, dto, req.user.userId);
   }
+
+  // ── Bank Accounts ──────────────────────────────────────────────
+  @Get('bank-accounts')
+  getBankAccounts(@Request() req: any) {
+    return this.svc.getBankAccounts(req.user.tenantId);
+  }
+  @Get('bank-accounts/:id')
+  getBankAccount(@Request() req: any, @Param('id') id: string) {
+    return this.svc.getBankAccount(req.user.tenantId, id);
+  }
+  @Post('bank-accounts')
+  createBankAccount(@Request() req: any, @Body() dto: any) {
+    return this.svc.createBankAccount(req.user.tenantId, dto, req.user.userId);
+  }
+  @Put('bank-accounts/:id')
+  updateBankAccount(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateBankAccount(req.user.tenantId, id, dto);
+  }
+  @Delete('bank-accounts/:id')
+  deleteBankAccount(@Request() req: any, @Param('id') id: string) {
+    return this.svc.deleteBankAccount(req.user.tenantId, id);
+  }
+
+  // ── Cheque Books ───────────────────────────────────────────────
+  @Get('cheque-books')
+  getChequeBooks(@Request() req: any, @Query() q: any) {
+    return this.svc.getChequeBooks(req.user.tenantId, q.bankAccountId);
+  }
+  @Post('cheque-books')
+  createChequeBook(@Request() req: any, @Body() dto: any) {
+    return this.svc.createChequeBook(req.user.tenantId, dto, req.user.userId);
+  }
+  @Put('cheque-books/:id/status')
+  updateChequeBookStatus(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateChequeBookStatus(req.user.tenantId, id, dto.status);
+  }
+
+  // ── Cheque Leaves ──────────────────────────────────────────────
+  @Get('cheque-leaves')
+  getChequeLeaves(@Request() req: any, @Query() q: any) {
+    return this.svc.getChequeLeaves(req.user.tenantId, q.chequeBookId, q.status);
+  }
+  @Get('cheque-leaves/next')
+  getNextLeaf(@Request() req: any, @Query() q: any) {
+    return this.svc.getNextAvailableLeaf(req.user.tenantId, q.bankAccountId);
+  }
+  @Put('cheque-leaves/:id/void')
+  voidLeaf(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.voidChequeLeaf(req.user.tenantId, id, dto.reason);
+  }
 }

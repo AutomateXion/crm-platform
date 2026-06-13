@@ -51,6 +51,7 @@ const NAV_ITEMS = [
       { key: '/finance/chart-of-accounts', icon: <BankOutlined />,        label: 'Chart of Accounts' },
       { key: '/einvoice', icon: <SafetyCertificateOutlined />, label: '🧾 E-Invoicing (Fawtara)' },
       { key: '/finance/journal-vouchers',  icon: <EditOutlined />,        label: 'Journal Vouchers' },
+      { key: '/finance/bank-accounts',     icon: <BankOutlined />,        label: 'Bank Accounts' },
     ],
   },
   {

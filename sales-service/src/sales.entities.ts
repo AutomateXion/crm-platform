@@ -980,3 +980,63 @@ export class DocumentSignatureEntity {
   @Column({ name: 'signed_at', type: 'timestamptz', default: () => 'now()' }) signedAt: Date;
   @Column({ name: 'created_by', nullable: true }) createdBy: string;
 }
+
+
+// ── Bank Accounts ────────────────────────────────────────────────
+@Entity('bank_accounts')
+@Index(['tenantId'])
+export class BankAccountEntity {
+  @PrimaryGeneratedColumn('uuid', { name: 'bank_account_id' }) bankAccountId: string;
+  @Column({ name: 'tenant_id' }) tenantId: string;
+  @Column({ name: 'account_name' }) accountName: string;
+  @Column({ name: 'bank_name' }) bankName: string;
+  @Column({ name: 'account_number', nullable: true }) accountNumber: string;
+  @Column({ nullable: true }) iban: string;
+  @Column({ nullable: true }) branch: string;
+  @Column({ name: 'currency_code', default: 'OMR' }) currencyCode: string;
+  @Column({ name: 'opening_balance', type: 'decimal', precision: 18, scale: 3, default: 0 }) openingBalance: number;
+  @Column({ name: 'current_balance', type: 'decimal', precision: 18, scale: 3, default: 0 }) currentBalance: number;
+  @Column({ name: 'gl_account_id', nullable: true }) glAccountId: string;
+  @Column({ name: 'is_active', default: true }) isActive: boolean;
+  @Column({ nullable: true }) notes: string;
+  @Column({ name: 'created_by', nullable: true }) createdBy: string;
+  @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
+  @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
+}
+
+// ── Cheque Books ─────────────────────────────────────────────────
+@Entity('cheque_books')
+@Index(['tenantId'])
+export class ChequeBookEntity {
+  @PrimaryGeneratedColumn('uuid', { name: 'cheque_book_id' }) chequeBookId: string;
+  @Column({ name: 'tenant_id' }) tenantId: string;
+  @Column({ name: 'bank_account_id' }) bankAccountId: string;
+  @Column({ name: 'book_number' }) bookNumber: string;
+  @Column({ name: 'start_leaf_no' }) startLeafNo: string;
+  @Column({ name: 'end_leaf_no' }) endLeafNo: string;
+  @Column({ name: 'total_leaves', type: 'int', default: 0 }) totalLeaves: number;
+  @Column({ name: 'issued_date', type: 'date', nullable: true }) issuedDate: string;
+  @Column({ default: 'ACTIVE' }) status: string;
+  @Column({ name: 'created_by', nullable: true }) createdBy: string;
+  @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
+  @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
+}
+
+// ── Cheque Leaves ────────────────────────────────────────────────
+@Entity('cheque_leaves')
+@Index(['tenantId'])
+export class ChequeLeafEntity {
+  @PrimaryGeneratedColumn('uuid', { name: 'leaf_id' }) leafId: string;
+  @Column({ name: 'tenant_id' }) tenantId: string;
+  @Column({ name: 'cheque_book_id' }) chequeBookId: string;
+  @Column({ name: 'bank_account_id' }) bankAccountId: string;
+  @Column({ name: 'leaf_number' }) leafNumber: string;
+  @Column({ default: 'AVAILABLE' }) status: string;
+  @Column({ name: 'used_in_voucher_id', nullable: true }) usedInVoucherId: string;
+  @Column({ name: 'used_date', type: 'date', nullable: true }) usedDate: string;
+  @Column({ name: 'payee_name', nullable: true }) payeeName: string;
+  @Column({ type: 'decimal', precision: 18, scale: 3, nullable: true }) amount: number;
+  @Column({ name: 'void_reason', nullable: true }) voidReason: string;
+  @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
+  @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
+}

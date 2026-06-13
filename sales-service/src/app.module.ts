@@ -20,6 +20,7 @@ import {
   StockTransferEntity, StockTransferItemEntity,
   StockAdjustmentEntity, StockAdjustmentItemEntity,
   FixedAssetEntity, AssetDepreciationEntity, AssetMaintenanceEntity, AssetTransferEntity, DocumentSignatureEntity,
+  BankAccountEntity, ChequeBookEntity, ChequeLeafEntity,
 } from './sales.entities';
 import { SalesController } from './sales.controller';
 import { SalesService } from './sales.service';
@@ -55,6 +56,7 @@ import { JwtStrategy } from './auth.guard';
         StockTransferEntity, StockTransferItemEntity,
         StockAdjustmentEntity, StockAdjustmentItemEntity,
         FixedAssetEntity, AssetDepreciationEntity, AssetMaintenanceEntity, AssetTransferEntity, DocumentSignatureEntity,
+        BankAccountEntity, ChequeBookEntity, ChequeLeafEntity,
       ],
       synchronize: false,
     }),
@@ -76,6 +78,7 @@ import { JwtStrategy } from './auth.guard';
       StockTransferEntity, StockTransferItemEntity,
       StockAdjustmentEntity, StockAdjustmentItemEntity,
       FixedAssetEntity, AssetDepreciationEntity, AssetMaintenanceEntity, AssetTransferEntity, DocumentSignatureEntity,
+      BankAccountEntity, ChequeBookEntity, ChequeLeafEntity,
     ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
