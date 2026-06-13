@@ -132,10 +132,10 @@ export default function PurchaseInvoicesPage() {
     { title: 'Invoice #', dataIndex: 'invoiceNumber', render: (v: string) => <Tag color="purple">{v}</Tag> },
     { title: 'Supplier Inv#', dataIndex: 'supplierInvoiceNo', render: (v: string) => v || '—' },
     { title: 'Date', dataIndex: 'invoiceDate', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
-    { title: 'Supplier', dataIndex: 'supplierName', render: (v: string) => <Text strong>{v}</Text> },
-    { title: 'Total', dataIndex: 'totalAmount', render: (v: number) => <Text strong>OMR {Number(v).toFixed(3)}</Text> },
-    { title: 'Paid', dataIndex: 'paidAmount', render: (v: number) => <Text style={{color:'#52c41a'}}>OMR {Number(v).toFixed(3)}</Text> },
-    { title: 'Balance', dataIndex: 'balanceDue', render: (v: number) => <Text strong style={{color: Number(v)>0?'#ff4d4f':'#52c41a'}}>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Supplier', dataIndex: 'supplierName', width: 260, render: (v: string) => <Text strong>{v}</Text> },
+    { title: 'Total', dataIndex: 'totalAmount', width: 130, align: 'right' as const, render: (v: number) => <Text strong style={{ whiteSpace: 'nowrap' }}>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Paid', dataIndex: 'paidAmount', width: 130, align: 'right' as const, render: (v: number) => <Text style={{color:'#52c41a', whiteSpace: 'nowrap'}}>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Balance', dataIndex: 'balanceDue', width: 130, align: 'right' as const, render: (v: number) => <Text strong style={{color: Number(v)>0?'#ff4d4f':'#52c41a', whiteSpace: 'nowrap'}}>OMR {Number(v).toFixed(3)}</Text> },
     { title: 'Status', dataIndex: 'status', render: (v: string) => <Tag color={STATUS_COLORS[v]}>{v?.replace('_',' ')}</Tag> },
     { title: '', key: 'actions', render: (_: any, r: any) => (
       <Space>
@@ -165,7 +165,7 @@ export default function PurchaseInvoicesPage() {
             {Object.keys(STATUS_COLORS).map(s => <Option key={s} value={s}><Tag color={STATUS_COLORS[s]}>{s.replace('_',' ')}</Tag></Option>)}
           </Select>
         </Space>
-        <Table dataSource={items} columns={columns} rowKey="invoiceId" loading={loading} size="middle" pagination={{ current:page, total, pageSize:20, onChange:setPage }} />
+        <Table dataSource={items} columns={columns} rowKey="invoiceId" loading={loading} size="middle" scroll={{ x: 'max-content' }} sticky={{ offsetHeader: 0 }} pagination={{ current:page, total, pageSize:20, onChange:setPage }} />
       </Card>
       <Modal title={editRecord ? 'Edit Purchase Invoice' : 'New Purchase Invoice'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={900} style={{top:20}}>
         <Form form={form} layout="vertical" onFinish={handleSave} style={{marginTop:12}}>
