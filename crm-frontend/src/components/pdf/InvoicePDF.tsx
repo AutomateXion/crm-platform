@@ -147,6 +147,12 @@ export default function InvoicePDF({ data, companyInfo, config }: InvoicePDFProp
           {cfg.termsText}
         </div>
       )}
+      {data.termsConditions && (
+        <div style={{ fontSize: 8.5, color: '#666', marginTop: 10, marginBottom: 10, padding: '8px 10px', background: '#fafafa', borderRadius: 4, lineHeight: 1.4 }}>
+          <div style={{ fontWeight: 700, color: C, marginBottom: 3, fontSize: 8.5, textTransform: 'uppercase', letterSpacing: 1 }}>Additional Terms &amp; Conditions</div>
+          {data.termsConditions}
+        </div>
+      )}
       {cfg.showSignature && (
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
           <div style={{ textAlign: 'center', width: 160 }}>

@@ -141,10 +141,17 @@ export default function QuotationPDF({ data, companyInfo, config }: QuotationPDF
           </tbody>
         </table>
       </div>
+      {show('notes') && data.notes && <div style={{ fontSize: 9, color: '#666', marginBottom: 8 }}><strong>Notes:</strong> {data.notes}</div>}
       {cfg.termsText && (
         <div style={{ fontSize: 8.5, color: '#666', marginBottom: 10, padding: '8px 10px', background: '#fafafa', borderRadius: 4, lineHeight: 1.4 }}>
           <div style={{ fontWeight: 700, color: C, marginBottom: 3, fontSize: 8.5, textTransform: 'uppercase', letterSpacing: 1 }}>Terms &amp; Conditions</div>
           {cfg.termsText}
+        </div>
+      )}
+      {data.termsConditions && (
+        <div style={{ fontSize: 8.5, color: '#666', marginTop: 10, marginBottom: 10, padding: '8px 10px', background: '#fafafa', borderRadius: 4, lineHeight: 1.4 }}>
+          <div style={{ fontWeight: 700, color: C, marginBottom: 3, fontSize: 8.5, textTransform: 'uppercase', letterSpacing: 1 }}>Additional Terms &amp; Conditions</div>
+          {data.termsConditions}
         </div>
       )}
       {cfg.showSignature && (
