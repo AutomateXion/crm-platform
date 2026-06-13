@@ -477,6 +477,7 @@ export class PurchaseOrderItemEntity {
   @Column({ name: 'line_total', type: 'decimal', precision: 18, scale: 3, default: 0 }) lineTotal: number;
   @Column({ name: 'received_qty', type: 'decimal', precision: 18, scale: 3, default: 0 }) receivedQty: number;
   @Column({ name: 'is_taxable', default: true }) isTaxable: boolean;
+  @Column({ name: 'warehouse_location_id', nullable: true }) warehouseLocationId: string;
   @Column({ nullable: true }) notes: string;
   @ManyToOne(() => PurchaseOrderEntity, p => p.items)
   @JoinColumn({ name: 'po_id' })
@@ -532,6 +533,7 @@ export class GoodsReceiptNoteItemEntity {
   @Column({ name: 'discount_amount', type: 'decimal', precision: 18, scale: 3, default: 0 }) discountAmount: number;
   @Column({ name: 'line_total', type: 'decimal', precision: 18, scale: 3, default: 0 }) lineTotal: number;
   @Column({ name: 'is_taxable', default: true }) isTaxable: boolean;
+  @Column({ name: 'warehouse_location_id', nullable: true }) warehouseLocationId: string;
   @Column({ nullable: true }) notes: string;
   @ManyToOne(() => GoodsReceiptNoteEntity, g => g.items)
   @JoinColumn({ name: 'grn_id' })

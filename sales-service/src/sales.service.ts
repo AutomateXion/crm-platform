@@ -119,11 +119,12 @@ export class SalesService {
     return { success: true };
   }
 
-  async adjustStock(tenantId: string, productId: string, qty: number, type: string, ref: string, userId: string) {
+  async adjustStock(tenantId: string, productId: string, qty: number, type: string, ref: string, userId: string, warehouseLocationId?: string) {
     const product = await this.getProduct(tenantId, productId);
     const movement = this.stockRepo.create({
       tenantId, productId, movementType: type, quantity: qty,
       referenceNumber: ref, createdBy: userId,
+      ...(warehouseLocationId ? { warehouseId: warehouseLocationId } : {}),
     });
     await this.stockRepo.save(movement);
     const newQty = type === 'IN' || type === 'RETURN'
@@ -804,7 +805,14 @@ export class SalesService {
 
         if (productType === 'STOCK' && dto.isInventory) {
           // Regular stock item - update inventory
-          await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'IN', number, userId);
+          let locationId = item.warehouseLocationId;
+          if (!locationId && item.poItemId) {
+            const poItemResult = await this.invoiceRepo.query(
+              `SELECT warehouse_location_id FROM purchase_order_items WHERE item_id=$1`, [item.poItemId]
+            );
+            locationId = poItemResult[0]?.warehouse_location_id;
+          }
+          await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'IN', number, userId, locationId);
         } else if (productType === 'CONSUMABLE') {
           // Consumable - update consumable stock
           await this.receiveConsumable(tenantId, item.productId, Number(item.quantity), number, userId);
@@ -814,6 +822,13 @@ export class SalesService {
           for (let i = 0; i < qty; i++) {
             const count = await this.fixedAssetRepo.count({ where: { tenantId } as any });
             const assetCode = `AST-${String(count + i + 1).padStart(4,'0')}`;
+            let assetLocationId = item.warehouseLocationId;
+            if (!assetLocationId && item.poItemId) {
+              const poItemResult2 = await this.invoiceRepo.query(
+                `SELECT warehouse_location_id FROM purchase_order_items WHERE item_id=$1`, [item.poItemId]
+              );
+              assetLocationId = poItemResult2[0]?.warehouse_location_id;
+            }
             const asset = this.fixedAssetRepo.create({
               tenantId, assetCode,
               assetName: item.description || productResult[0]?.product_name,
@@ -830,6 +845,7 @@ export class SalesService {
               status: 'ACTIVE',
               invoiceNumber: number,
               createdBy: userId,
+              ...(assetLocationId ? { locationName: assetLocationId } : {}),
             } as any);
             await this.fixedAssetRepo.save(asset);
           }
