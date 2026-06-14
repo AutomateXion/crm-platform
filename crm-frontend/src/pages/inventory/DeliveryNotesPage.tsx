@@ -111,6 +111,26 @@ export default function DeliveryNotesPage() {
   const handleSave = async (values: any) => {
     setSaving(true);
     try {
+      // Credit block check on new DNs
+      if (!editRecord) {
+        const accountId = form.getFieldValue('accountId');
+        const lookupParam = accountId ? `/accounts/${accountId}` : null;
+        let blocked = false, blockReason = '';
+        if (lookupParam) {
+          const accR = await api.get(lookupParam);
+          const acc = accR.data;
+          blocked = acc.creditBlocked && !acc.creditBlockOverride;
+          blockReason = acc.creditBlockReason || 'Credit limit or overdue invoices';
+        } else if (values.customerName) {
+          const r = await api.get('/accounts', { params: { search: values.customerName, limit: 1 } });
+          const acc = r.data?.data?.[0];
+          if (acc) { blocked = acc.creditBlocked && !acc.creditBlockOverride; blockReason = acc.creditBlockReason || 'Credit limit exceeded'; }
+        }
+        if (blocked) {
+          message.error(`⛔ ${values.customerName} is credit blocked: ${blockReason}. Contact Administrator to unblock.`);
+          setSaving(false); return;
+        }
+      }
       // Recalculate totals from line items
       const subtotal = lineItems.reduce((s: number, l: any) => s + Number(l.lineTotal || 0), 0);
       const vatRate = Number(values.vatRate || 5);
