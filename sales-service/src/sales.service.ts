@@ -228,7 +228,77 @@ export class SalesService {
     return d;
   }
 
+  // ── Backend Credit Guard ─────────────────────────────────────
+  async enforceCreditLimit(tenantId: string, customerName: string, accountId?: string) {
+    if (!customerName && !accountId) return;
+    try {
+      // Get account
+      let accRows: any[];
+      if (accountId) {
+        accRows = await this.invoiceRepo.query(
+          `SELECT account_id::text as id, account_name, credit_limit, credit_period_days, credit_blocked, credit_block_override, credit_block_reason
+           FROM accounts WHERE account_id::text = $1 AND tenant_id::text = $2`,
+          [accountId, tenantId]
+        );
+      } else {
+        accRows = await this.invoiceRepo.query(
+          `SELECT account_id::text as id, account_name, credit_limit, credit_period_days, credit_blocked, credit_block_override, credit_block_reason
+           FROM accounts WHERE account_name ILIKE $1 AND tenant_id::text = $2 LIMIT 1`,
+          [customerName, tenantId]
+        );
+      }
+      if (!accRows.length) return; // unknown customer, allow
+      const acc = accRows[0];
+
+      // Check manual block
+      if (acc.credit_blocked && !acc.credit_block_override) {
+        throw new Error(`Customer "${acc.account_name}" is credit blocked. Reason: ${acc.credit_block_reason || 'Contact Administrator'}. Please settle outstanding dues or contact Administrator.`);
+      }
+
+      const creditLimit = Number(acc.credit_limit || 0);
+      const creditPeriodDays = Number(acc.credit_period_days || 30);
+      if (creditLimit === 0 && creditPeriodDays === 0) return; // no credit control
+
+      // Get current outstanding
+      const balRows = await this.invoiceRepo.query(
+        `SELECT COALESCE(SUM(balance_due), 0) as outstanding
+         FROM sales_invoices
+         WHERE tenant_id = $1
+         AND (account_id::text = $2 OR customer_name ILIKE $3)
+         AND status NOT IN ('CANCELLED','DRAFT','PAID')`,
+        [tenantId, acc.id || '', customerName]
+      );
+      const outstanding = Number(balRows[0]?.outstanding || 0);
+
+      // Check credit limit
+      if (creditLimit > 0 && outstanding >= creditLimit) {
+        throw new Error(`Credit limit exceeded for "${acc.account_name}". Outstanding: OMR ${outstanding.toFixed(3)}, Limit: OMR ${creditLimit.toFixed(3)}. Please settle dues before proceeding.`);
+      }
+
+      // Check overdue
+      const overdueRows = await this.invoiceRepo.query(
+        `SELECT COUNT(*) as cnt FROM sales_invoices
+         WHERE tenant_id = $1
+         AND (account_id::text = $2 OR customer_name ILIKE $3)
+         AND status NOT IN ('PAID','CANCELLED','DRAFT')
+         AND due_date < CURRENT_DATE`,
+        [tenantId, acc.id || '', customerName]
+      );
+      const overdueCount = Number(overdueRows[0]?.cnt || 0);
+      if (overdueCount > 0) {
+        throw new Error(`"${acc.account_name}" has ${overdueCount} overdue invoice(s). Please clear overdue balances before creating new documents.`);
+      }
+    } catch(e: any) {
+      if (e.message?.includes('credit blocked') || e.message?.includes('Credit limit') || e.message?.includes('overdue')) {
+        throw e;
+      }
+      // DB/other errors — log but don't block
+      console.warn('Credit guard error:', e?.message);
+    }
+  }
+
   async createDeliveryNote(tenantId: string, dto: any, userId: string) {
+    await this.enforceCreditLimit(tenantId, dto.customerName, dto.accountId);
     const number = await this.generateNumber('DN', this.dnRepo, 'dnNumber');
     const { items, dnNumber: _dn, invoiceNumber: _in, quotationNumber: _qn, ...header } = dto;
     const d = this.dnRepo.create({ ...header, tenantId, dnNumber: number, createdBy: userId });
@@ -326,6 +396,7 @@ export class SalesService {
   }
 
   async createInvoice(tenantId: string, dto: any, userId: string) {
+    await this.enforceCreditLimit(tenantId, dto.customerName, dto.accountId);
     const number = await this.generateNumber('INV', this.invoiceRepo, 'invoiceNumber');
     const { items, invoiceNumber: _in, dnNumber: _dn, quotationNumber: _qn, receiptNumber: _rn, ...header } = dto;
     const balanceDue = Number(header.totalAmount) || 0;
