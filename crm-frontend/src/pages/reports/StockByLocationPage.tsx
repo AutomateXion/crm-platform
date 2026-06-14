@@ -20,11 +20,17 @@ export default function StockByLocationPage() {
       if (filterWarehouse) params.warehouseId = filterWarehouse;
       const r = await salesApi.get('/sales/reports/stock-by-location', { params });
       setData(r.data || { warehouses: [], unassigned: [] });
-    } catch {} finally { setLoading(false); }
+    } catch(e: any) {
+      console.error('Stock by location error:', e?.response?.data || e?.message);
+    } finally { setLoading(false); }
   }, [filterWarehouse]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { warehousesApi.getAll().then(r => setWarehouses(r.data || [])).catch(() => {}); }, []);
+  useEffect(() => {
+    warehousesApi.getAll()
+      .then(r => { console.log('warehouses:', r.data); setWarehouses(r.data || []); })
+      .catch(e => console.error('warehouses error:', e?.message));
+  }, []);
 
   const productColumns = [
     { title: 'Code', dataIndex: 'productCode', width: 120, render: (v: string) => <Tag color="blue">{v}</Tag> },
