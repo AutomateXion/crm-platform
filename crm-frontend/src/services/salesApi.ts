@@ -212,3 +212,9 @@ export const chequeLeavesApi = {
   realize: (id: string, date: string) => salesApi.put(`/sales/cheque-leaves/${id}/realize`, { date }),
   reconcile: (id: string, date: string) => salesApi.put(`/sales/cheque-leaves/${id}/reconcile`, { date }),
 };
+
+export const pdcChequesApi = {
+  getAll: (params?: any) => salesApi.get('/sales/pdc-cheques', { params }),
+  getDueCount: () => salesApi.get('/sales/pdc-cheques/due-count'),
+  deposit: (receiptIds: string[], bankAccountId?: string) => salesApi.post('/sales/pdc-cheques/deposit', { receiptIds, bankAccountId }),
+};

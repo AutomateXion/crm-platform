@@ -5,6 +5,7 @@ import { RootState } from './store';
 import AppLayout from './components/layout/AppLayout';
 import ComingSoon from './pages/ComingSoon';
 import StockByLocationPage from './pages/reports/StockByLocationPage';
+import ReceivedChequesPage from './pages/finance/ReceivedChequesPage';
 import StockSummaryReport from './pages/reports/StockSummaryReport';
 import SalesReport from './pages/reports/SalesReport';
 import PurchaseReport from './pages/reports/PurchaseReport';
@@ -143,7 +144,8 @@ export default function App() {
         <Route path="reports/bank-register" element={<ComingSoon />} />
         <Route path="reports/petty-cash-book" element={<ComingSoon />} />
         <Route path="reports/bank-book" element={<ComingSoon />} />
-        <Route path="reports/pdc-report" element={<ComingSoon />} />
+        <Route path="reports/pdc-report" element={<ReceivedChequesPage />} />
+        <Route path="finance/received-cheques" element={<ReceivedChequesPage />} />
         <Route path="reports/cheque-book" element={<ComingSoon />} />
         <Route path="reports/cash-flow-projection" element={<ComingSoon />} />
         <Route path="reports/collection-projection" element={<ComingSoon />} />
