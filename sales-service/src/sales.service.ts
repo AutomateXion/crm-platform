@@ -1772,40 +1772,63 @@ export class SalesService {
 
   // ── Credit Risk Statement ─────────────────────────────────────
   async getCreditRiskStatement(tenantId: string) {
-    const invoices = await this.invoiceRepo.createQueryBuilder("i")
-      .where("i.tenantId = :tid AND i.status NOT IN (:...s)", { tid: tenantId, s: ["CANCELLED"] })
-      .getMany();
-    const customerMap = new Map<string, any>();
-    const now = new Date();
-    for (const inv of invoices) {
-      if (!customerMap.has(inv.customerName)) {
-        customerMap.set(inv.customerName, { customerName: inv.customerName, totalInvoiced: 0, totalPaid: 0, totalOverdue: 0, overdueCount: 0, totalInvoices: 0, maxDaysOverdue: 0, avgDaysToPay: 0 });
-      }
-      const c = customerMap.get(inv.customerName);
-      c.totalInvoices++;
-      c.totalInvoiced += Number(inv.totalAmount || 0);
-      c.totalPaid += Number(inv.paidAmount || 0);
-      const balance = Number(inv.balanceDue || 0);
-      if (balance > 0 && inv.dueDate && new Date(inv.dueDate) < now) {
-        const daysOverdue = Math.floor((now.getTime() - new Date(inv.dueDate).getTime()) / 86400000);
-        c.totalOverdue += balance;
-        c.overdueCount++;
-        c.maxDaysOverdue = Math.max(c.maxDaysOverdue, daysOverdue);
-      }
-    }
-    const customers = Array.from(customerMap.values()).map(c => {
-      const overdueRatio = c.totalInvoiced > 0 ? (c.totalOverdue / c.totalInvoiced) * 100 : 0;
+    const rows = await this.invoiceRepo.query(`
+      SELECT
+        i.customer_name as "customerName",
+        a.account_id::text as "accountId",
+        COALESCE(a.credit_limit, 0) as "creditLimit",
+        COALESCE(a.credit_period_days, 30) as "creditPeriodDays",
+        COALESCE(a.credit_blocked, false) as "creditBlocked",
+        COALESCE(SUM(i.balance_due), 0) as "outstanding",
+        COALESCE(SUM(CASE WHEN i.due_date < CURRENT_DATE AND i.balance_due > 0 THEN i.balance_due ELSE 0 END), 0) as "overdueAmount",
+        COALESCE(MAX(CASE WHEN i.due_date < CURRENT_DATE AND i.balance_due > 0 THEN CURRENT_DATE - i.due_date ELSE 0 END), 0) as "maxDaysOverdue",
+        COUNT(i.invoice_id) as "invoiceCount",
+        COALESCE(SUM(i.total_amount), 0) as "totalInvoiced",
+        COALESCE(SUM(i.paid_amount), 0) as "totalPaid"
+      FROM sales_invoices i
+      LEFT JOIN accounts a ON a.account_name = i.customer_name AND a.tenant_id::text = i.tenant_id
+      WHERE i.tenant_id = $1 AND i.status NOT IN ('CANCELLED','DRAFT')
+      GROUP BY i.customer_name, a.account_id, a.credit_limit, a.credit_period_days, a.credit_blocked
+      ORDER BY "outstanding" DESC
+    `, [tenantId]);
+
+    const customers = rows.map((c: any) => {
+      const outstanding = Number(c.outstanding || 0);
+      const creditLimit = Number(c.creditLimit || 0);
+      const overdueAmount = Number(c.overdueAmount || 0);
+      const maxDaysOverdue = Number(c.maxDaysOverdue || 0);
+      const utilization = creditLimit > 0 ? (outstanding / creditLimit) * 100 : 0;
       let riskScore = 0;
-      if (c.totalOverdue > 0) riskScore += 30;
-      if (c.maxDaysOverdue > 90) riskScore += 40;
-      else if (c.maxDaysOverdue > 60) riskScore += 30;
-      else if (c.maxDaysOverdue > 30) riskScore += 20;
-      if (overdueRatio > 50) riskScore += 30;
-      else if (overdueRatio > 25) riskScore += 15;
+      if (overdueAmount > 0) riskScore += 30;
+      if (maxDaysOverdue > 90) riskScore += 40;
+      else if (maxDaysOverdue > 60) riskScore += 30;
+      else if (maxDaysOverdue > 30) riskScore += 20;
+      if (creditLimit > 0 && utilization > 100) riskScore += 40;
+      else if (creditLimit > 0 && utilization > 80) riskScore += 20;
       const riskLevel = riskScore >= 70 ? "CRITICAL" : riskScore >= 40 ? "HIGH" : riskScore >= 20 ? "MEDIUM" : "LOW";
-      return { ...c, overdueRatio: Math.round(overdueRatio), riskScore, riskLevel };
-    }).sort((a, b) => b.riskScore - a.riskScore);
-    return { customers, totalExposure: customers.reduce((s,c) => s + c.totalOverdue, 0) };
+      return {
+        customerName: c.customerName,
+        accountId: c.accountId,
+        creditLimit,
+        creditPeriodDays: Number(c.creditPeriodDays || 30),
+        creditBlocked: c.creditBlocked,
+        outstanding,
+        overdueAmount,
+        maxDaysOverdue,
+        invoiceCount: Number(c.invoiceCount || 0),
+        totalInvoiced: Number(c.totalInvoiced || 0),
+        totalPaid: Number(c.totalPaid || 0),
+        utilization: Math.round(utilization),
+        riskScore,
+        riskLevel,
+      };
+    });
+    return {
+      customers,
+      totalExposure: customers.reduce((s: number, c: any) => s + c.overdueAmount, 0),
+      totalOutstanding: customers.reduce((s: number, c: any) => s + c.outstanding, 0),
+      highRiskCount: customers.filter((c: any) => c.riskLevel === 'HIGH' || c.riskLevel === 'CRITICAL').length,
+    };
   }
 
   // ── Warehouses ────────────────────────────────────────────────
