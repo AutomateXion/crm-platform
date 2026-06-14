@@ -768,6 +768,10 @@ export class SalesController {
   getStockByLocation(@Request() req: any, @Query() q: any) {
     return this.svc.getStockByLocation(req.user.tenantId, q.warehouseId);
   }
+  @Post('credit/bulk-check')
+  runBulkCreditCheck(@Request() req: any) {
+    return this.svc.runBulkCreditCheck(req.user.tenantId);
+  }
   @Get('asset-transfers')
   getTransfers(@Request() req: any, @Query() q: any) {
     return this.svc.getTransfers(req.user.tenantId, q.assetId);

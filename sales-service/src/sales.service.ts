@@ -354,7 +354,7 @@ export class SalesService {
         ...(vatAmt > 0 ? [{ accountCode: '2121', description: `VAT Output - ${number}`, debitAmount: 0, creditAmount: vatAmt }] : []),
       ],
     });
-    await this.checkAndUpdateCreditStatus(tenantId, header.accountId);
+    await this.checkAndUpdateCreditStatus(tenantId, header.accountId || '', header.customerName);
     return this.getInvoice(tenantId, saved.invoiceId);
   }
 
@@ -463,7 +463,7 @@ export class SalesService {
       ],
     });
     // Auto credit check — may unblock if payment clears balance
-    if (dto.accountId) await this.checkAndUpdateCreditStatus(tenantId, dto.accountId);
+    await this.checkAndUpdateCreditStatus(tenantId, dto.accountId || '', dto.customerName);
     return saved;
   }
 
@@ -3278,27 +3278,40 @@ export class SalesService {
   }
 
   // ── Auto Credit Status Check ───────────────────────────────────
-  async checkAndUpdateCreditStatus(tenantId: string, accountId: string) {
-    if (!accountId) return;
+  async checkAndUpdateCreditStatus(tenantId: string, accountId: string, customerName?: string) {
+    if (!accountId && !customerName) return;
     try {
       // Get account credit settings from core DB (same DB)
-      const accResult = await this.invoiceRepo.query(
-        `SELECT credit_limit, credit_period_days, credit_blocked, credit_block_reason
-         FROM accounts WHERE account_id::text = $1 AND tenant_id::text = $2`,
-        [accountId, tenantId]
-      );
+      let accResult;
+      if (accountId) {
+        accResult = await this.invoiceRepo.query(
+          `SELECT account_id::text as account_id, credit_limit, credit_period_days, credit_blocked, credit_block_reason
+           FROM accounts WHERE account_id::text = $1 AND tenant_id::text = $2`,
+          [accountId, tenantId]
+        );
+      } else {
+        accResult = await this.invoiceRepo.query(
+          `SELECT account_id::text as account_id, credit_limit, credit_period_days, credit_blocked, credit_block_reason
+           FROM accounts WHERE account_name ILIKE $1 AND tenant_id::text = $2 LIMIT 1`,
+          [customerName, tenantId]
+        );
+      }
       if (!accResult.length) return;
       const acc = accResult[0];
       const creditLimit = Number(acc.credit_limit || 0);
       const creditPeriodDays = Number(acc.credit_period_days || 30);
       if (creditLimit === 0 && creditPeriodDays === 0) return; // no credit control set
 
-      // Get outstanding balance
+      const resolvedId = accResult[0].account_id || accountId;
+      const nameFilter = customerName || '';
+      // Get outstanding balance - by account_id or customer_name
       const balResult = await this.invoiceRepo.query(
         `SELECT COALESCE(SUM(balance_due),0) as total_outstanding
          FROM sales_invoices
-         WHERE tenant_id = $1 AND account_id = $2 AND status NOT IN ('CANCELLED','DRAFT')`,
-        [tenantId, accountId]
+         WHERE tenant_id = $1
+         AND (account_id::text = $2 OR (($2 = '' OR account_id IS NULL) AND customer_name ILIKE $3))
+         AND status NOT IN ('CANCELLED','DRAFT')`,
+        [tenantId, resolvedId || '', nameFilter || accResult[0]?.account_name || '']
       );
       const outstanding = Number(balResult[0]?.total_outstanding || 0);
 
@@ -3306,10 +3319,11 @@ export class SalesService {
       const overdueResult = await this.invoiceRepo.query(
         `SELECT COUNT(*) as overdue_count
          FROM sales_invoices
-         WHERE tenant_id = $1 AND account_id = $2
+         WHERE tenant_id = $1
+         AND (account_id::text = $2 OR (($2 = '' OR account_id IS NULL) AND customer_name ILIKE $3))
          AND status NOT IN ('PAID','CANCELLED','DRAFT')
          AND due_date < CURRENT_DATE`,
-        [tenantId, accountId]
+        [tenantId, resolvedId || '', nameFilter || accResult[0]?.account_name || '']
       );
       const overdueCount = Number(overdueResult[0]?.overdue_count || 0);
 
@@ -3317,23 +3331,52 @@ export class SalesService {
       const currentlyBlocked = acc.credit_blocked;
       const manualBlock = currentlyBlocked && acc.credit_block_reason && !acc.credit_block_reason.startsWith('AUTO:');
 
+      const resolvedAccountId = acc.account_id || accountId;
       if (shouldBlock && !currentlyBlocked) {
         let reason = '';
         if (creditLimit > 0 && outstanding > creditLimit) reason = `AUTO: Outstanding OMR ${outstanding.toFixed(3)} exceeds credit limit OMR ${creditLimit.toFixed(3)}`;
         else reason = `AUTO: ${overdueCount} overdue invoice(s)`;
         await this.invoiceRepo.query(
           `UPDATE accounts SET credit_blocked = true, credit_block_reason = $1, credit_blocked_at = now() WHERE account_id::text = $2`,
-          [reason, accountId]
+          [reason, resolvedAccountId]
         );
       } else if (!shouldBlock && currentlyBlocked && !manualBlock) {
         // Auto-unblock only if it was auto-blocked
         await this.invoiceRepo.query(
           `UPDATE accounts SET credit_blocked = false, credit_block_reason = NULL, credit_blocked_at = NULL WHERE account_id::text = $1`,
-          [accountId]
+          [resolvedAccountId]
         );
       }
     } catch(e) {
       console.warn('Credit check failed:', (e as any)?.message);
+    }
+  }
+
+  // ── Bulk Credit Status Re-check (all customers) ────────────────
+  async runBulkCreditCheck(tenantId: string) {
+    try {
+      // Get all accounts with credit limit set
+      const accounts = await this.invoiceRepo.query(
+        `SELECT account_id::text as account_id, account_name, credit_limit, credit_period_days
+         FROM accounts WHERE tenant_id::text = $1 AND is_customer = true`,
+        [tenantId]
+      );
+      let blocked = 0, unblocked = 0;
+      for (const acc of accounts) {
+        const before = await this.invoiceRepo.query(
+          `SELECT credit_blocked, credit_block_reason FROM accounts WHERE account_id::text = $1`, [acc.account_id]
+        );
+        await this.checkAndUpdateCreditStatus(tenantId, acc.account_id, acc.account_name);
+        const after = await this.invoiceRepo.query(
+          `SELECT credit_blocked FROM accounts WHERE account_id::text = $1`, [acc.account_id]
+        );
+        if (!before[0]?.credit_blocked && after[0]?.credit_blocked) blocked++;
+        if (before[0]?.credit_blocked && !after[0]?.credit_blocked) unblocked++;
+      }
+      return { checked: accounts.length, blocked, unblocked };
+    } catch(e) {
+      console.error('Bulk credit check error:', (e as any)?.message);
+      return { error: (e as any)?.message };
     }
   }
 }
