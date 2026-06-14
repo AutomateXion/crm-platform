@@ -3235,12 +3235,12 @@ export class SalesService {
       JOIN products p ON p.product_id::text = sm.product_id AND p.tenant_id::text = $1
       JOIN warehouse_locations wl ON wl.location_id::text = sm.warehouse_id::text
       JOIN warehouses w ON w.warehouse_id = wl.warehouse_id AND w.tenant_id::text = $1
-      WHERE sm.tenant_id = $1
+      WHERE sm.tenant_id::text = $1
     `;
     const params: any[] = [tenantId];
     if (warehouseId) {
       params.push(warehouseId);
-      query += ` AND w.warehouse_id = $${params.length}`;
+      query += ` AND w.warehouse_id::text = $${params.length}`;
     }
     query += ` GROUP BY wl.location_id, wl.location_code, wl.location_name, wl.zone, wl.rack, wl.bin, w.warehouse_id, w.warehouse_name, w.warehouse_code, p.product_id, p.product_code, p.product_name, p.category, p.unit_of_measure HAVING SUM(CASE WHEN sm.movement_type IN ('IN','RETURN') THEN sm.quantity ELSE -sm.quantity END) > 0 ORDER BY w.warehouse_name, wl.location_code, p.product_name`;
     const rows = await this.invoiceRepo.query(query, params);
@@ -3250,7 +3250,7 @@ export class SalesService {
       SELECT p.product_id, p.product_code, p.product_name, p.category, p.unit_of_measure,
         p.stock_qty as qty_on_hand
       FROM products p
-      WHERE p.tenant_id = $1 AND p.stock_qty > 0
+      WHERE p.tenant_id::text = $1 AND p.stock_qty > 0
         AND p.product_id NOT IN (
           SELECT DISTINCT sm2.product_id FROM stock_movements sm2
           WHERE sm2.tenant_id = $1 AND sm2.warehouse_id IS NOT NULL
