@@ -3225,16 +3225,16 @@ export class SalesService {
   async getStockByLocation(tenantId: string, warehouseId?: string) {
     let query = `
       SELECT
-        wl.location_id, wl.location_code, wl.location_name, wl.zone, wl.rack, wl.bin,
-        w.warehouse_id, w.warehouse_name, w.warehouse_code,
-        p.product_id, p.product_code, p.product_name, p.category, p.unit_of_measure,
+        wl.location_id::text, wl.location_code, wl.location_name, wl.zone, wl.rack, wl.bin,
+        w.warehouse_id::text, w.warehouse_name, w.warehouse_code,
+        p.product_id::text, p.product_code, p.product_name, p.category, p.unit_of_measure,
         SUM(CASE WHEN sm.movement_type IN ('IN','RETURN') THEN sm.quantity ELSE -sm.quantity END) as qty_on_hand,
         COUNT(DISTINCT sm.movement_id) as movement_count,
         MAX(sm.created_at) as last_movement
       FROM stock_movements sm
-      JOIN products p ON p.product_id::text = sm.product_id AND p.tenant_id::text = $1
+      JOIN products p ON p.product_id::text = sm.product_id::text AND p.tenant_id::text = $1
       JOIN warehouse_locations wl ON wl.location_id::text = sm.warehouse_id::text
-      JOIN warehouses w ON w.warehouse_id = wl.warehouse_id AND w.tenant_id::text = $1
+      JOIN warehouses w ON w.warehouse_id::text = wl.warehouse_id::text AND w.tenant_id::text = $1
       WHERE sm.tenant_id::text = $1
     `;
     const params: any[] = [tenantId];
