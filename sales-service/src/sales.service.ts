@@ -3213,4 +3213,57 @@ export class SalesService {
     await this.chequeLeafRepo.update({ tenantId, leafId: id } as any, { status: 'RECONCILED', reconciledDate: date });
     return { success: true };
   }
+
+  // ── Stock By Location Report ───────────────────────────────────
+  async getStockByLocation(tenantId: string, warehouseId?: string) {
+    let query = `
+      SELECT
+        wl.location_id, wl.location_code, wl.location_name, wl.zone, wl.rack, wl.bin,
+        w.warehouse_id, w.warehouse_name, w.warehouse_code,
+        p.product_id, p.product_code, p.product_name, p.category, p.unit_of_measure,
+        SUM(CASE WHEN sm.movement_type IN ('IN','RETURN') THEN sm.quantity ELSE -sm.quantity END) as qty_on_hand,
+        COUNT(DISTINCT sm.movement_id) as movement_count,
+        MAX(sm.created_at) as last_movement
+      FROM stock_movements sm
+      JOIN products p ON p.product_id = sm.product_id AND p.tenant_id = $1
+      JOIN warehouse_locations wl ON wl.location_id = sm.warehouse_id
+      JOIN warehouses w ON w.warehouse_id = wl.warehouse_id AND w.tenant_id = $1
+      WHERE sm.tenant_id = $1
+    `;
+    const params: any[] = [tenantId];
+    if (warehouseId) {
+      params.push(warehouseId);
+      query += ` AND w.warehouse_id = $${params.length}`;
+    }
+    query += ` GROUP BY wl.location_id, wl.location_code, wl.location_name, wl.zone, wl.rack, wl.bin, w.warehouse_id, w.warehouse_name, w.warehouse_code, p.product_id, p.product_code, p.product_name, p.category, p.unit_of_measure HAVING SUM(CASE WHEN sm.movement_type IN ('IN','RETURN') THEN sm.quantity ELSE -sm.quantity END) > 0 ORDER BY w.warehouse_name, wl.location_code, p.product_name`;
+    const rows = await this.invoiceRepo.query(query, params);
+
+    // Also get products with no location movements - they sit in default/unassigned
+    const unassignedQuery = `
+      SELECT p.product_id, p.product_code, p.product_name, p.category, p.unit_of_measure,
+        p.stock_qty as qty_on_hand
+      FROM products p
+      WHERE p.tenant_id = $1 AND p.stock_qty > 0
+        AND p.product_id NOT IN (
+          SELECT DISTINCT sm2.product_id FROM stock_movements sm2
+          WHERE sm2.tenant_id = $1 AND sm2.warehouse_id IS NOT NULL
+        )
+    `;
+    const unassigned = await this.invoiceRepo.query(unassignedQuery, [tenantId]);
+
+    // Group by warehouse > location > products
+    const warehouseMap: any = {};
+    for (const row of rows) {
+      const wKey = row.warehouse_id;
+      if (!warehouseMap[wKey]) warehouseMap[wKey] = { warehouseId: row.warehouse_id, warehouseName: row.warehouse_name, warehouseCode: row.warehouse_code, locations: {} };
+      const lKey = row.location_id;
+      if (!warehouseMap[wKey].locations[lKey]) warehouseMap[wKey].locations[lKey] = { locationId: row.location_id, locationCode: row.location_code, locationName: row.location_name, zone: row.zone, rack: row.rack, bin: row.bin, products: [] };
+      warehouseMap[wKey].locations[lKey].products.push({ productId: row.product_id, productCode: row.product_code, productName: row.product_name, category: row.category, unitOfMeasure: row.unit_of_measure, qtyOnHand: Number(row.qty_on_hand), movementCount: Number(row.movement_count), lastMovement: row.last_movement });
+    }
+
+    const result = Object.values(warehouseMap).map((w: any) => ({
+      ...w, locations: Object.values(w.locations),
+    }));
+    return { warehouses: result, unassigned };
+  }
 }

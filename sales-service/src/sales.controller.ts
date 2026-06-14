@@ -764,6 +764,10 @@ export class SalesController {
   updateMaintenance(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
     return this.svc.updateMaintenance(req.user.tenantId, id, dto);
   }
+  @Get('reports/stock-by-location')
+  getStockByLocation(@Request() req: any, @Query() q: any) {
+    return this.svc.getStockByLocation(req.user.tenantId, q.warehouseId);
+  }
   @Get('asset-transfers')
   getTransfers(@Request() req: any, @Query() q: any) {
     return this.svc.getTransfers(req.user.tenantId, q.assetId);
