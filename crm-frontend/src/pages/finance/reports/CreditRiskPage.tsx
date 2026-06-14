@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Typography, Row, Col, Table, Tag, Space, Modal, Progress, Statistic } from 'antd';
+import { Card, Button, Typography, Row, Col, Table, Tag, Space, Modal, Progress, Statistic, message, Popconfirm } from 'antd';
 import { ReloadOutlined, FilePdfOutlined, DownloadOutlined, PrinterOutlined, WarningOutlined } from '@ant-design/icons';
 import salesApi from '../../../services/salesApi';
 import ExportButton from '../../../components/common/ExportButton';
@@ -20,6 +20,16 @@ export default function CreditRiskPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [showPDF, setShowPDF] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const runBulkCheck = async () => {
+    setChecking(true);
+    try {
+      const r = await salesApi.post('/sales/credit/bulk-check');
+      message.success(`Credit check complete: ${r.data.blocked} blocked, ${r.data.unblocked} unblocked out of ${r.data.checked} customers`);
+      load();
+    } catch { message.error('Credit check failed'); }
+    finally { setChecking(false); }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -107,6 +117,9 @@ export default function CreditRiskPage() {
         <div><Title level={4} style={{ margin:0 }}>Credit Risk Report</Title><Text type="secondary">Customer credit utilization and risk assessment</Text></div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Refresh</Button>
+        <Popconfirm title="Run credit check for all customers? This will auto-block/unblock based on current balances." onConfirm={runBulkCheck}>
+          <Button type="primary" danger loading={checking}>⚡ Run Credit Check</Button>
+        </Popconfirm>
           <Button icon={<FilePdfOutlined />} onClick={() => setShowPDF(true)} disabled={!data}>View PDF</Button>
           <ExportButton config={{ filename:'credit-risk', data: data?.customers||[] }} />
         </Space>
