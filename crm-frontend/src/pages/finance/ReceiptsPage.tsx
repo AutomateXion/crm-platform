@@ -47,7 +47,7 @@ export default function ReceiptsPage() {
   const handleAccountSelect = (_: string, option: any) => {
     if (option.account) {
       const customerName = option.account.accountName;
-      form.setFieldsValue({ customerName, invoiceIds: [], amount: 0 });
+      form.setFieldsValue({ customerName, accountId: option.account.accountId, invoiceIds: [], amount: 0 });
       // Filter invoices for this customer from backend
       invoicesApi.getAll({ limit: 100, excludePaid: true })
         .then(r => {
@@ -139,6 +139,7 @@ export default function ReceiptsPage() {
               ))}
             </Select>
           </Form.Item>
+          <Form.Item name="accountId" hidden><Input /></Form.Item>
           <Form.Item name="customerName" label="Customer Name" rules={[{ required: true }]}>
                 <AutoComplete
                   options={accountOptions}
