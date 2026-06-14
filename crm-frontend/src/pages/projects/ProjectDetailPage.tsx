@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Tabs, Button, Table, Form, Input, Select, Tag, Space, Modal,
   Typography, Row, Col, Statistic, Progress, message, Popconfirm,
-  Tooltip, InputNumber,
+  Tooltip, InputNumber, Divider, Checkbox, Empty,
 } from 'antd';
 import {
   ArrowLeftOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
@@ -573,48 +573,186 @@ function MeetingsTab({ projectId }: { projectId: string }) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [viewRecord, setViewRecord] = useState<any>(null);
   const [editRecord, setEditRecord] = useState<any>(null);
   const [form] = Form.useForm();
+  const [attendees, setAttendees] = useState<any[]>([]);
+  const [agendaItems, setAgendaItems] = useState<any[]>([]);
+  const [actionItems, setActionItems] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     try { const r = await meetingsApi.getAll(projectId); setItems(r.data || []); } catch {} finally { setLoading(false); }
   }, [projectId]);
   useEffect(() => { load(); }, [load]);
-  const handleSave = async (values: any) => {
-    try {
-      if (editRecord) await meetingsApi.update(editRecord.meetingId, values);
-      else await meetingsApi.create({ ...values, projectId });
-      message.success('Saved'); setModalOpen(false); load();
-    } catch (e: any) { message.error(e.response?.data?.message || 'Failed'); }
+
+  const openNew = () => {
+    setEditRecord(null); form.resetFields();
+    form.setFieldsValue({ meetingDate: new Date().toISOString().slice(0,10), meetingType: 'REVIEW' });
+    setAttendees([{ name: '', role: '', status: 'PRESENT' }]);
+    setAgendaItems([{ topic: '', discussion: '', decision: '' }]);
+    setActionItems([{ description: '', ownerId: '', ownerName: '', dueDate: '', createTask: true }]);
+    setModalOpen(true);
   };
+
+  const openEdit = (r: any) => {
+    setEditRecord(r);
+    form.setFieldsValue({ ...r, meetingDate: r.meetingDate?.slice(0,10), nextMeetingDate: r.nextMeetingDate?.slice(0,10) });
+    setAttendees(r.attendees?.length ? r.attendees : [{ name: '', role: '', status: 'PRESENT' }]);
+    setAgendaItems(r.agendaItems?.length ? r.agendaItems : (r.agenda ? [{ topic: r.agenda, discussion: '', decision: '' }] : [{ topic: '', discussion: '', decision: '' }]));
+    setActionItems(r.actionItems?.length ? r.actionItems : [{ description: '', ownerId: '', ownerName: '', dueDate: '', createTask: false }]);
+    setModalOpen(true);
+  };
+
+  const handleSave = async (values: any) => {
+    setSaving(true);
+    try {
+      const cleanAttendees = attendees.filter(a => a.name?.trim());
+      const cleanAgenda = agendaItems.filter(a => a.topic?.trim());
+      const cleanActions = actionItems.filter(a => a.description?.trim());
+      const payload = {
+        ...values, projectId,
+        attendees: cleanAttendees,
+        agendaItems: cleanAgenda,
+        agenda: cleanAgenda.map(a => a.topic).join('; '),
+        actionItems: cleanActions,
+        minutes: values.minutes || '',
+      };
+      let meetingId = editRecord?.meetingId;
+      if (editRecord) await meetingsApi.update(editRecord.meetingId, payload);
+      else { const res = await meetingsApi.create(payload); meetingId = res.data?.meetingId; }
+
+      // Auto-create tasks from action items flagged createTask
+      const toCreate = cleanActions.filter(a => a.createTask && !a.taskCreated);
+      let created = 0;
+      for (const ai of toCreate) {
+        try {
+          await tasksApi.create({
+            projectId,
+            taskName: ai.description,
+            description: `From meeting: ${values.title || 'Meeting'}`,
+            assignedTo: ai.ownerId || undefined,
+            assignedToName: ai.ownerName || undefined,
+            dueDate: ai.dueDate || undefined,
+            priority: 'MEDIUM',
+            status: 'TODO',
+          });
+          created++;
+        } catch {}
+      }
+      message.success(`Meeting saved${created ? ` · ${created} task(s) created from action items` : ''}`);
+      setModalOpen(false); load();
+    } catch (e: any) { message.error(e.response?.data?.message || 'Failed'); }
+    finally { setSaving(false); }
+  };
+
+  const TYPE_COLORS: Record<string,string> = { KICKOFF:'purple', REVIEW:'blue', STEERING:'gold', STANDUP:'green', CLIENT:'magenta' };
+
   const columns = [
-    { title: 'Title', dataIndex: 'title', render: (v: string) => <Text strong>{v}</Text> },
-    { title: 'Date', dataIndex: 'meetingDate', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
-    { title: 'Minutes', dataIndex: 'minutes', render: (v: string) => v ? <Tooltip title={v}><Text ellipsis style={{maxWidth:200}}>{v}</Text></Tooltip> : '—' },
-    { title: '', key: 'actions', render: (_: any, r: any) => (
+    { title: 'Date', dataIndex: 'meetingDate', width: 110, render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
+    { title: 'Title', dataIndex: 'title', render: (v: string, r: any) => <Space><Text strong>{v}</Text>{r.meetingType && <Tag color={TYPE_COLORS[r.meetingType]}>{r.meetingType}</Tag>}</Space> },
+    { title: 'Attendees', dataIndex: 'attendees', width: 100, align: 'center' as const, render: (v: any[]) => <Tag>{(v||[]).length}</Tag> },
+    { title: 'Actions', dataIndex: 'actionItems', width: 90, align: 'center' as const, render: (v: any[]) => { const open = (v||[]).filter((a:any)=>a.status!=='DONE').length; return open ? <Tag color="orange">{open} open</Tag> : <Tag color="green">Clear</Tag>; } },
+    { title: '', key: 'act', width: 120, render: (_: any, r: any) => (
       <Space>
-        <Button size="small" icon={<EditOutlined />} onClick={() => { setEditRecord(r); form.setFieldsValue({ ...r, meetingDate: r.meetingDate?.slice(0,10) }); setModalOpen(true); }} />
+        <Button size="small" onClick={() => setViewRecord(r)}>View</Button>
+        <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
         <Popconfirm title="Delete?" onConfirm={async () => { await meetingsApi.delete(r.meetingId); load(); }}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
       </Space>
     )},
   ];
+
+  const upd = (arr: any[], setArr: any, i: number, key: string, val: any) => { const c=[...arr]; c[i]={...c[i],[key]:val}; setArr(c); };
+
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditRecord(null); form.resetFields(); setModalOpen(true); }}>Log Meeting</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openNew}>Log Meeting</Button>
       </div>
       <Table dataSource={items} columns={columns} rowKey="meetingId" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
-      <Modal title={editRecord ? 'Edit Meeting' : 'Log Meeting'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={520}>
+
+      <Modal title={editRecord ? 'Edit Meeting Minutes' : 'New Meeting Minutes'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={820} style={{ top: 20 }}>
         <Form form={form} layout="vertical" onFinish={handleSave} style={{ marginTop: 12 }}>
-          <Form.Item name="title" label="Title" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item name="meetingDate" label="Date"><Input type="date" /></Form.Item>
-          <Form.Item name="agenda" label="Agenda"><Input.TextArea rows={2} /></Form.Item>
-          <Form.Item name="minutes" label="Minutes"><Input.TextArea rows={3} /></Form.Item>
+          <Row gutter={12}>
+            <Col span={10}><Form.Item name="title" label="Meeting Title" rules={[{ required: true }]}><Input placeholder="e.g. Weekly Project Review" /></Form.Item></Col>
+            <Col span={5}><Form.Item name="meetingType" label="Type"><Select><Option value="KICKOFF">Kickoff</Option><Option value="REVIEW">Review</Option><Option value="STEERING">Steering</Option><Option value="STANDUP">Standup</Option><Option value="CLIENT">Client</Option></Select></Form.Item></Col>
+            <Col span={5}><Form.Item name="meetingDate" label="Date"><Input type="date" /></Form.Item></Col>
+            <Col span={4}><Form.Item name="location" label="Location / Link"><Input placeholder="Room / Teams" /></Form.Item></Col>
+          </Row>
+
+          <Divider style={{ margin: '4px 0' }}>Attendees</Divider>
+          {attendees.map((a, i) => (
+            <Row gutter={8} key={i} style={{ marginBottom: 6 }}>
+              <Col span={9}><Input placeholder="Name" value={a.name} onChange={e => upd(attendees,setAttendees,i,'name',e.target.value)} /></Col>
+              <Col span={8}><Input placeholder="Role / Organization" value={a.role} onChange={e => upd(attendees,setAttendees,i,'role',e.target.value)} /></Col>
+              <Col span={5}><Select value={a.status} style={{ width:'100%' }} onChange={v => upd(attendees,setAttendees,i,'status',v)}><Option value="PRESENT">Present</Option><Option value="ABSENT">Absent</Option><Option value="APOLOGY">Apology</Option></Select></Col>
+              <Col span={2}><Button danger icon={<DeleteOutlined />} onClick={() => setAttendees(attendees.filter((_,x)=>x!==i))} /></Col>
+            </Row>
+          ))}
+          <Button size="small" icon={<PlusOutlined />} onClick={() => setAttendees([...attendees,{name:'',role:'',status:'PRESENT'}])}>Add Attendee</Button>
+
+          <Divider style={{ margin: '12px 0 4px' }}>Agenda & Discussion</Divider>
+          {agendaItems.map((a, i) => (
+            <div key={i} style={{ border:'1px solid #f0f0f0', borderRadius:8, padding:10, marginBottom:8 }}>
+              <Row gutter={8}>
+                <Col span={22}><Input placeholder={`Agenda item ${i+1}`} value={a.topic} onChange={e => upd(agendaItems,setAgendaItems,i,'topic',e.target.value)} style={{ marginBottom:6, fontWeight:600 }} /></Col>
+                <Col span={2}><Button danger icon={<DeleteOutlined />} onClick={() => setAgendaItems(agendaItems.filter((_,x)=>x!==i))} /></Col>
+              </Row>
+              <Input.TextArea placeholder="Discussion notes" rows={2} value={a.discussion} onChange={e => upd(agendaItems,setAgendaItems,i,'discussion',e.target.value)} style={{ marginBottom:6 }} />
+              <Input placeholder="Decision / Outcome" value={a.decision} onChange={e => upd(agendaItems,setAgendaItems,i,'decision',e.target.value)} />
+            </div>
+          ))}
+          <Button size="small" icon={<PlusOutlined />} onClick={() => setAgendaItems([...agendaItems,{topic:'',discussion:'',decision:''}])}>Add Agenda Item</Button>
+
+          <Divider style={{ margin: '12px 0 4px' }}>Action Items</Divider>
+          {actionItems.map((a, i) => (
+            <Row gutter={8} key={i} style={{ marginBottom: 6, alignItems:'center' }}>
+              <Col span={8}><Input placeholder="Action description" value={a.description} onChange={e => upd(actionItems,setActionItems,i,'description',e.target.value)} /></Col>
+              <Col span={6}><UserSelect value={a.ownerName} onChange={(val:string, user:any)=>{const c=[...actionItems];c[i]={...c[i],ownerId:user?.userId||'',ownerName:user?.fullName||val};setActionItems(c);}} style={{ width:'100%' }} /></Col>
+              <Col span={4}><Input type="date" value={a.dueDate} onChange={e => upd(actionItems,setActionItems,i,'dueDate',e.target.value)} /></Col>
+              <Col span={4}><Checkbox checked={a.createTask} onChange={e => upd(actionItems,setActionItems,i,'createTask',e.target.checked)}>Create Task</Checkbox></Col>
+              <Col span={2}><Button danger icon={<DeleteOutlined />} onClick={() => setActionItems(actionItems.filter((_,x)=>x!==i))} /></Col>
+            </Row>
+          ))}
+          <Button size="small" icon={<PlusOutlined />} onClick={() => setActionItems([...actionItems,{description:'',ownerId:'',ownerName:'',dueDate:'',createTask:true}])}>Add Action Item</Button>
+
+          <Divider style={{ margin: '12px 0 4px' }}>Additional Notes</Divider>
+          <Row gutter={12}>
+            <Col span={16}><Form.Item name="minutes" label="General Notes"><Input.TextArea rows={2} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="nextMeetingDate" label="Next Meeting"><Input type="date" /></Form.Item></Col>
+          </Row>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button type="primary" htmlType="submit">Save</Button>
+            <Button type="primary" htmlType="submit" loading={saving}>Save Minutes</Button>
           </div>
         </Form>
+      </Modal>
+
+      <Modal title={viewRecord?.title} open={!!viewRecord} onCancel={() => setViewRecord(null)} footer={<Button onClick={() => setViewRecord(null)}>Close</Button>} width={720}>
+        {viewRecord && (
+          <div>
+            <Space style={{ marginBottom: 12 }}>
+              {viewRecord.meetingType && <Tag color={TYPE_COLORS[viewRecord.meetingType]}>{viewRecord.meetingType}</Tag>}
+              <Text type="secondary">{viewRecord.meetingDate ? new Date(viewRecord.meetingDate).toLocaleDateString() : ''}</Text>
+              {viewRecord.location && <Text type="secondary">· {viewRecord.location}</Text>}
+            </Space>
+            {(viewRecord.attendees||[]).length > 0 && <><Divider orientation="left" style={{ margin:'8px 0' }}>Attendees</Divider>
+              <Space wrap>{viewRecord.attendees.map((a:any,i:number) => <Tag key={i} color={a.status==='PRESENT'?'green':a.status==='ABSENT'?'red':'orange'}>{a.name}{a.role?` (${a.role})`:''}</Tag>)}</Space></>}
+            {(viewRecord.agendaItems||[]).length > 0 && <><Divider orientation="left" style={{ margin:'12px 0 8px' }}>Agenda & Decisions</Divider>
+              {viewRecord.agendaItems.map((a:any,i:number) => <div key={i} style={{ marginBottom:8 }}><Text strong>{i+1}. {a.topic}</Text>{a.discussion && <div style={{ color:'#666', fontSize:13 }}>{a.discussion}</div>}{a.decision && <div style={{ color:'#1890ff', fontSize:13 }}>→ {a.decision}</div>}</div>)}</>}
+            {(viewRecord.actionItems||[]).length > 0 && <><Divider orientation="left" style={{ margin:'12px 0 8px' }}>Action Items</Divider>
+              <Table size="small" pagination={false} dataSource={viewRecord.actionItems} rowKey={(_,i)=>String(i)}
+                columns={[
+                  { title:'Action', dataIndex:'description' },
+                  { title:'Owner', dataIndex:'ownerName', render:(v:string)=>v||'—' },
+                  { title:'Due', dataIndex:'dueDate', render:(v:string)=>v?new Date(v).toLocaleDateString():'—' },
+                  { title:'Task', dataIndex:'createTask', render:(v:boolean)=>v?<Tag color="blue">Task created</Tag>:'—' },
+                ]} /></>}
+            {viewRecord.minutes && <><Divider orientation="left" style={{ margin:'12px 0 8px' }}>Notes</Divider><Text>{viewRecord.minutes}</Text></>}
+          </div>
+        )}
       </Modal>
     </>
   );
