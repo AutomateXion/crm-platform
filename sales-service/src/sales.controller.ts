@@ -772,6 +772,18 @@ export class SalesController {
   runBulkCreditCheck(@Request() req: any) {
     return this.svc.runBulkCreditCheck(req.user.tenantId);
   }
+  @Get('pdc-cheques')
+  getPdcCheques(@Request() req: any, @Query() q: any) {
+    return this.svc.getPdcCheques(req.user.tenantId, q);
+  }
+  @Get('pdc-cheques/due-count')
+  getPdcDueCount(@Request() req: any) {
+    return this.svc.getPdcDueCount(req.user.tenantId);
+  }
+  @Post('pdc-cheques/deposit')
+  depositPdcCheques(@Request() req: any, @Body() body: any) {
+    return this.svc.depositPdcCheques(req.user.tenantId, req.user.userId, body.receiptIds, body.bankAccountId);
+  }
   @Get('asset-transfers')
   getTransfers(@Request() req: any, @Query() q: any) {
     return this.svc.getTransfers(req.user.tenantId, q.assetId);

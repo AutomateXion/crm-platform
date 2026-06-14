@@ -525,13 +525,18 @@ export class SalesService {
         }
       }
     }
-    // Auto journal: Dr Bank / Cr AR (Receipt from customer)
+    // Auto journal — cheque receipts go to PDC holding account (bank credited only on deposit)
     const rcptDate = (dto.receiptDate || new Date().toISOString()).slice(0,10);
     const rcptCustomer = dto.customerName || "Customer";
+    const isCheque = dto.paymentMethod === 'CHEQUE';
+    const debitAccount = isCheque ? "1119" : "1120";
+    const debitDesc = isCheque
+      ? `Cheques in Hand (PDC) - ${rcptCustomer} - Chq ${dto.chequeNumber || ''}`
+      : `Cash/Bank - Receipt from ${rcptCustomer}`;
     await this.createAutoJournalEntry(tenantId, userId, {
-      voucherNumber: number, description: `Customer Receipt ${number} - ${rcptCustomer}`,
+      voucherNumber: number, description: `Customer Receipt ${number} - ${rcptCustomer}${isCheque ? ' (PDC)' : ''}`,
       voucherDate: rcptDate, lines: [
-        { accountCode: "1120", description: `Cash/Bank - Receipt from ${rcptCustomer}`, debitAmount: Number(dto.amount || 0), creditAmount: 0 },
+        { accountCode: debitAccount, description: debitDesc, debitAmount: Number(dto.amount || 0), creditAmount: 0 },
         { accountCode: "1130", description: `AR - ${rcptCustomer}`, debitAmount: 0, creditAmount: Number(dto.amount || 0) },
       ],
     });
@@ -3474,5 +3479,89 @@ export class SalesService {
       console.error('Bulk credit check error:', (e as any)?.message);
       return { error: (e as any)?.message };
     }
+  }
+
+  // ── PDC (Post-Dated Cheque) Management ─────────────────────────
+  async getPdcCheques(tenantId: string, filters: any = {}) {
+    let query = `
+      SELECT r.receipt_id::text as "receiptId", r.receipt_number as "receiptNumber",
+        r.customer_name as "customerName", r.amount, r.cheque_number as "chequeNumber",
+        r.cheque_date as "chequeDate", r.cheque_bank_name as "chequeBankName",
+        r.deposit_bank_account_id::text as "depositBankAccountId",
+        r.cheque_status as "chequeStatus", r.receipt_date as "receiptDate",
+        ba.account_name as "depositBankName",
+        CASE WHEN r.cheque_date <= CURRENT_DATE THEN true ELSE false END as "isDue",
+        (r.cheque_date - CURRENT_DATE) as "daysUntilDue"
+      FROM receipts r
+      LEFT JOIN bank_accounts ba ON ba.bank_account_id::text = r.deposit_bank_account_id::text
+      WHERE r.tenant_id = $1 AND r.payment_method = 'CHEQUE'
+      AND COALESCE(r.cheque_status, 'RECEIVED') = 'RECEIVED'
+    `;
+    const params: any[] = [tenantId];
+    if (filters.dueOnly === 'true' || filters.dueOnly === true) {
+      query += ` AND r.cheque_date <= CURRENT_DATE`;
+    }
+    if (filters.upToDate) {
+      params.push(filters.upToDate);
+      query += ` AND r.cheque_date <= $${params.length}`;
+    }
+    query += ` ORDER BY r.cheque_date ASC`;
+    return this.receiptRepo.query(query, params);
+  }
+
+  async getPdcDueCount(tenantId: string) {
+    const r = await this.receiptRepo.query(
+      `SELECT COUNT(*) as cnt FROM receipts
+       WHERE tenant_id = $1 AND payment_method = 'CHEQUE'
+       AND COALESCE(cheque_status,'RECEIVED') = 'RECEIVED'
+       AND cheque_date <= CURRENT_DATE`,
+      [tenantId]
+    );
+    return { dueCount: Number(r[0]?.cnt || 0) };
+  }
+
+  async depositPdcCheques(tenantId: string, userId: string, receiptIds: string[], bankAccountId?: string) {
+    if (!receiptIds?.length) throw new BadRequestException('No cheques selected for deposit');
+    const depositDate = new Date().toISOString().slice(0,10);
+    let deposited = 0;
+    for (const receiptId of receiptIds) {
+      const rows = await this.receiptRepo.query(
+        `SELECT r.receipt_id::text as id, r.receipt_number, r.customer_name, r.amount,
+          r.cheque_number, r.deposit_bank_account_id::text as bank_id,
+          ba.gl_account_id::text as gl_code, ba.account_name as bank_name
+         FROM receipts r
+         LEFT JOIN bank_accounts ba ON ba.bank_account_id::text = COALESCE($3, r.deposit_bank_account_id::text)
+         WHERE r.receipt_id::text = $1 AND r.tenant_id = $2`,
+        [receiptId, tenantId, bankAccountId || null]
+      );
+      if (!rows.length) continue;
+      const chq = rows[0];
+      // Determine bank GL code — fallback to 1120 if not linked
+      let bankGlCode = '1120';
+      if (chq.gl_code) {
+        const glRow = await this.receiptRepo.query(
+          `SELECT account_code FROM chart_of_accounts WHERE account_id::text = $1`, [chq.gl_code]
+        );
+        if (glRow.length) bankGlCode = glRow[0].account_code;
+      }
+      // Journal: Dr Bank / Cr PDC
+      const jvNumber = await this.generateNumber('JV', this.jvRepo, 'voucherNumber');
+      await this.createAutoJournalEntry(tenantId, userId, {
+        voucherNumber: jvNumber,
+        description: `PDC Deposit - ${chq.customer_name} - Chq ${chq.cheque_number} (Rcpt ${chq.receipt_number})`,
+        voucherDate: depositDate,
+        lines: [
+          { accountCode: bankGlCode, description: `Bank - PDC Deposit Chq ${chq.cheque_number}`, debitAmount: Number(chq.amount || 0), creditAmount: 0 },
+          { accountCode: '1119', description: `Cheques in Hand (PDC) - ${chq.customer_name}`, debitAmount: 0, creditAmount: Number(chq.amount || 0) },
+        ],
+      });
+      // Update receipt status and deposit bank if overridden
+      await this.receiptRepo.query(
+        `UPDATE receipts SET cheque_status = 'DEPOSITED'${bankAccountId ? ', deposit_bank_account_id = $2::uuid' : ''} WHERE receipt_id::text = $1`,
+        bankAccountId ? [receiptId, bankAccountId] : [receiptId]
+      );
+      deposited++;
+    }
+    return { deposited, depositDate };
   }
 }
