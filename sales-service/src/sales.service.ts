@@ -812,6 +812,13 @@ export class SalesService {
             );
             locationId = poItemResult[0]?.warehouse_location_id;
           }
+          if (!locationId && item.productId) {
+            const grnItemResult = await this.invoiceRepo.query(
+              `SELECT warehouse_location_id FROM goods_receipt_note_items WHERE grn_id=$1 AND product_id=$2 ORDER BY line_number LIMIT 1`,
+              [saved.grnId, item.productId]
+            );
+            locationId = grnItemResult[0]?.warehouse_location_id;
+          }
           await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'IN', number, userId, locationId);
         } else if (productType === 'CONSUMABLE') {
           // Consumable - update consumable stock
