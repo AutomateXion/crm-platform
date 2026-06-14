@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, IsNull } from 'typeorm';
 import {
@@ -252,7 +252,7 @@ export class SalesService {
 
       // Check manual block
       if (acc.credit_blocked && !acc.credit_block_override) {
-        throw new Error(`Customer "${acc.account_name}" is credit blocked. Reason: ${acc.credit_block_reason || 'Contact Administrator'}. Please settle outstanding dues or contact Administrator.`);
+        throw new BadRequestException(`Customer "${acc.account_name}" is credit blocked. Reason: ${acc.credit_block_reason || 'Contact Administrator'}. Please settle outstanding dues or contact Administrator.`);
       }
 
       const creditLimit = Number(acc.credit_limit || 0);
@@ -274,7 +274,7 @@ export class SalesService {
       const projectedTotal = outstanding + Number(newAmount || 0);
       if (creditLimit > 0 && projectedTotal > creditLimit) {
         const newAmtMsg = newAmount > 0 ? ` This document (OMR ${Number(newAmount).toFixed(3)}) would bring total exposure to OMR ${projectedTotal.toFixed(3)}.` : '';
-        throw new Error(`Credit limit exceeded for "${acc.account_name}". Current outstanding: OMR ${outstanding.toFixed(3)}, Limit: OMR ${creditLimit.toFixed(3)}.${newAmtMsg} Please settle dues or increase credit limit.`);
+        throw new BadRequestException(`Credit limit exceeded for "${acc.account_name}". Current outstanding: OMR ${outstanding.toFixed(3)}, Limit: OMR ${creditLimit.toFixed(3)}.${newAmtMsg} Please settle dues or increase credit limit.`);
       }
 
       // Check overdue
@@ -288,10 +288,10 @@ export class SalesService {
       );
       const overdueCount = Number(overdueRows[0]?.cnt || 0);
       if (overdueCount > 0) {
-        throw new Error(`"${acc.account_name}" has ${overdueCount} overdue invoice(s). Please clear overdue balances before creating new documents.`);
+        throw new BadRequestException(`"${acc.account_name}" has ${overdueCount} overdue invoice(s). Please clear overdue balances before creating new documents.`);
       }
     } catch(e: any) {
-      if (e.message?.includes('credit blocked') || e.message?.includes('Credit limit') || e.message?.includes('overdue')) {
+      if (e instanceof BadRequestException) {
         throw e;
       }
       // DB/other errors — log but don't block
