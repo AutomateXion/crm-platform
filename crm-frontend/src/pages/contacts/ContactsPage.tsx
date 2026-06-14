@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Table, Card, Button, Input, Select, Tag, Space, Modal, Form,
+  Table, Card, Button, Input, InputNumber, Select, Tag, Space, Modal, Form,
   Typography, Tabs, Row, Col, Avatar, Drawer, Descriptions, Switch, Divider, Tooltip,
   List, message, Popconfirm, Empty, AutoComplete, Spin,
 } from 'antd';
@@ -317,7 +317,14 @@ export default function ContactsPage() {
               <Divider style={{margin:'8px 0'}}>Financial & Banking</Divider>
               <Row gutter={12}>
                 <Col span={8}><Form.Item name="creditLimit" label="Credit Limit (OMR)"><Input type="number" /></Form.Item></Col>
-                <Col span={8}><Form.Item name="creditPeriodDays" label="Credit Period (Days)"><Input type="number" placeholder="e.g. 30" /></Form.Item></Col>
+                <Col span={8}>
+                  <Form.Item name="creditPeriodDays" label="Credit Period (Days)">
+                    <InputNumber style={{ width: '100%' }} min={0} placeholder="e.g. 30"
+                      onChange={v => {
+                        if (v) form.setFieldsValue({ paymentTerms: `Net ${v}` });
+                      }} />
+                  </Form.Item>
+                </Col>
                 <Col span={8}><Form.Item name="paymentTerms" label="Payment Terms"><Input placeholder="Net 30" /></Form.Item></Col>
               {isAdmin && (
                 <Col span={24}>

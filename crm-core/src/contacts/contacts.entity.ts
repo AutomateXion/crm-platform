@@ -22,12 +22,6 @@ export class AccountEntity {
   @Column({ nullable: true }) trn: string;
   @Column({ name: 'credit_limit', type: 'decimal', precision: 18, scale: 3, default: 0 }) creditLimit: number;
   @Column({ name: 'credit_period_days', type: 'int', default: 30 }) creditPeriodDays: number;
-  @Column({ name: 'credit_blocked', default: false }) creditBlocked: boolean;
-  @Column({ name: 'credit_block_reason', nullable: true }) creditBlockReason: string;
-  @Column({ name: 'credit_blocked_by', nullable: true }) creditBlockedBy: string;
-  @Column({ name: 'credit_blocked_at', type: 'timestamptz', nullable: true }) creditBlockedAt: Date;
-  @Column({ name: 'credit_block_override', default: false }) creditBlockOverride: boolean;
-  @Column({ name: 'credit_block_override_by', nullable: true }) creditBlockOverrideBy: string;
   @Column({ name: 'payment_terms', nullable: true }) paymentTerms: string;
   @Column({ name: 'currency_code', default: 'OMR' }) currencyCode: string;
   @Column({ name: 'bank_name', nullable: true }) bankName: string;
