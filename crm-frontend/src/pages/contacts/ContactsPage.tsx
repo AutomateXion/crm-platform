@@ -71,8 +71,8 @@ export default function ContactsPage() {
   const [editRecord, setEditRecord] = useState<any>(null);
   const [view360, setView360] = useState<any>(null);
   const [form] = Form.useForm();
-  const userRole = JSON.parse(localStorage.getItem('user') || '{}')?.role || '';
-  const isAdmin = userRole === 'TENANT_ADMIN' || userRole === 'SUPER_ADMIN';
+  const userGroupCode = JSON.parse(localStorage.getItem('user') || '{}')?.groupCode || '';
+  const isAdmin = userGroupCode === 'TENANT_ADMIN' || userGroupCode === 'SUPER_ADMIN';
 
   const [contactAccountName, setContactAccountName] = useState('');
   const [contactAccountId, setContactAccountId] = useState<string | null>(null);
