@@ -60,6 +60,7 @@ export default function DeliveryNotesPage() {
       const name = option.account.accountName;
       form.setFieldsValue({
         customerName: name,
+        accountId: option.account.accountId,
         customerEmail: option.account.email,
         customerPhone: option.account.phone,
         customerAddress: [option.account.addressLine1, option.account.city, option.account.country].filter(Boolean).join(', '),
@@ -70,6 +71,10 @@ export default function DeliveryNotesPage() {
         creditPeriodDays: Number(option.account.creditPeriodDays || 0),
         quotationId: undefined,
       });
+      // Credit block warning
+      if (option.account.creditBlocked && !option.account.creditBlockOverride) {
+        message.warning(`⛔ ${name} is credit blocked: ${option.account.creditBlockReason || 'Contact Administrator'}. This DN cannot be saved.`);
+      }
       // Filter quotations for this customer only
       quotationsApi.getAll({ limit: 100, excludeConverted: true })
         .then(r => setQuotations((r.data.data || []).filter((q:any) => q.customerName === name && q.status !== 'CANCELLED')))
@@ -189,6 +194,7 @@ export default function DeliveryNotesPage() {
                 <SalesmanSelect onChange={(id, name) => form.setFieldsValue({ salesmanId: id, salesmanName: name })} style={{ width: "100%" }} />
               </Form.Item>
               <Form.Item name="salesmanName" hidden><Input /></Form.Item>
+            <Form.Item name="accountId" hidden><Input /></Form.Item>
             </Col>
           </Row>
                     <Divider>Line Items</Divider>
