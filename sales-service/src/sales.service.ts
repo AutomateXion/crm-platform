@@ -229,7 +229,7 @@ export class SalesService {
   }
 
   // ── Backend Credit Guard ─────────────────────────────────────
-  async enforceCreditLimit(tenantId: string, customerName: string, accountId?: string) {
+  async enforceCreditLimit(tenantId: string, customerName: string, accountId?: string, newAmount: number = 0) {
     if (!customerName && !accountId) return;
     try {
       // Get account
@@ -270,9 +270,11 @@ export class SalesService {
       );
       const outstanding = Number(balRows[0]?.outstanding || 0);
 
-      // Check credit limit
-      if (creditLimit > 0 && outstanding >= creditLimit) {
-        throw new Error(`Credit limit exceeded for "${acc.account_name}". Outstanding: OMR ${outstanding.toFixed(3)}, Limit: OMR ${creditLimit.toFixed(3)}. Please settle dues before proceeding.`);
+      // Check credit limit (existing outstanding + new document value)
+      const projectedTotal = outstanding + Number(newAmount || 0);
+      if (creditLimit > 0 && projectedTotal > creditLimit) {
+        const newAmtMsg = newAmount > 0 ? ` This document (OMR ${Number(newAmount).toFixed(3)}) would bring total exposure to OMR ${projectedTotal.toFixed(3)}.` : '';
+        throw new Error(`Credit limit exceeded for "${acc.account_name}". Current outstanding: OMR ${outstanding.toFixed(3)}, Limit: OMR ${creditLimit.toFixed(3)}.${newAmtMsg} Please settle dues or increase credit limit.`);
       }
 
       // Check overdue
@@ -298,7 +300,7 @@ export class SalesService {
   }
 
   async createDeliveryNote(tenantId: string, dto: any, userId: string) {
-    await this.enforceCreditLimit(tenantId, dto.customerName, dto.accountId);
+    await this.enforceCreditLimit(tenantId, dto.customerName, dto.accountId, Number(dto.totalAmount || 0));
     const number = await this.generateNumber('DN', this.dnRepo, 'dnNumber');
     const { items, dnNumber: _dn, invoiceNumber: _in, quotationNumber: _qn, ...header } = dto;
     const d = this.dnRepo.create({ ...header, tenantId, dnNumber: number, createdBy: userId });
@@ -396,7 +398,7 @@ export class SalesService {
   }
 
   async createInvoice(tenantId: string, dto: any, userId: string) {
-    await this.enforceCreditLimit(tenantId, dto.customerName, dto.accountId);
+    await this.enforceCreditLimit(tenantId, dto.customerName, dto.accountId, Number(dto.totalAmount || 0));
     const number = await this.generateNumber('INV', this.invoiceRepo, 'invoiceNumber');
     const { items, invoiceNumber: _in, dnNumber: _dn, quotationNumber: _qn, receiptNumber: _rn, ...header } = dto;
     const balanceDue = Number(header.totalAmount) || 0;
