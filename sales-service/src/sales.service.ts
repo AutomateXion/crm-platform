@@ -354,6 +354,7 @@ export class SalesService {
         ...(vatAmt > 0 ? [{ accountCode: '2121', description: `VAT Output - ${number}`, debitAmount: 0, creditAmount: vatAmt }] : []),
       ],
     });
+    await this.checkAndUpdateCreditStatus(tenantId, header.accountId);
     return this.getInvoice(tenantId, saved.invoiceId);
   }
 
@@ -461,6 +462,8 @@ export class SalesService {
         { accountCode: "1130", description: `AR - ${rcptCustomer}`, debitAmount: 0, creditAmount: Number(dto.amount || 0) },
       ],
     });
+    // Auto credit check — may unblock if payment clears balance
+    if (dto.accountId) await this.checkAndUpdateCreditStatus(tenantId, dto.accountId);
     return saved;
   }
 
@@ -3272,5 +3275,65 @@ export class SalesService {
       ...w, locations: Object.values(w.locations),
     }));
     return { warehouses: result, unassigned };
+  }
+
+  // ── Auto Credit Status Check ───────────────────────────────────
+  async checkAndUpdateCreditStatus(tenantId: string, accountId: string) {
+    if (!accountId) return;
+    try {
+      // Get account credit settings from core DB (same DB)
+      const accResult = await this.invoiceRepo.query(
+        `SELECT credit_limit, credit_period_days, credit_blocked, credit_block_reason
+         FROM accounts WHERE account_id::text = $1 AND tenant_id::text = $2`,
+        [accountId, tenantId]
+      );
+      if (!accResult.length) return;
+      const acc = accResult[0];
+      const creditLimit = Number(acc.credit_limit || 0);
+      const creditPeriodDays = Number(acc.credit_period_days || 30);
+      if (creditLimit === 0 && creditPeriodDays === 0) return; // no credit control set
+
+      // Get outstanding balance
+      const balResult = await this.invoiceRepo.query(
+        `SELECT COALESCE(SUM(balance_due),0) as total_outstanding
+         FROM sales_invoices
+         WHERE tenant_id = $1 AND account_id = $2 AND status NOT IN ('CANCELLED','DRAFT')`,
+        [tenantId, accountId]
+      );
+      const outstanding = Number(balResult[0]?.total_outstanding || 0);
+
+      // Check for overdue invoices
+      const overdueResult = await this.invoiceRepo.query(
+        `SELECT COUNT(*) as overdue_count
+         FROM sales_invoices
+         WHERE tenant_id = $1 AND account_id = $2
+         AND status NOT IN ('PAID','CANCELLED','DRAFT')
+         AND due_date < CURRENT_DATE`,
+        [tenantId, accountId]
+      );
+      const overdueCount = Number(overdueResult[0]?.overdue_count || 0);
+
+      const shouldBlock = (creditLimit > 0 && outstanding > creditLimit) || overdueCount > 0;
+      const currentlyBlocked = acc.credit_blocked;
+      const manualBlock = currentlyBlocked && acc.credit_block_reason && !acc.credit_block_reason.startsWith('AUTO:');
+
+      if (shouldBlock && !currentlyBlocked) {
+        let reason = '';
+        if (creditLimit > 0 && outstanding > creditLimit) reason = `AUTO: Outstanding OMR ${outstanding.toFixed(3)} exceeds credit limit OMR ${creditLimit.toFixed(3)}`;
+        else reason = `AUTO: ${overdueCount} overdue invoice(s)`;
+        await this.invoiceRepo.query(
+          `UPDATE accounts SET credit_blocked = true, credit_block_reason = $1, credit_blocked_at = now() WHERE account_id::text = $2`,
+          [reason, accountId]
+        );
+      } else if (!shouldBlock && currentlyBlocked && !manualBlock) {
+        // Auto-unblock only if it was auto-blocked
+        await this.invoiceRepo.query(
+          `UPDATE accounts SET credit_blocked = false, credit_block_reason = NULL, credit_blocked_at = NULL WHERE account_id::text = $1`,
+          [accountId]
+        );
+      }
+    } catch(e) {
+      console.warn('Credit check failed:', (e as any)?.message);
+    }
   }
 }
