@@ -3232,8 +3232,8 @@ export class SalesService {
         COUNT(DISTINCT sm.movement_id) as movement_count,
         MAX(sm.created_at) as last_movement
       FROM stock_movements sm
-      JOIN products p ON p.product_id = sm.product_id AND p.tenant_id = $1
-      JOIN warehouse_locations wl ON wl.location_id = sm.warehouse_id
+      JOIN products p ON p.product_id::text = sm.product_id AND p.tenant_id = $1
+      JOIN warehouse_locations wl ON wl.location_id::text = sm.warehouse_id::text
       JOIN warehouses w ON w.warehouse_id = wl.warehouse_id AND w.tenant_id = $1
       WHERE sm.tenant_id = $1
     `;
