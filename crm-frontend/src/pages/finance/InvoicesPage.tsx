@@ -91,6 +91,7 @@ export default function InvoicesPage() {
       const name = option.account.accountName;
       form.setFieldsValue({
         customerName: name,
+        accountId: option.account.accountId,
         customerEmail: option.account.email,
         customerPhone: option.account.phone,
         customerAddress: [option.account.addressLine1, option.account.city, option.account.country].filter(Boolean).join(', '),
@@ -108,6 +109,10 @@ export default function InvoicesPage() {
       const due = new Date(invDate);
       due.setDate(due.getDate() + creditDays);
       form.setFieldsValue({ dueDate: due.toISOString().slice(0,10) });
+      // Credit block warning
+      if (option.account.creditBlocked && !option.account.creditBlockOverride) {
+        message.warning(`⛔ ${name} is credit blocked: ${option.account.creditBlockReason || 'Contact Administrator'}. This invoice cannot be saved.`);
+      }
       // Filter DNs and quotations for this customer only
       deliveryNotesApi.getAll({ limit: 100, excludeInvoiced: true })
         .then(r => setDeliveryNotes((r.data.data || []).filter((d:any) => d.customerName === name)))
