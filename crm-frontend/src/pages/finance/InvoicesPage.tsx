@@ -98,10 +98,16 @@ export default function InvoicesPage() {
         salesmanId: option.account.salesmanId,
         salesmanName: option.account.salesmanName,
         creditLimit: Number(option.account.creditLimit || 0),
-        creditPeriodDays: Number(option.account.creditPeriodDays || 0),
+        creditPeriodDays: Number(option.account.creditPeriodDays || 30),
         dnId: undefined,
         quotationId: undefined,
       });
+      // Auto-set due date from credit period
+      const invDate = form.getFieldValue('invoiceDate') || new Date().toISOString().slice(0,10);
+      const creditDays = Number(option.account.creditPeriodDays || 30);
+      const due = new Date(invDate);
+      due.setDate(due.getDate() + creditDays);
+      form.setFieldsValue({ dueDate: due.toISOString().slice(0,10) });
       // Filter DNs and quotations for this customer only
       deliveryNotesApi.getAll({ limit: 100, excludeInvoiced: true })
         .then(r => setDeliveryNotes((r.data.data || []).filter((d:any) => d.customerName === name)))
@@ -153,6 +159,15 @@ export default function InvoicesPage() {
   const handleSave = async (values: any) => {
     setSaving(true);
     try {
+      // Credit block check (only on new invoices)
+      if (!editRecord && values.accountId) {
+        const accR = await api.get(`/accounts/${values.accountId}`);
+        const acc = accR.data;
+        if (acc.creditBlocked && !acc.creditBlockOverride) {
+          message.error(`⛔ Customer is credit blocked: ${acc.creditBlockReason || 'Credit limit or overdue invoices'}. Contact Administrator to unblock.`);
+          setSaving(false); return;
+        }
+      }
       const subtotal = lineItems.reduce((s, l) => s + Number(l.lineTotal || 0), 0);
       const vatRate = Number(values.vatRate || 5);
       const vatAmount = subtotal * (vatRate / 100);
@@ -283,7 +298,16 @@ export default function InvoicesPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={6}><Form.Item name="invoiceDate" label="Invoice Date"><Input type="date" /></Form.Item></Col>
+            <Col span={6}><Form.Item name="invoiceDate" label="Invoice Date">
+                <Input type="date" onChange={e => {
+                  const creditDays = Number(form.getFieldValue('creditPeriodDays') || 30);
+                  if (e.target.value && creditDays > 0) {
+                    const due = new Date(e.target.value);
+                    due.setDate(due.getDate() + creditDays);
+                    form.setFieldsValue({ dueDate: due.toISOString().slice(0,10) });
+                  }
+                }} />
+              </Form.Item></Col>
             <Col span={6}><Form.Item name="dueDate" label="Due Date"><Input type="date" /></Form.Item></Col>
           </Row>
           <Row gutter={12}>

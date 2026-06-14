@@ -71,6 +71,8 @@ export default function ContactsPage() {
   const [editRecord, setEditRecord] = useState<any>(null);
   const [view360, setView360] = useState<any>(null);
   const [form] = Form.useForm();
+  const userRole = JSON.parse(localStorage.getItem('user') || '{}')?.role || '';
+  const isAdmin = userRole === 'TENANT_ADMIN' || userRole === 'SUPER_ADMIN';
 
   const [contactAccountName, setContactAccountName] = useState('');
   const [contactAccountId, setContactAccountId] = useState<string | null>(null);
@@ -189,7 +191,7 @@ export default function ContactsPage() {
         </Space>
       ),
     },
-    { title: 'Account', dataIndex: 'accountName', render: (v: string) => v ? <Space size={4}><BankOutlined style={{ color: '#1890ff' }} />{v}</Space> : '—' },
+    { title: 'Account', dataIndex: 'accountName', render: (v: string, r: any) => v ? <Space size={4}><BankOutlined style={{ color: '#1890ff' }} />{v}{r.creditBlocked && !r.creditBlockOverride ? <Tag color="red">⛔ Blocked</Tag> : r.creditBlocked && r.creditBlockOverride ? <Tag color="orange">⚠️ Override</Tag> : null}</Space> : '—' },
     { title: 'Email', dataIndex: 'email', render: (v: string) => v ? <a href={`mailto:${v}`}><MailOutlined /> {v}</a> : '—' },
     { title: 'Phone', dataIndex: 'phone', render: (v: string) => v || '—' },
     { title: 'Do Not Contact', dataIndex: 'doNotContact', render: (v: boolean) => v ? <Tag color="red">DNC</Tag> : <Tag color="green">OK</Tag> },
@@ -317,6 +319,28 @@ export default function ContactsPage() {
                 <Col span={8}><Form.Item name="creditLimit" label="Credit Limit (OMR)"><Input type="number" /></Form.Item></Col>
                 <Col span={8}><Form.Item name="creditPeriodDays" label="Credit Period (Days)"><Input type="number" placeholder="e.g. 30" /></Form.Item></Col>
                 <Col span={8}><Form.Item name="paymentTerms" label="Payment Terms"><Input placeholder="Net 30" /></Form.Item></Col>
+              {isAdmin && (
+                <Col span={24}>
+                  <Divider style={{ margin: '8px 0' }}>Credit Control (Administrator)</Divider>
+                  <Row gutter={12}>
+                    <Col span={6}>
+                      <Form.Item name="creditBlocked" label="Credit Blocked" valuePropName="checked">
+                        <Switch checkedChildren="⛔ Blocked" unCheckedChildren="✅ Active" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name="creditBlockOverride" label="Override Block" valuePropName="checked">
+                        <Switch checkedChildren="Override ON" unCheckedChildren="Override OFF" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item name="creditBlockReason" label="Block Reason">
+                        <Input placeholder="e.g. Overdue balance exceeded" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </Col>
+              )}
                 <Col span={8}><Form.Item name="currencyCode" label="Currency"><Select defaultValue="OMR"><Select.Option value="OMR">OMR</Select.Option><Select.Option value="USD">USD</Select.Option></Select></Form.Item></Col>
               </Row>
               <Row gutter={12}>
