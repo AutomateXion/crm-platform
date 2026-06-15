@@ -153,19 +153,44 @@ export class SalesService {
     return { success: true };
   }
 
-  async adjustStock(tenantId: string, productId: string, qty: number, type: string, ref: string, userId: string, warehouseLocationId?: string) {
+  async adjustStock(tenantId: string, productId: string, qty: number, type: string, ref: string, userId: string, warehouseLocationId?: string, unitCost?: number) {
     const product = await this.getProduct(tenantId, productId);
+    const isInbound = type === 'IN' || type === 'RETURN' || type === 'SALES_RETURN';
+
+    // Determine the cost of this movement
+    let movementUnitCost = Number(unitCost ?? 0);
+    let issueCost = 0; // total COGS for OUT movements
+    if (isInbound) {
+      // Use provided cost, else fall back to product cost_price
+      if (!movementUnitCost) movementUnitCost = Number(product.costPrice || 0);
+    } else {
+      // OUT: compute issue cost per costing method
+      const computed = await this.computeIssueCost(tenantId, productId, qty);
+      issueCost = computed.totalCost;
+      movementUnitCost = qty > 0 ? issueCost / qty : 0;
+    }
+
     const movement = this.stockRepo.create({
       tenantId, productId, movementType: type, quantity: qty,
-      referenceNumber: ref, createdBy: userId,
+      referenceNumber: ref, createdBy: userId, unitCost: movementUnitCost,
       ...(warehouseLocationId ? { warehouseId: warehouseLocationId } : {}),
     });
     await this.stockRepo.save(movement);
-    const isInbound = type === 'IN' || type === 'RETURN' || type === 'SALES_RETURN';
+
     const newQty = isInbound
       ? Number(product.stockQty) + qty
       : Number(product.stockQty) - qty;
     await this.productRepo.update({ productId }, { stockQty: newQty });
+
+    // Cost layers + average cost maintenance
+    try {
+      if (isInbound) {
+        await this.createCostLayer(tenantId, productId, qty, movementUnitCost, warehouseLocationId, type, ref);
+        await this.recomputeAverageCost(tenantId, productId);
+      }
+      // (OUT layer consumption already done inside computeIssueCost)
+    } catch (e) { console.warn('Cost layer update failed:', (e as any)?.message); }
+
     // Maintain per-location stock ledger (product_warehouse_stock)
     try {
       if (isInbound) {
@@ -174,7 +199,107 @@ export class SalesService {
         await this.deductLocationStock(tenantId, productId, qty);
       }
     } catch (e) { console.warn('Location stock update failed:', (e as any)?.message); }
-    return movement;
+
+    return { ...movement, issueCost } as any;
+  }
+
+  // ── Stock Costing Engine ───────────────────────────────────────
+  async getCostingMethod(tenantId: string): Promise<string> {
+    try {
+      const rows = await this.productRepo.query(
+        `SELECT costing_method FROM tenants WHERE tenant_id::text = $1`, [tenantId]
+      );
+      return rows[0]?.costing_method || 'WEIGHTED_AVG';
+    } catch { return 'WEIGHTED_AVG'; }
+  }
+
+  async createCostLayer(tenantId: string, productId: string, qty: number, unitCost: number, locationId: string | undefined, refType: string, refNum: string) {
+    if (qty <= 0) return;
+    await this.productRepo.query(
+      `INSERT INTO stock_cost_layers (tenant_id, product_id, location_id, original_qty, remaining_qty, unit_cost, reference_type, reference_number)
+       VALUES ($1, $2, $3, $4, $4, $5, $6, $7)`,
+      [tenantId, productId, locationId || null, qty, unitCost, refType, refNum]
+    );
+  }
+
+  // Compute the cost of issuing `qty` of a product, consuming layers (FIFO) or using average (AVCO)
+  async computeIssueCost(tenantId: string, productId: string, qty: number): Promise<{ totalCost: number, method: string }> {
+    const method = await this.getCostingMethod(tenantId);
+    if (qty <= 0) return { totalCost: 0, method };
+
+    if (method === 'FIFO') {
+      // Consume oldest layers first
+      const layers = await this.productRepo.query(
+        `SELECT layer_id, remaining_qty, unit_cost FROM stock_cost_layers
+         WHERE tenant_id = $1 AND product_id = $2 AND remaining_qty > 0
+         ORDER BY received_at ASC, created_at ASC`,
+        [tenantId, productId]
+      );
+      let remaining = qty;
+      let totalCost = 0;
+      for (const layer of layers) {
+        if (remaining <= 0) break;
+        const take = Math.min(Number(layer.remaining_qty), remaining);
+        totalCost += take * Number(layer.unit_cost);
+        await this.productRepo.query(
+          `UPDATE stock_cost_layers SET remaining_qty = remaining_qty - $1 WHERE layer_id = $2`,
+          [take, layer.layer_id]
+        );
+        remaining -= take;
+      }
+      // If layers insufficient, value the shortfall at last known cost (or product cost_price)
+      if (remaining > 0) {
+        const fallback = await this.productRepo.query(
+          `SELECT COALESCE(avg_cost, cost_price, 0) as c FROM products WHERE product_id::text = $1`, [productId]
+        );
+        totalCost += remaining * Number(fallback[0]?.c || 0);
+      }
+      return { totalCost: Number(totalCost.toFixed(3)), method };
+    } else {
+      // Weighted Average: qty * current avg_cost
+      const rows = await this.productRepo.query(
+        `SELECT COALESCE(avg_cost, cost_price, 0) as avg_cost FROM products WHERE product_id::text = $1`, [productId]
+      );
+      const avg = Number(rows[0]?.avg_cost || 0);
+      // Also reduce FIFO layers proportionally so valuation report stays consistent
+      await this.consumeLayersFIFOSilent(tenantId, productId, qty);
+      return { totalCost: Number((qty * avg).toFixed(3)), method };
+    }
+  }
+
+  // For AVCO: still consume layers oldest-first so remaining_qty reflects on-hand (valuation uses avg though)
+  async consumeLayersFIFOSilent(tenantId: string, productId: string, qty: number) {
+    const layers = await this.productRepo.query(
+      `SELECT layer_id, remaining_qty FROM stock_cost_layers
+       WHERE tenant_id = $1 AND product_id = $2 AND remaining_qty > 0
+       ORDER BY received_at ASC, created_at ASC`,
+      [tenantId, productId]
+    );
+    let remaining = qty;
+    for (const layer of layers) {
+      if (remaining <= 0) break;
+      const take = Math.min(Number(layer.remaining_qty), remaining);
+      await this.productRepo.query(
+        `UPDATE stock_cost_layers SET remaining_qty = remaining_qty - $1 WHERE layer_id = $2`,
+        [take, layer.layer_id]
+      );
+      remaining -= take;
+    }
+  }
+
+  // Recompute weighted-average cost from remaining layers
+  async recomputeAverageCost(tenantId: string, productId: string) {
+    const rows = await this.productRepo.query(
+      `SELECT COALESCE(SUM(remaining_qty * unit_cost),0) as total_val, COALESCE(SUM(remaining_qty),0) as total_qty
+       FROM stock_cost_layers WHERE tenant_id = $1 AND product_id = $2 AND remaining_qty > 0`,
+      [tenantId, productId]
+    );
+    const totalQty = Number(rows[0]?.total_qty || 0);
+    const totalVal = Number(rows[0]?.total_val || 0);
+    const avg = totalQty > 0 ? totalVal / totalQty : 0;
+    await this.productRepo.query(
+      `UPDATE products SET avg_cost = $1 WHERE product_id::text = $2`, [Number(avg.toFixed(3)), productId]
+    );
   }
 
   // ── Location Stock Ledger ──────────────────────────────────────
@@ -425,12 +550,27 @@ export class SalesService {
         this.dnItemRepo.create({ ...item, dnId: saved.dnId, lineNumber: idx + 1 })
       );
       await this.dnItemRepo.save(lineItems);
-      // Update stock if inventory mode
+      // Update stock if inventory mode + accumulate COGS
       if (dto.isInventory) {
+        let totalCOGS = 0;
         for (const item of items) {
           if (item.productId) {
-            await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'OUT', number, userId);
+            const res: any = await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'OUT', number, userId);
+            totalCOGS += Number(res?.issueCost || 0);
           }
+        }
+        // Auto-post COGS journal: Dr 5001 COGS / Cr 1140 Inventory at computed cost
+        if (totalCOGS > 0) {
+          const dnDate = (dto.dnDate || dto.deliveryDate || new Date().toISOString()).slice(0, 10);
+          await this.createAutoJournalEntry(tenantId, userId, {
+            voucherNumber: number,
+            description: `COGS - Delivery ${number}${header.customerName ? ' - ' + header.customerName : ''}`,
+            voucherDate: dnDate,
+            lines: [
+              { accountCode: '5001', description: `COGS - ${number}`, debitAmount: Number(totalCOGS.toFixed(3)), creditAmount: 0 },
+              { accountCode: '1140', description: `Inventory issue - ${number}`, debitAmount: 0, creditAmount: Number(totalCOGS.toFixed(3)) },
+            ],
+          });
         }
       }
     }
@@ -1015,7 +1155,8 @@ export class SalesService {
             );
             locationId = grnItemResult[0]?.warehouse_location_id;
           }
-          await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'IN', number, userId, locationId);
+          const grnUnitCost = Number(item.unitCost ?? item.unitPrice ?? item.costPrice ?? 0);
+          await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'IN', number, userId, locationId, grnUnitCost);
         } else if (productType === 'CONSUMABLE') {
           // Consumable - update consumable stock
           await this.receiveConsumable(tenantId, item.productId, Number(item.quantity), number, userId);
