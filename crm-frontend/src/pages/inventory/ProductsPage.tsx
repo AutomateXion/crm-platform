@@ -77,13 +77,21 @@ export default function ProductsPage() {
   const handleSave = async (values: any) => {
     setSaving(true);
     try {
+      console.log('SAVE payload:', { warehouseId: values.warehouseId, locationId: values.locationId, editId: editRecord?.productId });
       const payload = { ...values };
       if (editRecord) await productsApi.update(editRecord.productId, payload);
       else await productsApi.create(payload);
       message.success('Product saved successfully!');
       setModalOpen(false); load();
-    } catch (e: any) { message.error(e.response?.data?.message || 'Failed to save'); }
+    } catch (e: any) {
+      console.error('SAVE error:', e?.response?.status, e?.response?.data);
+      message.error(e.response?.data?.message || 'Failed to save');
+    }
     finally { setSaving(false); }
+  };
+  const handleSaveFailed = (err: any) => {
+    console.warn('VALIDATION blocked save:', err?.errorFields);
+    message.warning('Please complete required fields: ' + (err?.errorFields?.map((f: any) => f.name.join('.')).join(', ') || ''));
   };
 
   const summaryCards = [
@@ -355,7 +363,7 @@ export default function ProductsPage() {
 
       <Modal title={editRecord ? `Edit: ${editRecord.productName}` : 'New Product / Service'}
         open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={780} style={{ top: 20 }}>
-        <Form form={form} layout="vertical" onFinish={handleSave} style={{ marginTop: 8 }}>
+        <Form form={form} layout="vertical" onFinish={handleSave} onFinishFailed={handleSaveFailed} style={{ marginTop: 8 }}>
           <Tabs items={formTabs} size="small" />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
             <Button onClick={() => setModalOpen(false)}>Cancel</Button>
