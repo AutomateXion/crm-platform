@@ -5,14 +5,14 @@ import { JwtModule } from '@nestjs/jwt';
 import {
   ProjectEntity, StageEntity, TaskEntity, TaskDocumentEntity,
   TaskCommentEntity, ResourceEntity, MilestoneEntity, BudgetEntryEntity,
-  ChangeRequestEntity, RiskEntity, MeetingEntity,
+  ChangeRequestEntity, RiskEntity, MeetingEntity, FeasibilityEntity,
 } from './pm.entities';
 import { JwtStrategy } from './auth.guard';
 import {
   ProjectsController, StagesController, TasksController,
   TaskDocumentsController, TaskCommentsController, ResourcesController,
   MilestonesController, BudgetController, ChangeRequestsController,
-  RisksController, MeetingsController, DashboardController,
+  RisksController, MeetingsController, DashboardController, FeasibilityController,
 } from './projects/pm.controller';
 
 @Module({
@@ -28,14 +28,14 @@ import {
       entities: [
         ProjectEntity, StageEntity, TaskEntity, TaskDocumentEntity,
         TaskCommentEntity, ResourceEntity, MilestoneEntity, BudgetEntryEntity,
-        ChangeRequestEntity, RiskEntity, MeetingEntity,
+        ChangeRequestEntity, RiskEntity, MeetingEntity, FeasibilityEntity,
       ],
       synchronize: true,
     }),
     TypeOrmModule.forFeature([
       ProjectEntity, StageEntity, TaskEntity, TaskDocumentEntity,
       TaskCommentEntity, ResourceEntity, MilestoneEntity, BudgetEntryEntity,
-      ChangeRequestEntity, RiskEntity, MeetingEntity,
+      ChangeRequestEntity, RiskEntity, MeetingEntity, FeasibilityEntity,
     ]),
     PassportModule,
     JwtModule.register({
@@ -46,7 +46,7 @@ import {
     ProjectsController, StagesController, TasksController,
     TaskDocumentsController, TaskCommentsController, ResourcesController,
     MilestonesController, BudgetController, ChangeRequestsController,
-    RisksController, MeetingsController, DashboardController,
+    RisksController, MeetingsController, DashboardController, FeasibilityController,
   ],
   providers: [JwtStrategy],
 })

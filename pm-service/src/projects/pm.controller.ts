@@ -11,7 +11,7 @@ import { JwtAuthGuard, CurrentUser } from '../auth.guard';
 import {
   ProjectEntity, StageEntity, TaskEntity, TaskDocumentEntity,
   TaskCommentEntity, ResourceEntity, MilestoneEntity, BudgetEntryEntity,
-  ChangeRequestEntity, RiskEntity, MeetingEntity,
+  ChangeRequestEntity, RiskEntity, MeetingEntity, FeasibilityEntity,
 } from '../pm.entities';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -661,5 +661,117 @@ export class PmDashboardController {
         total: totalResources,
       },
     };
+  }
+}
+
+
+// ─── Feasibility / Investment Appraisal ──────────────────────────
+function computeFeasibility(initialInvestment: number, cashFlows: any[], discountRate: number) {
+  const r = discountRate / 100;
+  // cashFlows: [{ period, inflow, outflow }] — period 1,2,3...
+  const netFlows = cashFlows.map(cf => Number(cf.inflow || 0) - Number(cf.outflow || 0));
+
+  // NPV = -initial + Σ net_t / (1+r)^t
+  let npv = -initialInvestment;
+  let pvInflows = 0;
+  netFlows.forEach((net, idx) => {
+    const t = idx + 1;
+    const pv = net / Math.pow(1 + r, t);
+    npv += pv;
+    if (net > 0) pvInflows += pv;
+  });
+
+  // Total net profit (undiscounted)
+  const totalNet = netFlows.reduce((a, b) => a + b, 0);
+  const roi = initialInvestment > 0 ? (totalNet - initialInvestment + initialInvestment) / initialInvestment * 100 - 100 : 0;
+  // ROI = (total returns - investment) / investment * 100
+  const roiCalc = initialInvestment > 0 ? ((totalNet - initialInvestment) / initialInvestment) * 100 : 0;
+
+  // Payback period (undiscounted cumulative)
+  let cumulative = -initialInvestment;
+  let payback: number | null = null;
+  for (let i = 0; i < netFlows.length; i++) {
+    const prev = cumulative;
+    cumulative += netFlows[i];
+    if (cumulative >= 0 && payback === null) {
+      // linear interpolation within the period
+      const needed = -prev;
+      payback = i + (netFlows[i] !== 0 ? needed / netFlows[i] : 0);
+    }
+  }
+
+  // Profitability Index = PV of inflows / initial investment
+  const pi = initialInvestment > 0 ? pvInflows / initialInvestment : 0;
+
+  // IRR via bisection
+  const npvAt = (rate: number) => {
+    let v = -initialInvestment;
+    netFlows.forEach((net, idx) => { v += net / Math.pow(1 + rate, idx + 1); });
+    return v;
+  };
+  let irr: number | null = null;
+  let lo = -0.9, hi = 5.0;
+  let fLo = npvAt(lo), fHi = npvAt(hi);
+  if (fLo * fHi < 0) {
+    for (let k = 0; k < 100; k++) {
+      const mid = (lo + hi) / 2;
+      const fMid = npvAt(mid);
+      if (Math.abs(fMid) < 0.01) { irr = mid; break; }
+      if (fLo * fMid < 0) { hi = mid; fHi = fMid; } else { lo = mid; fLo = fMid; }
+      irr = mid;
+    }
+  }
+
+  // Verdict
+  let verdict = 'NO-GO';
+  if (npv > 0 && (irr === null || irr * 100 > discountRate)) verdict = 'GO';
+  else if (npv >= 0) verdict = 'CAUTION';
+  else verdict = 'NO-GO';
+
+  return {
+    npv: Number(npv.toFixed(3)),
+    irr: irr !== null ? Number((irr * 100).toFixed(4)) : null,
+    roi: Number(roiCalc.toFixed(2)),
+    paybackPeriods: payback !== null ? Number(payback.toFixed(2)) : null,
+    profitabilityIndex: Number(pi.toFixed(4)),
+    verdict,
+  };
+}
+
+@UseGuards(JwtAuthGuard)
+@Controller('pm/feasibility')
+export class FeasibilityController {
+  constructor(@InjectRepository(FeasibilityEntity) private repo: Repository<FeasibilityEntity>) {}
+
+  @Get()
+  async getAll(@CurrentUser() u: any, @Query() q: any) {
+    const where: any = { tenantId: u.tenantId };
+    if (q.projectId) where.projectId = q.projectId;
+    return this.repo.find({ where, order: { createdAt: 'DESC' } });
+  }
+
+  @Post('calculate')
+  calculate(@Body() body: any) {
+    return computeFeasibility(Number(body.initialInvestment || 0), body.cashFlows || [], Number(body.discountRate || 10));
+  }
+
+  @Post()
+  async create(@CurrentUser() u: any, @Body() body: any) {
+    const calc = computeFeasibility(Number(body.initialInvestment || 0), body.cashFlows || [], Number(body.discountRate || 10));
+    const entity = this.repo.create({ ...body, ...calc, tenantId: u.tenantId, createdBy: u.userId });
+    return this.repo.save(entity);
+  }
+
+  @Put(':id')
+  async update(@CurrentUser() u: any, @Param('id') id: string, @Body() body: any) {
+    const calc = computeFeasibility(Number(body.initialInvestment || 0), body.cashFlows || [], Number(body.discountRate || 10));
+    await this.repo.update({ feasibilityId: id, tenantId: u.tenantId }, { ...body, ...calc });
+    return this.repo.findOne({ where: { feasibilityId: id } });
+  }
+
+  @Delete(':id')
+  async remove(@CurrentUser() u: any, @Param('id') id: string) {
+    await this.repo.delete({ feasibilityId: id, tenantId: u.tenantId });
+    return { success: true };
   }
 }

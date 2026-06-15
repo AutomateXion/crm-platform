@@ -249,3 +249,28 @@ export class MeetingEntity {
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
 }
+
+
+@Entity('pm_feasibility')
+@Index(['projectId'])
+export class FeasibilityEntity {
+  @PrimaryGeneratedColumn('uuid', { name: 'feasibility_id' }) feasibilityId: string;
+  @Column({ name: 'tenant_id' }) tenantId: string;
+  @Column({ name: 'project_id' }) projectId: string;
+  @Column({ name: 'scenario_name', default: 'Base Case' }) scenarioName: string;
+  @Column({ name: 'discount_rate', type: 'decimal', precision: 7, scale: 4, default: 10 }) discountRate: number;
+  @Column({ name: 'currency_code', default: 'OMR' }) currencyCode: string;
+  @Column({ name: 'period_type', default: 'YEARLY' }) periodType: string;
+  @Column({ name: 'initial_investment', type: 'decimal', precision: 18, scale: 3, default: 0 }) initialInvestment: number;
+  @Column({ name: 'cash_flows', type: 'jsonb', default: '[]' }) cashFlows: any[];
+  @Column({ name: 'npv', type: 'decimal', precision: 18, scale: 3, nullable: true }) npv: number;
+  @Column({ name: 'irr', type: 'decimal', precision: 9, scale: 4, nullable: true }) irr: number;
+  @Column({ name: 'roi', type: 'decimal', precision: 9, scale: 2, nullable: true }) roi: number;
+  @Column({ name: 'payback_periods', type: 'decimal', precision: 9, scale: 2, nullable: true }) paybackPeriods: number;
+  @Column({ name: 'profitability_index', type: 'decimal', precision: 9, scale: 4, nullable: true }) profitabilityIndex: number;
+  @Column({ name: 'verdict', nullable: true }) verdict: string;
+  @Column({ name: 'notes', type: 'text', nullable: true }) notes: string;
+  @Column({ name: 'created_by', nullable: true }) createdBy: string;
+  @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
+  @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
+}
