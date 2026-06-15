@@ -7,7 +7,7 @@ import {
 import {
   ArrowLeftOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
   CheckCircleOutlined, DollarOutlined, TeamOutlined,
-  FlagOutlined, ApartmentOutlined, FileTextOutlined, AlertOutlined,
+  FlagOutlined, ApartmentOutlined, FileTextOutlined, AlertOutlined, CalculatorOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -16,6 +16,7 @@ import {
 } from '../../services/pmApi';
 import api from '../../services/api';
 import UserSelect from '../../components/common/UserSelect';
+import FeasibilityTab from './FeasibilityTab';
 const { Title, Text } = Typography;
 const { Option } = Select;
 const STATUS_COLORS: Record<string, string> = {
@@ -789,6 +790,7 @@ export default function ProjectDetailPage() {
     { key: 'cr',         label: <span><FileTextOutlined /> Change Requests</span>,  children: <ChangeRequestsTab projectId={id!} /> },
     { key: 'risks',      label: <span><AlertOutlined /> Risks</span>,               children: <RisksTab projectId={id!} /> },
     { key: 'meetings',   label: <span><FileTextOutlined /> Meetings</span>,         children: <MeetingsTab projectId={id!} /> },
+    { key: 'feasibility', label: <span><CalculatorOutlined /> Feasibility</span>,    children: <FeasibilityTab projectId={id!} project={project} /> },
   ];
   if (loading) return <Card loading style={{ borderRadius: 12 }} />;
   if (!project) return null;

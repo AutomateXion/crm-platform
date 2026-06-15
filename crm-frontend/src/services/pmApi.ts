@@ -88,6 +88,13 @@ export const meetingsApi = {
   update: (id: string, data: any) => pmApi.put(`/pm/meetings/${id}`, data),
   delete: (id: string) => pmApi.delete(`/pm/meetings/${id}`),
 };
+export const feasibilityApi = {
+  getAll: (projectId: string) => pmApi.get('/pm/feasibility', { params: { projectId } }),
+  calculate: (data: any) => pmApi.post('/pm/feasibility/calculate', data),
+  create: (data: any) => pmApi.post('/pm/feasibility', data),
+  update: (id: string, data: any) => pmApi.put(`/pm/feasibility/${id}`, data),
+  delete: (id: string) => pmApi.delete(`/pm/feasibility/${id}`),
+};
 
 export const pmDashboardApi = {
   get: () => pmApi.get('/pm/dashboard'),
