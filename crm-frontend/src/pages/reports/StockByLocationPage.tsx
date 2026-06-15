@@ -37,9 +37,11 @@ export default function StockByLocationPage() {
     { title: 'Product', dataIndex: 'productName', render: (v: string) => <Text strong>{v}</Text> },
     { title: 'Category', dataIndex: 'category', width: 130, render: (v: string) => v || '—' },
     { title: 'UOM', dataIndex: 'unitOfMeasure', width: 80 },
+    { title: 'Opening', dataIndex: 'openingStock', width: 100, align: 'right' as const, render: (v: number) => <Text type="secondary">{Number(v||0).toFixed(3)}</Text> },
     { title: 'Qty on Hand', dataIndex: 'qtyOnHand', width: 120, align: 'right' as const, render: (v: number) => <Text strong style={{ color: v > 0 ? '#52c41a' : '#ff4d4f' }}>{Number(v).toFixed(3)}</Text> },
-    { title: 'Movements', dataIndex: 'movementCount', width: 110, align: 'right' as const },
-    { title: 'Last Movement', dataIndex: 'lastMovement', width: 140, render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
+    { title: 'Reserved', dataIndex: 'reservedQty', width: 100, align: 'right' as const, render: (v: number) => Number(v||0).toFixed(3) },
+    { title: 'Available', dataIndex: 'availableQty', width: 110, align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#1890ff' }}>{Number(v||0).toFixed(3)}</Text> },
+    { title: 'Updated', dataIndex: 'lastMovement', width: 130, render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
   ];
 
   const unassignedColumns = [
@@ -108,6 +110,7 @@ export default function StockByLocationPage() {
                         {l.locationName && <Text type="secondary"> — {l.locationName}</Text>}
                         {l.zone && <Tag style={{ marginLeft: 8 }} color="cyan">Zone: {l.zone}</Tag>}
                         {l.rack && <Tag color="geekblue">Rack: {l.rack}</Tag>}
+                        {l.shelf && <Tag color="blue">Shelf: {l.shelf}</Tag>}
                         {l.bin && <Tag color="purple">Bin: {l.bin}</Tag>}
                         <Tag color="green" style={{ marginLeft: 8 }}>{l.products.length} SKU{l.products.length !== 1 ? 's' : ''}</Tag>
                       </span>
