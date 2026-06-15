@@ -32,6 +32,10 @@ export default function ProductsPage() {
   const [locations, setLocations] = useState<any[]>([]);
   const [warehouseStocks, setWarehouseStocks] = useState<any[]>([{ warehouseId: '', locationId: '', quantity: 0 }]);
   const [form] = Form.useForm();
+  const selectedWarehouseId = Form.useWatch('warehouseId', form);
+  const filteredLocations = selectedWarehouseId
+    ? locations.filter((l: any) => l.warehouseId === selectedWarehouseId)
+    : locations;
   const [isInventory, setIsInventory] = useState(true);
   const [productType, setProductType] = useState('STOCK');
 
@@ -269,15 +273,18 @@ export default function ProductsPage() {
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="warehouseId" label="Default Warehouse">
-                <Select allowClear showSearch optionFilterProp="children" placeholder="Select warehouse">
+                <Select allowClear showSearch optionFilterProp="children" placeholder="Select warehouse"
+                  onChange={() => form.setFieldsValue({ locationId: undefined })}>
                   {warehouses.map(w => <Option key={w.warehouseId} value={w.warehouseId}>{w.warehouseName}</Option>)}
                 </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item name="locationId" label="Default Location/Bin">
-                <Select allowClear showSearch optionFilterProp="children" placeholder="Select location">
-                  {locations.map(l => <Option key={l.locationId} value={l.locationId}>{l.locationCode} {l.locationName ? `— ${l.locationName}` : ''}</Option>)}
+                <Select allowClear showSearch optionFilterProp="children"
+                  placeholder={selectedWarehouseId ? 'Select location' : 'Select a warehouse first'}
+                  disabled={!selectedWarehouseId} notFoundContent="No locations in this warehouse">
+                  {filteredLocations.map((l: any) => <Option key={l.locationId} value={l.locationId}>{l.locationCode} {l.locationName ? `— ${l.locationName}` : ''}{[l.zone, l.rack, l.shelf, l.bin].filter(Boolean).length ? ` (${[l.zone, l.rack, l.shelf, l.bin].filter(Boolean).join('/')})` : ''}</Option>)}
                 </Select>
               </Form.Item>
             </Col>
