@@ -133,6 +133,7 @@ const NAV_ITEMS = [
         { key: '/reports/item-profile',       label: 'Item Profile & History' },
         { key: '/reports/stock-summary',      label: 'Stock Summary' },
         { key: '/reports/stock-by-location',  label: 'Stock by Location' },
+        { key: '/reports/stock-valuation',    label: 'Stock Valuation' },
         { key: '/reports/reorder-management', label: 'Reorder Management' },
       ]},
       { key: 'rep-crm', icon: <FolderOutlined />, label: 'CRM', children: [

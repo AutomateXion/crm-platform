@@ -5,6 +5,7 @@ import { RootState } from './store';
 import AppLayout from './components/layout/AppLayout';
 import ComingSoon from './pages/ComingSoon';
 import StockByLocationPage from './pages/reports/StockByLocationPage';
+import StockValuationPage from './pages/reports/StockValuationPage';
 import ReceivedChequesPage from './pages/finance/ReceivedChequesPage';
 import StockSummaryReport from './pages/reports/StockSummaryReport';
 import SalesReport from './pages/reports/SalesReport';
@@ -156,6 +157,7 @@ export default function App() {
         <Route path="reports/net-stock-available" element={<ComingSoon />} />
         <Route path="reports/stock-in-transit" element={<ComingSoon />} />
         <Route path="reports/stock-by-location" element={<StockByLocationPage />} />
+        <Route path="reports/stock-valuation" element={<StockValuationPage />} />
         <Route path="reports/stock-aging" element={<ComingSoon />} />
         <Route path="reports/item-sales-purchase-history" element={<ComingSoon />} />
         <Route path="reports/stock-expiry" element={<ComingSoon />} />
