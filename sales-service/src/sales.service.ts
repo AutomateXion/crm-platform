@@ -302,6 +302,58 @@ export class SalesService {
     );
   }
 
+  // ── Stock Valuation Report ─────────────────────────────────────
+  async getStockValuation(tenantId: string, q: any = {}) {
+    const method = await this.getCostingMethod(tenantId);
+    // Per-product on-hand qty (from products.stock_qty), avg cost, and FIFO layer value
+    const rows = await this.productRepo.query(
+      `SELECT p.product_id::text as "productId", p.product_code as "productCode",
+              p.product_name as "productName", p.category, p.unit_of_measure as "unitOfMeasure",
+              COALESCE(p.stock_qty,0) as "qtyOnHand",
+              COALESCE(p.avg_cost,0) as "avgCost",
+              COALESCE(p.cost_price,0) as "costPrice",
+              COALESCE((SELECT SUM(remaining_qty * unit_cost) FROM stock_cost_layers scl
+                        WHERE scl.tenant_id = p.tenant_id::text AND scl.product_id = p.product_id::text AND scl.remaining_qty > 0),0) as "fifoValue",
+              COALESCE((SELECT SUM(remaining_qty) FROM stock_cost_layers scl2
+                        WHERE scl2.tenant_id = p.tenant_id::text AND scl2.product_id = p.product_id::text AND scl2.remaining_qty > 0),0) as "fifoQty"
+       FROM products p
+       WHERE p.tenant_id::text = $1 AND p.is_active = true
+         AND (p.product_type = 'STOCK' OR p.is_inventory_item = true)
+         AND COALESCE(p.stock_qty,0) <> 0
+       ORDER BY p.product_name`,
+      [tenantId]
+    );
+
+    let totalValue = 0;
+    const items = rows.map((r: any) => {
+      const qty = Number(r.qtyOnHand);
+      const avgCost = Number(r.avgCost);
+      const fifoValue = Number(r.fifoValue);
+      // Valuation per method
+      const value = method === 'FIFO'
+        ? fifoValue
+        : Number((qty * avgCost).toFixed(3));
+      totalValue += value;
+      const unitValue = qty !== 0 ? value / qty : 0;
+      return {
+        productId: r.productId, productCode: r.productCode, productName: r.productName,
+        category: r.category, unitOfMeasure: r.unitOfMeasure,
+        qtyOnHand: qty, avgCost, costPrice: Number(r.costPrice),
+        unitValue: Number(unitValue.toFixed(3)),
+        totalValue: Number(value.toFixed(3)),
+        fifoQty: Number(r.fifoQty),
+      };
+    });
+
+    return {
+      method,
+      asOf: new Date().toISOString(),
+      totalValue: Number(totalValue.toFixed(3)),
+      itemCount: items.length,
+      items,
+    };
+  }
+
   // ── Location Stock Ledger ──────────────────────────────────────
   // Resolve the warehouse_id for a given location
   private async resolveWarehouseForLocation(locationId: string): Promise<{ warehouseId: string, locationCode: string, warehouseName: string } | null> {
