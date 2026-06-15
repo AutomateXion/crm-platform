@@ -105,13 +105,47 @@ export class SalesService {
   }
 
   async createProduct(tenantId: string, dto: any, userId: string) {
-    const p = this.productRepo.create({ ...dto, tenantId, createdBy: userId });
-    return this.productRepo.save(p);
+    const p = this.productRepo.create({ ...dto, tenantId, createdBy: userId }) as any;
+    const saved = await this.productRepo.save(p) as any;
+    await this.syncProductLocationStock(tenantId, saved.productId);
+    return saved;
   }
 
   async updateProduct(tenantId: string, id: string, dto: any) {
     await this.productRepo.update({ productId: id, tenantId }, dto);
+    await this.syncProductLocationStock(tenantId, id);
     return this.getProduct(tenantId, id);
+  }
+
+  async syncProductLocationStock(tenantId: string, productId: string) {
+    try {
+      const rows = await this.productRepo.query(
+        `SELECT p.stock_qty, p.location_id::text as location_id, wl.warehouse_id::text as warehouse_id,
+                wl.location_code, w.warehouse_name
+         FROM products p
+         JOIN warehouse_locations wl ON wl.location_id = p.location_id
+         JOIN warehouses w ON w.warehouse_id = wl.warehouse_id
+         WHERE p.product_id::text = $1 AND p.tenant_id::text = $2 AND p.location_id IS NOT NULL`,
+        [productId, tenantId]
+      );
+      if (!rows.length) return;
+      const r = rows[0];
+      const stockQty = Number(r.stock_qty || 0);
+      if (stockQty <= 0) return;
+      const existing = await this.productRepo.query(
+        `SELECT COALESCE(SUM(quantity),0) as total FROM product_warehouse_stock WHERE product_id::text = $1 AND quantity > 0`,
+        [productId]
+      );
+      const ledgerTotal = Number(existing[0]?.total || 0);
+      if (ledgerTotal > 0) return;
+      await this.productRepo.query(
+        `INSERT INTO product_warehouse_stock (tenant_id, product_id, warehouse_id, warehouse_name, location_id, location_code, quantity, available_qty)
+         VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5::uuid, $6, $7, $7)
+         ON CONFLICT (product_id, warehouse_id, location_id)
+         DO UPDATE SET quantity = EXCLUDED.quantity, available_qty = EXCLUDED.quantity, updated_at = now()`,
+        [tenantId, productId, r.warehouse_id, r.warehouse_name, r.location_id, r.location_code, stockQty]
+      );
+    } catch (e) { console.warn('syncProductLocationStock failed:', (e as any)?.message); }
   }
 
   async deleteProduct(tenantId: string, id: string) {
