@@ -2923,30 +2923,34 @@ export class SalesService {
   }
 
   async issueConsumable(tenantId: string, dto: any, userId: string) {
-    // Get current stock
-    const stockResult = await this.invoiceRepo.query(
-      `SELECT * FROM consumable_stock WHERE tenant_id=$1 AND product_id=$2`,
-      [tenantId, dto.productId]
-    );
-    if (!stockResult.length) throw new Error('Product not found in consumable stock');
-    const stock = stockResult[0];
-    const newQty = Number(stock.qty_on_hand) - Number(dto.quantity);
-    if (newQty < 0) throw new Error(`Insufficient stock. Available: ${stock.qty_on_hand}`);
-
-    // Update stock
-    await this.invoiceRepo.query(
-      `UPDATE consumable_stock SET qty_on_hand=$1, last_issued_date=$2, updated_at=NOW() WHERE tenant_id=$3 AND product_id=$4`,
-      [newQty, new Date().toISOString().slice(0,10), tenantId, dto.productId]
-    );
-
-    // Record transaction
-    await this.invoiceRepo.query(
-      `INSERT INTO consumable_transactions (tenant_id, product_id, transaction_type, quantity, balance_qty, department, issued_to_id, issued_to_name, reason, notes, created_by)
-       VALUES ($1,$2,'ISSUE',$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [tenantId, dto.productId, dto.quantity, newQty, dto.department||null, dto.issuedToId||null, dto.issuedToName||null, dto.reason||null, dto.notes||null, userId]
-    );
-
-    return { success: true, remainingQty: newQty };
+    const voucherNo = dto.referenceNo || await this.generateNumber('CIV', this.invoiceRepo, 'invoiceNumber').catch(() => 'CIV-' + Date.now());
+    const today = new Date().toISOString().slice(0, 10);
+    const issueType = dto.issueToType || (dto.project ? 'PROJECT' : dto.department ? 'DEPARTMENT' : 'EMPLOYEE');
+    const deptLabel = dto.project ? `Project: ${dto.project}` : (dto.department || null);
+    const lines = Array.isArray(dto.items) && dto.items.length ? dto.items : [{ productId: dto.productId, quantity: dto.quantity }];
+    const results: any[] = [];
+    for (const line of lines) {
+      if (!line.productId || !Number(line.quantity)) continue;
+      const stockResult = await this.invoiceRepo.query(
+        `SELECT * FROM consumable_stock WHERE tenant_id=$1 AND product_id=$2`,
+        [tenantId, line.productId]
+      );
+      if (!stockResult.length) throw new BadRequestException('Product not found in consumable stock');
+      const stock = stockResult[0];
+      const newQty = Number(stock.qty_on_hand) - Number(line.quantity);
+      if (newQty < 0) throw new BadRequestException(`Insufficient stock for ${stock.product_name || 'item'}. Available: ${stock.qty_on_hand}`);
+      await this.invoiceRepo.query(
+        `UPDATE consumable_stock SET qty_on_hand=$1, last_issued_date=$2, updated_at=NOW() WHERE tenant_id=$3 AND product_id=$4`,
+        [newQty, today, tenantId, line.productId]
+      );
+      await this.invoiceRepo.query(
+        `INSERT INTO consumable_transactions (tenant_id, product_id, transaction_type, quantity, balance_qty, reference_no, department, issued_to_id, issued_to_name, reason, notes, created_by)
+         VALUES ($1,$2,'ISSUE',$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [tenantId, line.productId, line.quantity, newQty, voucherNo, deptLabel, dto.issuedToId||null, dto.issuedToName||null, dto.reason||null, dto.notes||null, userId]
+      );
+      results.push({ productId: line.productId, remainingQty: newQty });
+    }
+    return { success: true, voucherNo, issueType, lines: results };
   }
 
   async receiveConsumable(tenantId: string, productId: string, quantity: number, referenceNo: string, userId: string) {
