@@ -140,6 +140,7 @@ export default function ProductsPage() {
   const formTabs = [
     {
       key: 'basic', label: 'Basic Info',
+      forceRender: true,
       children: (
         <>
           <Row gutter={12}>
@@ -187,6 +188,7 @@ export default function ProductsPage() {
     },
     {
       key: 'type_details', label: productType === 'FIXED_ASSET' ? '🏭 Asset Details' : productType === 'CONSUMABLE' ? '🔧 Consumable' : null,
+      forceRender: true,
       style: { display: (productType === 'FIXED_ASSET' || productType === 'CONSUMABLE') ? 'block' : 'none' },
       children: (
         <>
@@ -221,6 +223,7 @@ export default function ProductsPage() {
     },
     {
       key: 'pricing', label: 'Pricing & UOM',
+      forceRender: true,
       children: (
         <>
           <Row gutter={12}>
@@ -246,6 +249,7 @@ export default function ProductsPage() {
     },
     {
       key: 'inventory', label: 'Inventory',
+      forceRender: true,
       children: (
         <>
           <Row gutter={12}>
@@ -294,6 +298,7 @@ export default function ProductsPage() {
     },
     {
       key: 'dimensions', label: 'Dimensions & Weight',
+      forceRender: true,
       children: (
         <>
           <Row gutter={12}>
@@ -312,6 +317,7 @@ export default function ProductsPage() {
     },
     {
       key: 'notes', label: 'Notes',
+      forceRender: true,
       children: (
         <Form.Item name="notes" label="Internal Notes">
           <Input.TextArea rows={5} placeholder="Internal notes about this product..." />
