@@ -127,11 +127,92 @@ export class SalesService {
       ...(warehouseLocationId ? { warehouseId: warehouseLocationId } : {}),
     });
     await this.stockRepo.save(movement);
-    const newQty = type === 'IN' || type === 'RETURN'
+    const isInbound = type === 'IN' || type === 'RETURN' || type === 'SALES_RETURN';
+    const newQty = isInbound
       ? Number(product.stockQty) + qty
       : Number(product.stockQty) - qty;
     await this.productRepo.update({ productId }, { stockQty: newQty });
+    // Maintain per-location stock ledger (product_warehouse_stock)
+    try {
+      if (isInbound) {
+        await this.addLocationStock(tenantId, productId, warehouseLocationId, qty);
+      } else {
+        await this.deductLocationStock(tenantId, productId, qty);
+      }
+    } catch (e) { console.warn('Location stock update failed:', (e as any)?.message); }
     return movement;
+  }
+
+  // ── Location Stock Ledger ──────────────────────────────────────
+  // Resolve the warehouse_id for a given location
+  private async resolveWarehouseForLocation(locationId: string): Promise<{ warehouseId: string, locationCode: string, warehouseName: string } | null> {
+    const rows = await this.productRepo.query(
+      `SELECT wl.warehouse_id::text as warehouse_id, wl.location_code, w.warehouse_name
+       FROM warehouse_locations wl JOIN warehouses w ON w.warehouse_id = wl.warehouse_id
+       WHERE wl.location_id::text = $1`, [locationId]
+    );
+    return rows.length ? rows[0] : null;
+  }
+
+  // Add stock to a specific location (upsert)
+  async addLocationStock(tenantId: string, productId: string, locationId: string | undefined, qty: number) {
+    // Determine target location: provided, else product's default location
+    let targetLocation = locationId;
+    if (!targetLocation) {
+      const prodRows = await this.productRepo.query(
+        `SELECT location_id::text as location_id FROM products WHERE product_id::text = $1 AND location_id IS NOT NULL`, [productId]
+      );
+      targetLocation = prodRows.length ? prodRows[0].location_id : undefined;
+    }
+    if (!targetLocation) return; // no location to assign — skip (counts as unassigned)
+    const loc = await this.resolveWarehouseForLocation(targetLocation);
+    if (!loc) return;
+    await this.productRepo.query(
+      `INSERT INTO product_warehouse_stock (tenant_id, product_id, warehouse_id, warehouse_name, location_id, location_code, quantity, available_qty)
+       VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5::uuid, $6, $7, $7)
+       ON CONFLICT (product_id, warehouse_id, location_id)
+       DO UPDATE SET quantity = product_warehouse_stock.quantity + $7,
+         available_qty = product_warehouse_stock.quantity + $7 - product_warehouse_stock.reserved_qty,
+         updated_at = now()`,
+      [tenantId, productId, loc.warehouseId, loc.warehouseName, targetLocation, loc.locationCode, qty]
+    );
+  }
+
+  // Deduct stock: default location first, then overflow in hierarchy order (zone->rack->shelf->bin)
+  async deductLocationStock(tenantId: string, productId: string, qty: number) {
+    let remaining = qty;
+    // Get product's default location to prioritize
+    const prodRows = await this.productRepo.query(
+      `SELECT location_id::text as location_id FROM products WHERE product_id::text = $1`, [productId]
+    );
+    const defaultLoc = prodRows.length ? prodRows[0].location_id : null;
+    // Fetch all locations holding this product, default first, then hierarchy order
+    const stockRows = await this.productRepo.query(
+      `SELECT pws.stock_id::text as stock_id, pws.location_id::text as location_id, pws.quantity
+       FROM product_warehouse_stock pws
+       JOIN warehouse_locations wl ON wl.location_id = pws.location_id
+       WHERE pws.tenant_id::text = $1 AND pws.product_id::text = $2 AND pws.quantity > 0
+       ORDER BY
+         CASE WHEN pws.location_id::text = $3 THEN 0 ELSE 1 END,
+         wl.zone NULLS FIRST, wl.rack NULLS FIRST, wl.shelf NULLS FIRST, wl.bin NULLS FIRST`,
+      [tenantId, productId, defaultLoc || '00000000-0000-0000-0000-000000000000']
+    );
+    for (const row of stockRows) {
+      if (remaining <= 0) break;
+      const avail = Number(row.quantity);
+      const take = Math.min(avail, remaining);
+      await this.productRepo.query(
+        `UPDATE product_warehouse_stock SET quantity = quantity - $1,
+           available_qty = quantity - $1 - reserved_qty, updated_at = now()
+         WHERE stock_id::text = $2`,
+        [take, row.stock_id]
+      );
+      remaining -= take;
+    }
+    // If remaining > 0, stock went negative somewhere — log it (oversell / untracked location)
+    if (remaining > 0) {
+      console.warn(`Location stock short by ${remaining} for product ${productId} — deducted from available locations only`);
+    }
   }
 
   async getStockMovements(tenantId: string, productId?: string) {
@@ -3327,37 +3408,39 @@ export class SalesService {
 
   // ── Stock By Location Report ───────────────────────────────────
   async getStockByLocation(tenantId: string, warehouseId?: string) {
+    // Read from product_warehouse_stock (the location stock ledger), joined to full hierarchy
     let query = `
       SELECT
-        wl.location_id::text, wl.location_code, wl.location_name, wl.zone, wl.rack, wl.bin,
-        w.warehouse_id::text, w.warehouse_name, w.warehouse_code,
-        p.product_id::text, p.product_code, p.product_name, p.category, p.unit_of_measure,
-        SUM(CASE WHEN sm.movement_type IN ('IN','RETURN') THEN sm.quantity ELSE -sm.quantity END) as qty_on_hand,
-        COUNT(DISTINCT sm.movement_id) as movement_count,
-        MAX(sm.created_at) as last_movement
-      FROM stock_movements sm
-      JOIN products p ON p.product_id::text = sm.product_id::text AND p.tenant_id::text = $1
-      JOIN warehouse_locations wl ON wl.location_id::text = sm.warehouse_id::text
-      JOIN warehouses w ON w.warehouse_id::text = wl.warehouse_id::text AND w.tenant_id::text = $1
-      WHERE sm.tenant_id::text = $1
+        wl.location_id::text as location_id, wl.location_code, wl.location_name,
+        wl.zone, wl.rack, wl.shelf, wl.bin,
+        w.warehouse_id::text as warehouse_id, w.warehouse_name, w.warehouse_code,
+        p.product_id::text as product_id, p.product_code, p.product_name, p.category, p.unit_of_measure,
+        p.opening_stock,
+        pws.quantity as qty_on_hand, pws.reserved_qty, pws.available_qty,
+        pws.updated_at as last_movement
+      FROM product_warehouse_stock pws
+      JOIN products p ON p.product_id = pws.product_id AND p.tenant_id::text = $1
+      JOIN warehouse_locations wl ON wl.location_id = pws.location_id
+      JOIN warehouses w ON w.warehouse_id = wl.warehouse_id
+      WHERE pws.tenant_id::text = $1 AND pws.quantity > 0
     `;
     const params: any[] = [tenantId];
     if (warehouseId) {
       params.push(warehouseId);
       query += ` AND w.warehouse_id::text = $${params.length}`;
     }
-    query += ` GROUP BY wl.location_id, wl.location_code, wl.location_name, wl.zone, wl.rack, wl.bin, w.warehouse_id, w.warehouse_name, w.warehouse_code, p.product_id, p.product_code, p.product_name, p.category, p.unit_of_measure HAVING SUM(CASE WHEN sm.movement_type IN ('IN','RETURN') THEN sm.quantity ELSE -sm.quantity END) > 0 ORDER BY w.warehouse_name, wl.location_code, p.product_name`;
+    query += ` ORDER BY w.warehouse_name, wl.zone NULLS FIRST, wl.rack NULLS FIRST, wl.shelf NULLS FIRST, wl.bin NULLS FIRST, wl.location_code, p.product_name`;
     const rows = await this.invoiceRepo.query(query, params);
 
-    // Also get products with no location movements - they sit in default/unassigned
+    // Products with stock but NOT in any location ledger row (unassigned / no location)
     const unassignedQuery = `
-      SELECT p.product_id, p.product_code, p.product_name, p.category, p.unit_of_measure,
-        p.stock_qty as qty_on_hand
+      SELECT p.product_id::text as product_id, p.product_code, p.product_name, p.category, p.unit_of_measure,
+        p.stock_qty as qty_on_hand, p.opening_stock
       FROM products p
       WHERE p.tenant_id::text = $1 AND p.stock_qty > 0
-        AND p.product_id NOT IN (
-          SELECT DISTINCT sm2.product_id FROM stock_movements sm2
-          WHERE sm2.tenant_id = $1 AND sm2.warehouse_id IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM product_warehouse_stock pws2
+          WHERE pws2.product_id = p.product_id AND pws2.quantity > 0
         )
     `;
     const unassigned = await this.invoiceRepo.query(unassignedQuery, [tenantId]);
@@ -3368,10 +3451,21 @@ export class SalesService {
       const wKey = row.warehouse_id;
       if (!warehouseMap[wKey]) warehouseMap[wKey] = { warehouseId: row.warehouse_id, warehouseName: row.warehouse_name, warehouseCode: row.warehouse_code, locations: {} };
       const lKey = row.location_id;
-      if (!warehouseMap[wKey].locations[lKey]) warehouseMap[wKey].locations[lKey] = { locationId: row.location_id, locationCode: row.location_code, locationName: row.location_name, zone: row.zone, rack: row.rack, bin: row.bin, products: [] };
-      warehouseMap[wKey].locations[lKey].products.push({ productId: row.product_id, productCode: row.product_code, productName: row.product_name, category: row.category, unitOfMeasure: row.unit_of_measure, qtyOnHand: Number(row.qty_on_hand), movementCount: Number(row.movement_count), lastMovement: row.last_movement });
+      if (!warehouseMap[wKey].locations[lKey]) warehouseMap[wKey].locations[lKey] = {
+        locationId: row.location_id, locationCode: row.location_code, locationName: row.location_name,
+        zone: row.zone, rack: row.rack, shelf: row.shelf, bin: row.bin,
+        path: [row.zone, row.rack, row.shelf, row.bin].filter(Boolean).join(' / ') || row.location_code,
+        products: []
+      };
+      warehouseMap[wKey].locations[lKey].products.push({
+        productId: row.product_id, productCode: row.product_code, productName: row.product_name,
+        category: row.category, unitOfMeasure: row.unit_of_measure,
+        openingStock: Number(row.opening_stock || 0),
+        qtyOnHand: Number(row.qty_on_hand), reservedQty: Number(row.reserved_qty || 0),
+        availableQty: Number(row.available_qty || row.qty_on_hand),
+        lastMovement: row.last_movement
+      });
     }
-
     const result = Object.values(warehouseMap).map((w: any) => ({
       ...w, locations: Object.values(w.locations),
     }));
