@@ -32,6 +32,9 @@ export class Tenant {
   @Column({ name: 'currency_code', length: 3, default: 'OMR' })
   currencyCode: string;
 
+  @Column({ name: 'costing_method', default: 'WEIGHTED_AVG', nullable: true })
+  costingMethod: string;
+
   @Column({ name: 'logo_url', nullable: true })
   logoUrl: string;
   @Column({ name: 'address_line1', nullable: true }) addressLine1: string;

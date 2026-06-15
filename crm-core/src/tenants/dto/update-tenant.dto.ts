@@ -7,5 +7,6 @@ export class UpdateTenantDto {
   @IsOptional() @IsString() timezone?: string;
   @IsOptional() @IsString() dateFormat?: string;
   @IsOptional() @IsString() currencyCode?: string;
+  @IsOptional() @IsString() costingMethod?: string;
   @IsOptional() @IsString() language?: string;
 }
