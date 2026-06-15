@@ -69,7 +69,7 @@ export default function PurchaseOrdersPage() {
   const updateLine = (idx: number, field: string, value: any) => {
     const updated = [...lineItems];
     updated[idx] = { ...updated[idx], [field]: value };
-    if (field === 'productId') { const p = products.find(p => p.productId === value); if (p) { updated[idx].description = p.productName; updated[idx].unitPrice = Number(p.costPrice||p.unitPrice); updated[idx].unitOfMeasure = p.unitOfMeasure; updated[idx].itemCode = p.productCode; } }
+    if (field === 'productId') { const p = products.find(p => p.productId === value); if (p) { updated[idx].description = p.productName; updated[idx].unitPrice = Number(p.costPrice||p.unitPrice); updated[idx].unitOfMeasure = p.unitOfMeasure; updated[idx].itemCode = p.productCode; if (p.locationId && !updated[idx].warehouseLocationId) { updated[idx].warehouseLocationId = p.locationId; } } }
     const qty = Number(updated[idx].quantity||1); const price = Number(updated[idx].unitPrice||0); const disc = Number(updated[idx].discountPct||0);
     updated[idx].discountAmount = (qty * price * disc) / 100;
     updated[idx].lineTotal = qty * price - updated[idx].discountAmount;

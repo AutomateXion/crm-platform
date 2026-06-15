@@ -113,6 +113,17 @@ export default function ProductsPage() {
       ),
     },
     { title: 'Category', dataIndex: 'category', render: (v: string) => v ? <Tag>{v}</Tag> : '—' },
+    { title: 'Warehouse / Location', key: 'warehouse', render: (_: any, r: any) => {
+      if (!r.warehouseId && !r.locationId) return <Text type="secondary" style={{ fontSize: 12 }}>Unassigned</Text>;
+      const wh = warehouses.find((w: any) => w.warehouseId === r.warehouseId);
+      const loc = locations.find((l: any) => l.locationId === r.locationId);
+      return (
+        <div style={{ fontSize: 12 }}>
+          <div>{wh ? wh.warehouseName : '—'}</div>
+          {loc && <Text type="secondary">{loc.locationCode}{[loc.zone, loc.rack, loc.shelf, loc.bin].filter(Boolean).length ? ` (${[loc.zone, loc.rack, loc.shelf, loc.bin].filter(Boolean).join('/')})` : ''}</Text>}
+        </div>
+      );
+    }},
     { title: 'UOM', dataIndex: 'unitOfMeasure', render: (v: string, r: any) => (
       <div>
         <Tag color="cyan">{v}</Tag>
