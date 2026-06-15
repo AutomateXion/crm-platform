@@ -7,7 +7,7 @@ import {
 import {
   PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined,
   EyeOutlined, ProjectOutlined, CheckCircleOutlined, ClockCircleOutlined,
-  WarningOutlined, PauseCircleOutlined,
+  WarningOutlined, PauseCircleOutlined, FilePdfOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { projectsApi } from '../../services/pmApi';
@@ -145,6 +145,57 @@ export default function ProjectsPage() {
     },
   ];
 
+  const generatePortfolioReport = () => {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    const fmt = (n: any) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+    const totalContract = projects.reduce((s: number, p: any) => s + Number(p.contractValue || 0), 0);
+    const totalCost = projects.reduce((s: number, p: any) => s + Number(p.actualCost || 0), 0);
+    const totalMargin = totalContract - totalCost;
+    const marginPct = totalContract > 0 ? (totalMargin / totalContract) * 100 : 0;
+    const byStatus: Record<string, number> = {};
+    const byHealth: Record<string, number> = {};
+    projects.forEach((p: any) => { byStatus[p.status] = (byStatus[p.status] || 0) + 1; byHealth[p.health] = (byHealth[p.health] || 0) + 1; });
+    const healthColor = (h: string) => h === 'GREEN' ? '#52c41a' : h === 'AMBER' ? '#fa8c16' : '#ff4d4f';
+    const rows = projects.map((p: any) => {
+      const margin = Number(p.contractValue || 0) - Number(p.actualCost || 0);
+      const mPct = Number(p.contractValue || 0) > 0 ? (margin / Number(p.contractValue)) * 100 : 0;
+      return `<tr>
+        <td style="text-align:left">${p.projectNumber || ''} ${p.projectName || ''}</td>
+        <td style="text-align:left">${p.clientName || p.awardedByName || '—'}</td>
+        <td>${p.status || '—'}</td>
+        <td><span style="color:${healthColor(p.health)}">●</span> ${p.health || '—'}</td>
+        <td>${Number(p.progress || 0).toFixed(0)}%</td>
+        <td style="text-align:right">${fmt(p.contractValue)}</td>
+        <td style="text-align:right">${fmt(p.actualCost)}</td>
+        <td style="text-align:right;color:${margin >= 0 ? '#52c41a' : '#ff4d4f'}">${fmt(margin)} (${mPct.toFixed(0)}%)</td>
+      </tr>`;
+    }).join('');
+    w.document.write(`<html><head><title>Portfolio Report</title>
+      <style>body{font-family:Arial;padding:25px;color:#333}h1{color:#1f3864;margin-bottom:4px}
+      table{width:100%;border-collapse:collapse;margin:14px 0;font-size:11px}
+      td,th{border:1px solid #ddd;padding:6px;text-align:center}th{background:#1f3864;color:#fff}
+      .kpi{display:inline-block;width:22%;text-align:center;padding:12px;margin:1%;border:1px solid #ddd;border-radius:8px;vertical-align:top}
+      .kpi .v{font-size:18px;font-weight:bold;color:#1f3864}</style></head><body>
+      <h1>Project Portfolio Report</h1>
+      <p style="color:#888;margin-top:0">As of ${new Date().toLocaleDateString()} · ${projects.length} projects</p>
+      <div style="text-align:center;margin:16px 0">
+        <div class="kpi"><div>Total Contract Value</div><div class="v">OMR ${fmt(totalContract)}</div></div>
+        <div class="kpi"><div>Total Actual Cost</div><div class="v">OMR ${fmt(totalCost)}</div></div>
+        <div class="kpi"><div>Total Margin</div><div class="v" style="color:${totalMargin >= 0 ? '#52c41a' : '#ff4d4f'}">OMR ${fmt(totalMargin)}</div></div>
+        <div class="kpi"><div>Margin %</div><div class="v">${marginPct.toFixed(1)}%</div></div>
+      </div>
+      <p><b>By Status:</b> ${Object.entries(byStatus).map(([k, v]) => `${k}: ${v}`).join(' · ')}</p>
+      <p><b>By Health:</b> ${Object.entries(byHealth).map(([k, v]) => `${k}: ${v}`).join(' · ')}</p>
+      <table><tr><th style="text-align:left">Project</th><th style="text-align:left">Client</th><th>Status</th><th>Health</th><th>Progress</th><th>Contract</th><th>Cost</th><th>Margin</th></tr>
+      ${rows}
+      <tr style="font-weight:bold;background:#f5f5f5"><td colspan="5" style="text-align:right">TOTAL</td><td style="text-align:right">${fmt(totalContract)}</td><td style="text-align:right">${fmt(totalCost)}</td><td style="text-align:right">${fmt(totalMargin)}</td></tr>
+      </table>
+      <p style="margin-top:25px;font-size:10px;color:#999">Generated ${new Date().toLocaleString()} · AutomateXion CRM/ERP · CONFIDENTIAL</p>
+      </body></html>`);
+    w.document.close(); w.print();
+  };
+
   return (
     <div>
       {/* Header */}
@@ -153,9 +204,14 @@ export default function ProjectsPage() {
           <Title level={4} style={{ margin: 0 }}>Project Management</Title>
           <Text type="secondary">Manage projects from won deals to delivery</Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} style={{ borderRadius: 8 }}>
-          New Project
-        </Button>
+        <Space>
+          <Button icon={<FilePdfOutlined />} onClick={generatePortfolioReport} style={{ borderRadius: 8 }}>
+            Portfolio Report
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} style={{ borderRadius: 8 }}>
+            New Project
+          </Button>
+        </Space>
       </div>
 
       {/* Stats */}

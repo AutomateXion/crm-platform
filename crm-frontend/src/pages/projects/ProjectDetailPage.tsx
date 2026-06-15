@@ -7,12 +7,12 @@ import {
 import {
   ArrowLeftOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
   CheckCircleOutlined, DollarOutlined, TeamOutlined,
-  FlagOutlined, ApartmentOutlined, FileTextOutlined, AlertOutlined, CalculatorOutlined,
+  FlagOutlined, ApartmentOutlined, FileTextOutlined, AlertOutlined, CalculatorOutlined, FilePdfOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   projectsApi, stagesApi, tasksApi, resourcesApi,
-  milestonesApi, budgetApi, changeRequestsApi, risksApi, meetingsApi,
+  milestonesApi, budgetApi, changeRequestsApi, risksApi, meetingsApi, feasibilityApi,
 } from '../../services/pmApi';
 import api from '../../services/api';
 import UserSelect from '../../components/common/UserSelect';
@@ -775,6 +775,82 @@ export default function ProjectDetailPage() {
     finally { setLoading(false); }
   }, [id, navigate]);
   useEffect(() => { load(); }, [load]);
+  const generateProjectReport = async () => {
+    if (!id || !project) return;
+    message.loading({ content: 'Building report...', key: 'rep' });
+    let tasks: any[] = [], milestones: any[] = [], risks: any[] = [], feas: any[] = [];
+    try { tasks = (await tasksApi.getAll({ projectId: id })).data?.data || (await tasksApi.getAll({ projectId: id })).data || []; } catch {}
+    try { milestones = (await milestonesApi.getAll(id)).data || []; } catch {}
+    try { risks = (await risksApi.getAll(id)).data || []; } catch {}
+    try { feas = (await feasibilityApi.getAll(id)).data || []; } catch {}
+    const cur = project.currencyCode || 'OMR';
+    const fmt = (n: any) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+    const contract = Number(project.contractValue || 0);
+    const cost = Number(project.actualCost || 0);
+    const margin = contract - cost;
+    const marginPct = contract > 0 ? (margin / contract) * 100 : 0;
+    const budgetVar = Number(project.plannedBudget || 0) - cost;
+    const taskDone = tasks.filter((t: any) => t.status === 'DONE' || t.status === 'COMPLETED').length;
+    const taskProg = tasks.filter((t: any) => t.status === 'IN_PROGRESS').length;
+    const now = new Date();
+    const taskOverdue = tasks.filter((t: any) => t.dueDate && new Date(t.dueDate) < now && t.status !== 'DONE' && t.status !== 'COMPLETED').length;
+    const latestFeas = feas[0];
+    const hColor = (h: string) => h === 'GREEN' ? '#52c41a' : h === 'AMBER' ? '#fa8c16' : '#ff4d4f';
+    const verdictColor = (v: string) => v === 'GO' ? '#52c41a' : v === 'CAUTION' ? '#fa8c16' : '#ff4d4f';
+
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(`<html><head><title>Project Report - ${project.projectName}</title>
+      <style>body{font-family:Arial;padding:25px;color:#333;font-size:12px}h1{color:#1f3864;margin-bottom:2px}h2{color:#2e5090;border-bottom:2px solid #1f3864;padding-bottom:4px;margin-top:20px;font-size:14px}
+      table{width:100%;border-collapse:collapse;margin:8px 0;font-size:11px}td,th{border:1px solid #ddd;padding:6px}th{background:#1f3864;color:#fff;text-align:left}
+      .kpi{display:inline-block;width:22%;text-align:center;padding:10px;margin:1%;border:1px solid #ddd;border-radius:8px;vertical-align:top}.kpi .v{font-size:15px;font-weight:bold;color:#1f3864}
+      .meta td{border:none;padding:2px 8px}</style></head><body>
+      <h1>${project.projectName}</h1>
+      <p style="color:#888;margin-top:0">${project.projectNumber || ''} · Project Status Report · ${now.toLocaleDateString()}</p>
+      <table class="meta">
+        <tr><td><b>Client:</b> ${project.clientName || '—'}</td><td><b>Awarded By:</b> ${project.awardedByName || '—'}</td></tr>
+        <tr><td><b>Project Manager:</b> ${project.projectManagerName || '—'}</td><td><b>Status:</b> ${project.status || '—'}</td></tr>
+        <tr><td><b>Start:</b> ${project.startDate ? new Date(project.startDate).toLocaleDateString() : '—'}</td><td><b>End:</b> ${project.endDate ? new Date(project.endDate).toLocaleDateString() : '—'}</td></tr>
+        <tr><td><b>Health:</b> <span style="color:${hColor(project.health)}">● ${project.health}</span></td><td><b>Progress:</b> ${Number(project.progress || 0).toFixed(0)}%</td></tr>
+      </table>
+
+      <h2>Financial Summary</h2>
+      <div style="text-align:center">
+        <div class="kpi"><div>Contract Value</div><div class="v">${cur} ${fmt(contract)}</div></div>
+        <div class="kpi"><div>Actual Cost</div><div class="v">${cur} ${fmt(cost)}</div></div>
+        <div class="kpi"><div>Margin</div><div class="v" style="color:${margin >= 0 ? '#52c41a' : '#ff4d4f'}">${cur} ${fmt(margin)} (${marginPct.toFixed(0)}%)</div></div>
+        <div class="kpi"><div>Budget Variance</div><div class="v" style="color:${budgetVar >= 0 ? '#52c41a' : '#ff4d4f'}">${cur} ${fmt(budgetVar)}</div></div>
+      </div>
+
+      ${latestFeas ? `<h2>Feasibility Snapshot (${latestFeas.scenarioName})</h2>
+      <div style="text-align:center">
+        <div class="kpi"><div>NPV</div><div class="v">${cur} ${fmt(latestFeas.npv)}</div></div>
+        <div class="kpi"><div>IRR</div><div class="v">${latestFeas.irr != null ? latestFeas.irr + '%' : 'N/A'}</div></div>
+        <div class="kpi"><div>ROI</div><div class="v">${Number(latestFeas.roi || 0).toFixed(1)}%</div></div>
+        <div class="kpi"><div>Verdict</div><div class="v" style="color:${verdictColor(latestFeas.verdict)}">${latestFeas.verdict}</div></div>
+      </div>` : ''}
+
+      <h2>Task Summary</h2>
+      <div style="text-align:center">
+        <div class="kpi"><div>Total Tasks</div><div class="v">${tasks.length}</div></div>
+        <div class="kpi"><div>Completed</div><div class="v" style="color:#52c41a">${taskDone}</div></div>
+        <div class="kpi"><div>In Progress</div><div class="v" style="color:#1890ff">${taskProg}</div></div>
+        <div class="kpi"><div>Overdue</div><div class="v" style="color:#ff4d4f">${taskOverdue}</div></div>
+      </div>
+
+      ${milestones.length ? `<h2>Milestones</h2><table><tr><th>Milestone</th><th>Due Date</th><th>Status</th></tr>
+      ${milestones.map((m: any) => `<tr><td>${m.name || m.milestoneName || '—'}</td><td>${m.dueDate ? new Date(m.dueDate).toLocaleDateString() : '—'}</td><td>${m.status || '—'}</td></tr>`).join('')}</table>` : ''}
+
+      ${risks.length ? `<h2>Risk Register</h2><table><tr><th>Risk</th><th>Probability</th><th>Impact</th><th>Status</th></tr>
+      ${risks.map((r: any) => `<tr><td>${r.description || r.riskName || '—'}</td><td>${r.probability || '—'}</td><td>${r.impact || '—'}</td><td>${r.status || '—'}</td></tr>`).join('')}</table>` : ''}
+
+      <p style="margin-top:25px;font-size:10px;color:#999">Generated ${now.toLocaleString()} · AutomateXion CRM/ERP · CONFIDENTIAL</p>
+      </body></html>`);
+    w.document.close();
+    message.success({ content: 'Report ready', key: 'rep' });
+    setTimeout(() => w.print(), 400);
+  };
+
   const handleEditSave = async (values: any) => {
     if (!id) return; setSaving(true);
     try { await projectsApi.update(id, values); message.success('Updated'); setEditOpen(false); load(); }
@@ -806,7 +882,10 @@ export default function ProjectDetailPage() {
           </Space>
           <div><Text type="secondary">{project.projectNumber} · PM: {project.projectManagerName || 'Unassigned'}</Text></div>
         </div>
-        <Button icon={<EditOutlined />} onClick={() => { form.setFieldsValue({ ...project, startDate: project.startDate?.slice(0,10), endDate: project.endDate?.slice(0,10) }); setEditOpen(true); }}>Edit Project</Button>
+        <Space>
+          <Button icon={<FilePdfOutlined />} onClick={generateProjectReport}>Project Report</Button>
+          <Button icon={<EditOutlined />} onClick={() => { form.setFieldsValue({ ...project, startDate: project.startDate?.slice(0,10), endDate: project.endDate?.slice(0,10) }); setEditOpen(true); }}>Edit Project</Button>
+        </Space>
       </div>
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}><Card size="small" style={{borderRadius:10,borderLeft:'4px solid #1890ff'}}><Statistic title="Contract Value" value={`OMR ${Number(project.contractValue||0).toLocaleString()}`} /></Card></Col>
