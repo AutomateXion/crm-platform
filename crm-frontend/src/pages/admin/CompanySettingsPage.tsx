@@ -175,6 +175,16 @@ export default function CompanySettingsPage() {
                   </Form.Item>
                 </Col>
               </Row>
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Form.Item name="costingMethod" label="Inventory Costing Method" tooltip="Method used to value stock issues and compute COGS (IFRS-compliant).">
+                    <Select placeholder="Select costing method">
+                      <Select.Option value="WEIGHTED_AVG">Weighted Average (AVCO)</Select.Option>
+                      <Select.Option value="FIFO">FIFO (First-In First-Out)</Select.Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
             </Card>
           </Col>
 
