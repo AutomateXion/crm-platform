@@ -55,7 +55,7 @@ export default function StockByLocationPage() {
   const totalLocatedQty = data.warehouses.reduce((ws: number, w: any) =>
     ws + w.locations.reduce((ls: number, l: any) =>
       ls + l.products.reduce((ps: number, p: any) => ps + Number(p.qtyOnHand), 0), 0), 0);
-  const totalUnassignedQty = data.unassigned.reduce((s: number, p: any) => s + Number(p.qty_on_hand || p.qtyOnHand || 0), 0);
+  const totalUnassignedQty = data.unassigned.reduce((s: number, p: any) => s + Number(p.qtyOnHand || 0), 0);
   const totalLocations = data.warehouses.reduce((ws: number, w: any) => ws + w.locations.length, 0);
 
   return (

@@ -3434,8 +3434,9 @@ export class SalesService {
 
     // Products with stock but NOT in any location ledger row (unassigned / no location)
     const unassignedQuery = `
-      SELECT p.product_id::text as product_id, p.product_code, p.product_name, p.category, p.unit_of_measure,
-        p.stock_qty as qty_on_hand, p.opening_stock
+      SELECT p.product_id::text as "productId", p.product_code as "productCode",
+        p.product_name as "productName", p.category, p.unit_of_measure as "unitOfMeasure",
+        p.stock_qty as "qtyOnHand", p.opening_stock as "openingStock"
       FROM products p
       WHERE p.tenant_id::text = $1 AND p.stock_qty > 0
         AND NOT EXISTS (
