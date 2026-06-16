@@ -313,6 +313,7 @@ export class ReceiptEntity {
   @Column({ name: 'cheque_bank_name', nullable: true }) chequeBankName: string;
   @Column({ name: 'deposit_bank_account_id', nullable: true }) depositBankAccountId: string;
   @Column({ name: 'cheque_status', nullable: true }) chequeStatus: string;
+  @Column({ name: 'allocated_invoice_ids', type: 'text', nullable: true }) allocatedInvoiceIds: string;
   @Column({ nullable: true }) notes: string;
   @Column({ default: 'CONFIRMED' }) status: string;
   @Column({ name: 'prepared_by', nullable: true }) preparedBy: string;

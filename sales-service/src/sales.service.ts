@@ -812,12 +812,28 @@ export class SalesService {
     if (receiptData.paymentMethod === 'CHEQUE' && !receiptData.chequeStatus) {
       receiptData.chequeStatus = 'RECEIVED';
     }
-    const r = this.receiptRepo.create({ ...receiptData, tenantId, receiptNumber: number, createdBy: userId });
-    const saved = await this.receiptRepo.save(r);
-    // Update single invoice (backward compat)
+    // Persist the invoice allocation list on the receipt so POST can apply it.
     const invoiceIdList = invoiceIds?.length ? invoiceIds : (dto.invoiceId ? [dto.invoiceId] : []);
+    // Create as DRAFT — no GL, no invoice application, no credit unblock until POST.
+    const r = this.receiptRepo.create({
+      ...receiptData, tenantId, receiptNumber: number, status: 'DRAFT', createdBy: userId,
+      ...(invoiceIdList.length ? { allocatedInvoiceIds: JSON.stringify(invoiceIdList) } : {}),
+    });
+    const saved = await this.receiptRepo.save(r);
+    return saved;
+  }
+
+  async postReceipt(tenantId: string, id: string, userId: string) {
+    const receipt = await this.receiptRepo.findOne({ where: { receiptId: id, tenantId } as any }) as any;
+    if (!receipt) throw new NotFoundException('Receipt not found');
+    if (receipt.status === 'POSTED') throw new BadRequestException('Receipt is already posted');
+
+    // Apply payment to linked invoice(s)
+    let invoiceIdList: string[] = [];
+    try { invoiceIdList = receipt.allocatedInvoiceIds ? JSON.parse(receipt.allocatedInvoiceIds) : []; } catch { invoiceIdList = []; }
+    if (!invoiceIdList.length && receipt.invoiceId) invoiceIdList = [receipt.invoiceId];
     if (invoiceIdList.length > 0) {
-      const totalAmount = Number(dto.amount) || 0;
+      const totalAmount = Number(receipt.amount) || 0;
       const perInvoice = invoiceIdList.length > 1 ? null : totalAmount;
       for (const invoiceId of invoiceIdList) {
         const invoice = await this.invoiceRepo.findOne({ where: { invoiceId, tenantId } });
@@ -826,30 +842,31 @@ export class SalesService {
           const newPaid = Number(invoice.paidAmount) + payment;
           const newBalance = Number(invoice.totalAmount) - newPaid;
           const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIALLY_PAID';
-          await this.invoiceRepo.update({ invoiceId }, {
-            paidAmount: newPaid, balanceDue: newBalance, status: newStatus,
-          });
+          await this.invoiceRepo.update({ invoiceId }, { paidAmount: newPaid, balanceDue: newBalance, status: newStatus });
         }
       }
     }
+
     // Auto journal — cheque receipts go to PDC holding account (bank credited only on deposit)
-    const rcptDate = (dto.receiptDate || new Date().toISOString()).slice(0,10);
-    const rcptCustomer = dto.customerName || "Customer";
-    const isCheque = dto.paymentMethod === 'CHEQUE';
+    const rcptDate = (receipt.receiptDate || new Date().toISOString()).slice(0,10);
+    const rcptCustomer = receipt.customerName || "Customer";
+    const isCheque = receipt.paymentMethod === 'CHEQUE';
     const debitAccount = isCheque ? "1119" : "1120";
     const debitDesc = isCheque
-      ? `Cheques in Hand (PDC) - ${rcptCustomer} - Chq ${dto.chequeNumber || ''}`
+      ? `Cheques in Hand (PDC) - ${rcptCustomer} - Chq ${receipt.chequeNumber || ''}`
       : `Cash/Bank - Receipt from ${rcptCustomer}`;
     await this.createAutoJournalEntry(tenantId, userId, {
-      voucherNumber: number, description: `Customer Receipt ${number} - ${rcptCustomer}${isCheque ? ' (PDC)' : ''}`,
+      voucherNumber: receipt.receiptNumber, description: `Customer Receipt ${receipt.receiptNumber} - ${rcptCustomer}${isCheque ? ' (PDC)' : ''}`,
       voucherDate: rcptDate, lines: [
-        { accountCode: debitAccount, description: debitDesc, debitAmount: Number(dto.amount || 0), creditAmount: 0 },
-        { accountCode: "1130", description: `AR - ${rcptCustomer}`, debitAmount: 0, creditAmount: Number(dto.amount || 0) },
+        { accountCode: debitAccount, description: debitDesc, debitAmount: Number(receipt.amount || 0), creditAmount: 0 },
+        { accountCode: "1130", description: `AR - ${rcptCustomer}`, debitAmount: 0, creditAmount: Number(receipt.amount || 0) },
       ],
     });
+
+    await this.receiptRepo.update({ receiptId: id, tenantId } as any, { status: 'POSTED' } as any);
     // Auto credit check — may unblock if payment clears balance
-    await this.checkAndUpdateCreditStatus(tenantId, dto.accountId || '', dto.customerName);
-    return saved;
+    await this.checkAndUpdateCreditStatus(tenantId, receipt.accountId || '', receipt.customerName);
+    return this.receiptRepo.findOne({ where: { receiptId: id, tenantId } as any });
   }
 
   async deleteReceipt(tenantId: string, id: string) {
@@ -3844,6 +3861,7 @@ export class SalesService {
       LEFT JOIN bank_accounts ba ON ba.bank_account_id::text = r.deposit_bank_account_id::text
       WHERE r.tenant_id = $1 AND r.payment_method = 'CHEQUE'
       AND COALESCE(r.cheque_status, 'RECEIVED') = 'RECEIVED'
+      AND r.status = 'POSTED'
     `;
     const params: any[] = [tenantId];
     if (filters.dueOnly === 'true' || filters.dueOnly === true) {
@@ -3862,6 +3880,7 @@ export class SalesService {
       `SELECT COUNT(*) as cnt FROM receipts
        WHERE tenant_id = $1 AND payment_method = 'CHEQUE'
        AND COALESCE(cheque_status,'RECEIVED') = 'RECEIVED'
+       AND status = 'POSTED'
        AND cheque_date <= CURRENT_DATE`,
       [tenantId]
     );
