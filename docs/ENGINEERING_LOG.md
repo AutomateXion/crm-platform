@@ -3,7 +3,7 @@
 > **Purpose:** A living document for developers maintaining and extending the AutomateXion CRM/ERP platform. As this becomes a multi-client product, this log preserves hard-won debugging knowledge, recurring gotchas, architectural decisions, and a chronological change history. **Append to this file; do not let knowledge live only in chat sessions.**
 >
 > **Location:** `/docs/ENGINEERING_LOG.md` (committed to the repo, version-controlled, diff-friendly).
-> **Last updated:** 15 June 2026
+> **Last updated:** 15 June 2026 (Stock Costing, Consumables, ERD/Architecture refresh)
 
 ---
 
@@ -84,6 +84,16 @@ These are patterns that have bitten us more than once. Check here FIRST when deb
 **Cause:** Multi-line commands pasted into the shell sometimes break across lines incorrectly.
 **Fix:** Run build/commit/push as a single line, or save Python edit scripts to a file and run them. Verify a `python3 << 'PYEOF'` block prints its expected "OK"/"MISS" confirmation.
 
+### A12. Verify edits actually land in the built file
+**Symptom:** A code edit reported "OK" by the replacement script, the build succeeds, but the feature doesn't appear live — and a later grep shows the change is NOT in the file.
+**Cause:** In a long session, an edit can be applied then inadvertently reverted/overwritten before the build captures it; or the exact-match replacement silently MISSed due to whitespace/blank-line differences that aren't visible in normal output.
+**Fix / Rule:** After any edit, `grep` the file to confirm the change is present BEFORE building. For whitespace-fragile blocks, use span-replacement (find start + end markers and splice) rather than matching the whole block char-for-char. Confirm with `git show HEAD:<path> | grep ...` that the committed file (what Render builds from) actually contains the change. Use `cat -A` to reveal hidden whitespace when a match keeps failing.
+**Reference commit:** `61804f3c` (costing-method dropdown had to be re-added after it went missing from an earlier build).
+
+### A13. Consumables are NOT business inventory
+**Rule (accounting decision):** Consumables are expensed on purchase — the GRN for a consumable does NOT debit 1140 Inventory and does NOT create cost layers. The `consumable_stock` table is an **operational quantity tracker only**, fully separate from `product_warehouse_stock` and the FIFO/AVCO costing engine. Issuing a consumable (Consumable Issue Voucher / CIV) decrements `consumable_stock` and records a row in `consumable_transactions`, but posts **NO GL entry** and does not affect business stock-in-hand or COGS. Never route consumables through inventory valuation. Product `product_type` distinguishes STOCK (valued, costed) from CONSUMABLE (tracked only) from FIXED_ASSET (creates draft assets) from SERVICE (no stock).
+**Reference commits:** `5d3af1ba`, `750e5f6d`.
+
 ---
 
 ## PART B — STANDARD OPERATING PROCEDURES
@@ -113,11 +123,30 @@ Render auto-deploys each service on push to `main`.
 Claude has no direct access to the user's machine. All edits are delivered as `python3 << 'PYEOF'` scripts (or `cat >` for new files) that the user runs locally, pasting back the printed "OK"/"MISS" confirmation. Always verify before building.
 
 ### B4. Reusable PDF export pattern
-Client-side `window.open()` + inline-styled HTML + `window.print()`. Used for Feasibility, Project Report, Portfolio Report. No new dependency; branded header, KPI cards, tables, CONFIDENTIAL footer.
+Client-side `window.open()` + inline-styled HTML + `window.print()`. Used for Feasibility, Project Report, Portfolio Report, Stock Valuation. No new dependency; branded header, KPI cards, tables, CONFIDENTIAL footer.
+
+### B5. Stock costing engine (FIFO / Weighted Average)
+- Tenant-level method in `tenants.costing_method` ('FIFO' | 'WEIGHTED_AVG'), set via Company Settings; default WEIGHTED_AVG. LIFO is excluded (not IFRS-compliant for GCC).
+- `stock_cost_layers` table records each receipt as a layer (original_qty, remaining_qty, unit_cost, received_at). `products.avg_cost` holds the moving average.
+- `adjustStock()` is the single chokepoint: on IN it captures unit cost, creates a layer, and recomputes the average; on OUT it calls `computeIssueCost()` which consumes oldest layers (FIFO) or uses the average (AVCO), returning the COGS.
+- Delivery auto-posts the COGS journal `Dr 5001 COGS / Cr 1140 Inventory` at computed cost via `createAutoJournalEntry`.
+- Opening layers for pre-existing stock must be seeded once (stock_qty × cost_price) — they don't build retroactively.
 
 ---
 
 ## PART C — CHANGE LOG (chronological, newest first)
+
+### 15 June 2026 — Session: Stock Costing & Consumables
+| Commit | Summary |
+|---|---|
+| 750e5f6d | Consumables: multi-item Issue Voucher (issue to dept/employee/project), no GL impact |
+| 5d3af1ba | Consumable issue backend: multi-item support + issue-to type + voucher number (CIV) |
+| 61804f3c | **Fix:** re-add Inventory Costing Method dropdown to Company Settings (was missing from earlier build) |
+| 3d519235 | Stock Valuation report page: value by costing method, KPIs, PDF export, nav entry |
+| 634e5fac | Stock Valuation report endpoint: FIFO layers / AVCO avg cost |
+| fbce0925 | Costing method setting: `tenant.costingMethod` (FIFO/AVCO) entity + DTO + Company Settings dropdown |
+| 04298b4e | Stock costing engine: FIFO + Weighted Avg cost layers, compute issue cost on OUT, capture unit cost on GRN IN, auto-post COGS journal (Dr 5001 / Cr 1140) on delivery |
+| 3d519235 (FE) | PO line: auto-select product default location (editable); Products list: Warehouse/Location column |
 
 ### 15 June 2026 — Session: Feasibility, Reports, Stock by Location, Product form fixes
 | Commit | Summary |
@@ -160,8 +189,17 @@ Credit control foundation, Bank Account Management (bank accounts, cheque books/
 ## PART D — KNOWN PENDING ITEMS / BACKLOG
 - **Gantt / Timeline view** (PM) — last item of the PM enhancement roadmap (Feasibility → Reports → Gantt). Largest UI build.
 - **Daily PDC deposit reminder** on the notification bell (Received Cheques page itself is complete).
-- **Architecture Document + ERD** need updating to reflect: completed credit control, PDC management, navigation restructure, structured meeting minutes, feasibility module, and the `product_warehouse_stock` ledger.
+- **Consumable Issue Voucher PDF** — printable CIV like other vouchers (offered, not yet built).
+- **Duplicate COGS accounts** — both 5001 and 5100 exist as "Cost of Goods Sold". The system uses **5001**; 5100 should be cleaned up.
+- **Sales return values inventory at selling price** — the return path currently uses `dto.subtotal` (selling value) as the inventory/COGS-reversal amount. Now that the costing engine exists, this should be corrected to use computed cost for consistency with the sale side.
 - Several report routes still hidden as "·soon" until built.
+
+### Completed this period (previously pending)
+- ✅ Credit control, PDC management, navigation restructure, structured meeting minutes, PM feasibility — done.
+- ✅ `product_warehouse_stock` ledger + Stock by Location report — done.
+- ✅ Stock costing (FIFO/AVCO) + COGS posting + valuation report — done.
+- ✅ Consumables issue workflow — done.
+- ✅ Architecture Document + ERD — refreshed (this session).
 
 ---
 
