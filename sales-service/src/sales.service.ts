@@ -154,6 +154,11 @@ export class SalesService {
   }
 
   async adjustStock(tenantId: string, productId: string, qty: number, type: string, ref: string, userId: string, warehouseLocationId?: string, unitCost?: number) {
+    const qtyNum = Number(qty);
+    if (!Number.isFinite(qtyNum) || qtyNum <= 0) {
+      throw new BadRequestException(`Invalid quantity for stock movement (product ${productId}, type ${type}): received "${qty}"`);
+    }
+    qty = qtyNum;
     const product = await this.getProduct(tenantId, productId);
     const isInbound = type === 'IN' || type === 'RETURN' || type === 'SALES_RETURN';
 
