@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AutoComplete, Table, Tooltip, Card, Button, Input, Tag, Space, Modal, Form, Typography, Row, Col, Statistic, message, Popconfirm, Select, InputNumber } from 'antd';
-import { PlusOutlined, FilePdfOutlined, EditOutlined, SearchOutlined, DeleteOutlined, DollarOutlined } from '@ant-design/icons';
+import { PlusOutlined, FilePdfOutlined, EditOutlined, SearchOutlined, DeleteOutlined, DollarOutlined, CheckOutlined } from '@ant-design/icons';
 import { receiptsApi, invoicesApi, bankAccountsApi } from '../../services/salesApi';
 import api from '../../services/api';
 import PDFModal from '../../components/pdf/PDFModal';
@@ -91,18 +91,28 @@ export default function ReceiptsPage() {
       },
     },
     { title: 'Reference', dataIndex: 'paymentReference', render: (v: string) => v || '—' },
-    { title: 'Status', dataIndex: 'status', render: (v: string) => <Tag color="green">{v}</Tag> },
+    { title: 'Status', dataIndex: 'status', render: (v: string) => <Tag color={v === 'DRAFT' ? 'orange' : v === 'POSTED' ? 'green' : 'green'}>{v}</Tag> },
     { title: '', key: 'actions', render: (_: any, r: any) => (
       <Space>
+        {r.status === 'DRAFT' && (
+          <Popconfirm title="Post this receipt? This applies the payment to the invoice and posts the GL journal." okText="Post" onConfirm={async () => {
+            try { await receiptsApi.post(r.receiptId); message.success('Receipt posted'); load(); }
+            catch (e: any) { message.error(e.response?.data?.message || 'Failed to post'); }
+          }}>
+            <Tooltip title="Post receipt"><Button size="small" type="primary" icon={<CheckOutlined />}>Post</Button></Tooltip>
+          </Popconfirm>
+        )}
         <Tooltip title="View PDF"><Button size="small" icon={<FilePdfOutlined />} onClick={() => { setPdfData(r); setPdfOpen(true); }} /></Tooltip>
-        <Tooltip title="Edit"><Button size="small" icon={<EditOutlined />} onClick={() => {
+        <Tooltip title="Edit"><Button size="small" icon={<EditOutlined />} disabled={r.status === 'POSTED'} onClick={() => {
           setEditRecord(r);
           form.setFieldsValue({ ...r, receiptDate: r.receiptDate?.slice(0,10) });
           setModalOpen(true);
         }} /></Tooltip>
-        <Popconfirm title="Delete receipt?" onConfirm={async () => { await receiptsApi.delete(r.receiptId); load(); }}>
-          <Button size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
+        {r.status !== 'POSTED' && (
+          <Popconfirm title="Delete receipt?" onConfirm={async () => { await receiptsApi.delete(r.receiptId); load(); }}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        )}
       </Space>
     )},
   ];
@@ -110,7 +120,7 @@ export default function ReceiptsPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
         <div><Title level={4} style={{ margin: 0 }}>Receipts</Title><Text type="secondary">Record customer payments against invoices</Text></div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); form.setFieldsValue({ receiptDate: new Date().toISOString().slice(0,10), currencyCode: 'OMR', paymentMethod: 'BANK_TRANSFER', status: 'CONFIRMED', chequeStatus: 'RECEIVED' }); setModalOpen(true); }}>New Receipt</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); form.setFieldsValue({ receiptDate: new Date().toISOString().slice(0,10), currencyCode: 'OMR', paymentMethod: 'BANK_TRANSFER', status: 'DRAFT', chequeStatus: 'RECEIVED' }); setModalOpen(true); }}>New Receipt</Button>
       </div>
       <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col span={8}><Card style={{ borderRadius: 12, borderLeft: '4px solid #52c41a' }}><Statistic title="Total Received" value={`OMR ${totalReceived.toFixed(3)}`} prefix={<DollarOutlined style={{ color: '#52c41a' }} />} /></Card></Col>
