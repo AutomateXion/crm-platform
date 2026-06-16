@@ -71,7 +71,7 @@ export default function ProductSelect({ value, onChange, onProductSelect, placeh
         showSearch value={value} placeholder={placeholder}
         filterOption={false} onSearch={handleSearch}
         onChange={handleChange} loading={loading}
-        allowClear={allowClear} style={style}
+        allowClear={allowClear} style={{ width: '100%', ...style }}
         notFoundContent={
           <div style={{ padding: '8px', textAlign: 'center' }}>
             <div style={{ color: '#8c8c8c', marginBottom: 8 }}>
