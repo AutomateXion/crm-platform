@@ -128,6 +128,7 @@ export const paymentVouchersApi = {
   getOne: (id: string) => salesApi.get(`/sales/payment-vouchers/${id}`),
   create: (data: any) => salesApi.post('/sales/payment-vouchers', data),
   update: (id: string, data: any) => salesApi.put(`/sales/payment-vouchers/${id}`, data),
+  post: (id: string) => salesApi.post(`/sales/payment-vouchers/${id}/post`),
   delete: (id: string) => salesApi.delete(`/sales/payment-vouchers/${id}`),
 };
 

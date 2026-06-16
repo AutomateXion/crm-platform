@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Card, Button, Input, Select, Tag, Space, Modal, Form, Typography, Row, Col, message, Popconfirm, Tooltip, InputNumber, Statistic } from 'antd';
-import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, FilePdfOutlined, CheckOutlined } from '@ant-design/icons';
 import SupplierSelect from '../../components/common/SupplierSelect';
 import { paymentVouchersApi, purchaseInvoicesApi, suppliersApi, bankAccountsApi, chequeBooksApi, chequeLeavesApi } from '../../services/salesApi';
 import api from '../../services/api';
@@ -8,7 +8,7 @@ import PDFModal from '../../components/pdf/PDFModal';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
-const STATUS_COLORS: Record<string, string> = { DRAFT: 'default', CONFIRMED: 'green', CANCELLED: 'red' };
+const STATUS_COLORS: Record<string, string> = { DRAFT: 'orange', POSTED: 'green', CONFIRMED: 'green', CANCELLED: 'red' };
 
 export default function PaymentVouchersPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -100,15 +100,25 @@ export default function PaymentVouchersPage() {
     { title: 'Status', dataIndex: 'status', render: (v: string) => <Tag color={STATUS_COLORS[v]}>{v}</Tag> },
     { title: '', key: 'actions', render: (_: any, r: any) => (
       <Space>
+        {r.status === 'DRAFT' && (
+          <Popconfirm title="Post this voucher? This will consume the cheque leaf, apply payment to the invoice, and post the GL journal." okText="Post" onConfirm={async () => {
+            try { await paymentVouchersApi.post(r.voucherId); message.success('Voucher posted'); load(); }
+            catch (e: any) { message.error(e.response?.data?.message || 'Failed to post'); }
+          }}>
+            <Tooltip title="Post voucher"><Button size="small" type="primary" icon={<CheckOutlined />}>Post</Button></Tooltip>
+          </Popconfirm>
+        )}
         <Tooltip title="View PDF"><Button size="small" icon={<FilePdfOutlined />} onClick={() => { setPdfData(r); setPdfOpen(true); }} /></Tooltip>
-        <Tooltip title="Edit"><Button size="small" icon={<EditOutlined />} onClick={() => {
+        <Tooltip title="Edit"><Button size="small" icon={<EditOutlined />} disabled={r.status === 'POSTED'} onClick={() => {
           setEditRecord(r);
           form.setFieldsValue({ ...r, voucherDate: r.voucherDate?.slice(0,10) });
           setModalOpen(true);
         }} /></Tooltip>
-        <Popconfirm title="Delete voucher?" onConfirm={async () => { await paymentVouchersApi.delete(r.voucherId); load(); }}>
-          <Button size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
+        {r.status !== 'POSTED' && (
+          <Popconfirm title="Delete voucher?" onConfirm={async () => { await paymentVouchersApi.delete(r.voucherId); load(); }}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        )}
       </Space>
     )},
   ];
