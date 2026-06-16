@@ -104,6 +104,33 @@ export class SalesService {
     return p;
   }
 
+  // Locations where a product currently has stock (for transfer/adjustment From-Location pickers)
+  async getProductStockLocations(tenantId: string, productId: string) {
+    const rows = await this.productRepo.query(
+      `SELECT pws.location_id::text as "locationId", pws.warehouse_id::text as "warehouseId",
+              pws.warehouse_name as "warehouseName",
+              COALESCE(wl.location_code, pws.location_code) as "locationCode",
+              wl.zone, wl.rack, wl.shelf, wl.bin,
+              pws.quantity as "quantity", pws.available_qty as "availableQty", pws.reserved_qty as "reservedQty"
+       FROM product_warehouse_stock pws
+       LEFT JOIN warehouse_locations wl ON wl.location_id = pws.location_id
+       WHERE pws.tenant_id::text = $1 AND pws.product_id::text = $2 AND pws.quantity > 0
+       ORDER BY pws.quantity DESC`,
+      [tenantId, productId]
+    );
+    return rows.map((r: any) => {
+      const pathParts = [r.zone, r.rack, r.shelf, r.bin].filter(Boolean);
+      const path = pathParts.length ? pathParts.join(' / ') : (r.locationCode || 'Unassigned');
+      return {
+        locationId: r.locationId, warehouseId: r.warehouseId, warehouseName: r.warehouseName,
+        locationCode: r.locationCode, path,
+        quantity: Number(r.quantity || 0), availableQty: Number(r.availableQty || r.quantity || 0),
+        reservedQty: Number(r.reservedQty || 0),
+        label: `${path} — ${Number(r.availableQty || r.quantity || 0).toFixed(3)} avail`,
+      };
+    });
+  }
+
   async createProduct(tenantId: string, dto: any, userId: string) {
     const p = this.productRepo.create({ ...dto, tenantId, createdBy: userId }) as any;
     const saved = await this.productRepo.save(p) as any;

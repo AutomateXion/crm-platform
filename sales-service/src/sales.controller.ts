@@ -72,6 +72,10 @@ export class SalesController {
   adjustStock(@Request() req: any, @Body() dto: any) {
     return this.svc.adjustStock(req.user.tenantId, dto.productId, dto.quantity, dto.type, dto.reference, req.user.userId);
   }
+  @Get('products/:id/stock-locations')
+  getProductStockLocations(@Request() req: any, @Param('id') id: string) {
+    return this.svc.getProductStockLocations(req.user.tenantId, id);
+  }
 
   // ── Exchange Rates ─────────────────────────────────────────────
   @Get('exchange-rates')
