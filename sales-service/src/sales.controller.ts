@@ -403,6 +403,10 @@ export class SalesController {
   updatePaymentVoucher(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
     return this.svc.updatePaymentVoucher(req.user.tenantId, id, dto);
   }
+  @Post('payment-vouchers/:id/post')
+  postPaymentVoucher(@Request() req: any, @Param('id') id: string) {
+    return this.svc.postPaymentVoucher(req.user.tenantId, id, req.user.userId);
+  }
   @Delete('payment-vouchers/:id')
   deletePaymentVoucher(@Request() req: any, @Param('id') id: string) {
     return this.svc.deletePaymentVoucher(req.user.tenantId, id);

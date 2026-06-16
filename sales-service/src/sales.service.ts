@@ -1384,49 +1384,71 @@ export class SalesService {
   async createPaymentVoucher(tenantId: string, dto: any, userId: string) {
     const number = await this.generateNumber('PV', this.voucherRepo, 'voucherNumber');
     let voucherData = { ...dto };
-    let leaf: any = null;
+    // On DRAFT create: validate + reserve the cheque leaf reference, but DO NOT consume it,
+    // do NOT post GL, do NOT mark invoice paid. Those happen on POST.
     if (voucherData.paymentMethod === 'CHEQUE' && voucherData.bankAccountId) {
+      let leaf: any = null;
       if (voucherData.chequeLeafId) {
         leaf = await this.chequeLeafRepo.findOne({ where: { tenantId, leafId: voucherData.chequeLeafId, status: 'AVAILABLE' } as any });
-        if (!leaf) throw new NotFoundException('Selected cheque leaf is not available');
+        if (!leaf) throw new BadRequestException('Selected cheque leaf is not available');
       } else {
         const leafWhere: any = { tenantId, bankAccountId: voucherData.bankAccountId, status: 'AVAILABLE' };
         if (voucherData.chequeBookId) leafWhere.chequeBookId = voucherData.chequeBookId;
         leaf = await this.chequeLeafRepo.findOne({ where: leafWhere, order: { leafNumber: 'ASC' } as any });
-        if (!leaf) throw new NotFoundException('No available cheque leaves for this bank account/cheque book');
+        if (!leaf) throw new BadRequestException('No available cheque leaves for this bank account/cheque book');
       }
       voucherData.chequeNumber = leaf.leafNumber;
       voucherData.chequeLeafId = leaf.leafId;
       const acc = await this.bankAccountRepo.findOne({ where: { tenantId, bankAccountId: voucherData.bankAccountId } as any });
       if (acc) voucherData.bankName = acc.bankName;
     }
-    const v = this.voucherRepo.create({ ...voucherData, tenantId, voucherNumber: number, createdBy: userId });
+    const v = this.voucherRepo.create({ ...voucherData, tenantId, voucherNumber: number, status: 'DRAFT', createdBy: userId });
     const saved = await this.voucherRepo.save(v) as any;
-    if (leaf) {
-      await this.chequeLeafRepo.update({ leafId: leaf.leafId } as any, {
-        status: 'USED', usedInVoucherId: saved.voucherId, usedDate: voucherData.voucherDate || new Date().toISOString().slice(0,10),
-        payeeName: voucherData.supplierName, amount: voucherData.amount,
-      });
-    }
-    if (dto.invoiceId) {
-      const invoice = await this.purchaseInvoiceRepo.findOne({ where: { invoiceId: dto.invoiceId } });
-      if (invoice) {
-        const newPaid = Number(invoice.paidAmount) + Number(dto.amount);
-        const newBalance = Number(invoice.totalAmount) - newPaid;
-        const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIALLY_PAID';
-        await this.purchaseInvoiceRepo.update({ invoiceId: dto.invoiceId }, { paidAmount: newPaid, balanceDue: newBalance, status: newStatus });
+    return saved;
+  }
+
+  async postPaymentVoucher(tenantId: string, id: string, userId: string) {
+    const voucher = await this.voucherRepo.findOne({ where: { voucherId: id, tenantId } as any }) as any;
+    if (!voucher) throw new NotFoundException('Payment Voucher not found');
+    if (voucher.status === 'POSTED') throw new BadRequestException('Payment Voucher is already posted');
+
+    // Consume the cheque leaf now (AVAILABLE -> USED)
+    if (voucher.paymentMethod === 'CHEQUE' && voucher.chequeLeafId) {
+      const leaf = await this.chequeLeafRepo.findOne({ where: { tenantId, leafId: voucher.chequeLeafId } as any }) as any;
+      if (leaf && leaf.status === 'AVAILABLE') {
+        await this.chequeLeafRepo.update({ leafId: leaf.leafId } as any, {
+          status: 'USED', usedInVoucherId: voucher.voucherId,
+          usedDate: voucher.voucherDate || new Date().toISOString().slice(0,10),
+          payeeName: voucher.supplierName, amount: voucher.amount,
+        });
+      } else if (!leaf || leaf.status !== 'AVAILABLE') {
+        throw new BadRequestException('Cheque leaf is no longer available; cannot post');
       }
     }
+
+    // Apply payment to the linked purchase invoice
+    if (voucher.invoiceId) {
+      const invoice = await this.purchaseInvoiceRepo.findOne({ where: { invoiceId: voucher.invoiceId } });
+      if (invoice) {
+        const newPaid = Number(invoice.paidAmount) + Number(voucher.amount);
+        const newBalance = Number(invoice.totalAmount) - newPaid;
+        const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIALLY_PAID';
+        await this.purchaseInvoiceRepo.update({ invoiceId: voucher.invoiceId }, { paidAmount: newPaid, balanceDue: newBalance, status: newStatus });
+      }
+    }
+
     // Auto journal: Dr AP / Cr Bank
-    const pvDate = (dto.voucherDate || new Date().toISOString()).slice(0,10);
+    const pvDate = (voucher.voucherDate || new Date().toISOString()).slice(0,10);
     await this.createAutoJournalEntry(tenantId, userId, {
-      voucherNumber: number, description: `Payment ${number} - ${dto.supplierName}`,
+      voucherNumber: voucher.voucherNumber, description: `Payment ${voucher.voucherNumber} - ${voucher.supplierName}`,
       voucherDate: pvDate, lines: [
-        { accountCode: '2110', description: `AP - ${dto.supplierName}`, debitAmount: Number(dto.amount || 0), creditAmount: 0 },
-        { accountCode: '1120', description: `Payment to ${dto.supplierName}`, debitAmount: 0, creditAmount: Number(dto.amount || 0) },
+        { accountCode: '2110', description: `AP - ${voucher.supplierName}`, debitAmount: Number(voucher.amount || 0), creditAmount: 0 },
+        { accountCode: '1120', description: `Payment to ${voucher.supplierName}`, debitAmount: 0, creditAmount: Number(voucher.amount || 0) },
       ],
     });
-    return saved;
+
+    await this.voucherRepo.update({ voucherId: id, tenantId } as any, { status: 'POSTED', approvedBy: userId } as any);
+    return this.getPaymentVoucher(tenantId, id);
   }
   async getPaymentVoucher(tenantId: string, id: string) {
     const v = await this.voucherRepo.findOne({ where: { voucherId: id, tenantId } });
