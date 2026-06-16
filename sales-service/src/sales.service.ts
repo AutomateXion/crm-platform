@@ -2335,15 +2335,53 @@ export class SalesService {
     return this.getStockTransfer(tenantId, id);
   }
   async confirmStockTransfer(tenantId: string, id: string, userId: string) {
-    const transfer = await this.getStockTransfer(tenantId, id);
+    const transfer = await this.getStockTransfer(tenantId, id) as any;
+    // A transfer is QUANTITY- and VALUE-neutral at company level: it only relocates stock.
+    // It must NOT post a P&L journal and must NOT distort costing (no layer consume/recreate).
+    // We move the per-location ledger from source to destination and record movement audit rows
+    // at zero cost effect (stock_qty unchanged overall).
     for (const item of transfer.items) {
-      if (item.productId) {
-        await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'OUT', transfer.transferNumber, userId);
-        await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'IN', transfer.transferNumber, userId);
-      }
+      if (!item.productId) continue;
+      const qty = Number(item.quantity);
+      const fromLoc = item.fromLocationId || transfer.fromLocationId;
+      const toLoc = item.toLocationId || transfer.toLocationId;
+      // Move location ledger: deduct at source, add at destination — quantity only.
+      try {
+        if (fromLoc) await this.deductLocationStockAt(tenantId, item.productId, fromLoc, qty);
+        if (toLoc) await this.addLocationStock(tenantId, item.productId, toLoc, qty);
+      } catch (e) { console.warn('Transfer location move failed:', (e as any)?.message); }
+      // Audit movement rows (TRANSFER_OUT / TRANSFER_IN) — these do NOT change products.stock_qty
+      // and do NOT touch cost layers, so total quantity and valuation are preserved.
+      const moveOut = this.stockRepo.create({
+        tenantId, productId: item.productId, movementType: 'TRANSFER_OUT', quantity: qty,
+        referenceNumber: transfer.transferNumber, createdBy: userId,
+        ...(fromLoc ? { warehouseId: fromLoc } : {}),
+      });
+      const moveIn = this.stockRepo.create({
+        tenantId, productId: item.productId, movementType: 'TRANSFER_IN', quantity: qty,
+        referenceNumber: transfer.transferNumber, createdBy: userId,
+        ...(toLoc ? { warehouseId: toLoc } : {}),
+      });
+      await this.stockRepo.save([moveOut, moveIn]);
     }
     await this.transferRepo.update({ transferId: id, tenantId }, { status: 'COMPLETED' });
     return this.getStockTransfer(tenantId, id);
+  }
+
+  // Deduct location ledger at a SPECIFIC location (used by transfers — exact source location)
+  async deductLocationStockAt(tenantId: string, productId: string, locationId: string, qty: number) {
+    const rows = await this.productRepo.query(
+      `SELECT stock_id::text as stock_id, quantity FROM product_warehouse_stock
+       WHERE tenant_id::text = $1 AND product_id::text = $2 AND location_id::text = $3`,
+      [tenantId, productId, locationId]
+    );
+    if (!rows.length) return;
+    await this.productRepo.query(
+      `UPDATE product_warehouse_stock SET quantity = quantity - $1,
+         available_qty = quantity - $1 - reserved_qty, updated_at = now()
+       WHERE stock_id::text = $2`,
+      [qty, rows[0].stock_id]
+    );
   }
   async deleteStockTransfer(tenantId: string, id: string) {
     await this.transferRepo.delete({ transferId: id, tenantId });
@@ -2374,10 +2412,45 @@ export class SalesService {
       );
       await this.adjustmentItemRepo.save(lineItems);
       if (dto.status === 'CONFIRMED') {
+        const adjType = header.adjustmentType || 'IN';
+        const isIncrease = adjType === 'IN';
+        let totalValue = 0;
         for (const item of items) {
-          if (item.productId) {
-            await this.adjustStock(tenantId, item.productId, Number(item.quantity), header.adjustmentType || 'IN', number, userId);
+          if (!item.productId) continue;
+          const qty = Number(item.quantity);
+          if (isIncrease) {
+            // Stock In: value at provided unit cost (or product cost). adjustStock creates a cost layer.
+            const unitCost = Number(item.unitCost ?? 0);
+            await this.adjustStock(tenantId, item.productId, qty, 'IN', number, userId, item.warehouseLocationId, unitCost);
+            // Determine the value added (unit cost may have fallen back to product cost)
+            let lineCost = unitCost * qty;
+            if (!unitCost) {
+              const pr = await this.productRepo.query(`SELECT COALESCE(avg_cost,cost_price,0) as c FROM products WHERE product_id::text=$1`, [item.productId]);
+              lineCost = Number(pr[0]?.c || 0) * qty;
+            }
+            totalValue += lineCost;
+          } else {
+            // Stock Out: adjustStock computes issue cost (FIFO/AVCO) and returns it
+            const res: any = await this.adjustStock(tenantId, item.productId, qty, 'OUT', number, userId, item.warehouseLocationId);
+            totalValue += Number(res?.issueCost || 0);
           }
+        }
+        // GL journal at cost value
+        if (totalValue > 0) {
+          const adjDate = (header.adjustmentDate || header.date || new Date().toISOString()).slice(0,10);
+          const lines = isIncrease
+            ? [
+                { accountCode: '1140', description: `Inventory adjustment (gain) - ${number}`, debitAmount: Number(totalValue.toFixed(3)), creditAmount: 0 },
+                { accountCode: '4900', description: `Inventory Adjustment Gain - ${number}`, debitAmount: 0, creditAmount: Number(totalValue.toFixed(3)) },
+              ]
+            : [
+                { accountCode: '5110', description: `Inventory Adjustment Loss - ${number}`, debitAmount: Number(totalValue.toFixed(3)), creditAmount: 0 },
+                { accountCode: '1140', description: `Inventory adjustment (write-off) - ${number}`, debitAmount: 0, creditAmount: Number(totalValue.toFixed(3)) },
+              ];
+          await this.createAutoJournalEntry(tenantId, userId, {
+            voucherNumber: number, description: `Stock Adjustment ${number}${header.reason ? ' - ' + header.reason : ''}`,
+            voucherDate: adjDate, lines,
+          });
         }
       }
     }
