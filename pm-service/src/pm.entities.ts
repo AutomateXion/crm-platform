@@ -244,6 +244,9 @@ export class MeetingEntity {
   @Column({ name: 'agenda', type: 'text', nullable: true }) agenda: string;
   @Column({ name: 'minutes', type: 'text', nullable: true }) minutes: string;
   @Column({ name: 'action_items', type: 'jsonb', default: '[]' }) actionItems: any[];
+  @Column({ name: 'agenda_items', type: 'jsonb', default: '[]' }) agendaItems: any[];
+  @Column({ name: 'meeting_type', nullable: true }) meetingType: string;
+  @Column({ name: 'next_meeting_date', type: 'date', nullable: true }) nextMeetingDate: string;
   @Column({ name: 'created_by', nullable: true }) createdBy: string;
   @Column({ name: 'created_by_name', nullable: true }) createdByName: string;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
