@@ -3,7 +3,7 @@
 > **Purpose:** A living document for developers maintaining and extending the AutomateXion CRM/ERP platform. As this becomes a multi-client product, this log preserves hard-won debugging knowledge, recurring gotchas, architectural decisions, and a chronological change history. **Append to this file; do not let knowledge live only in chat sessions.**
 >
 > **Location:** `/docs/ENGINEERING_LOG.md` (committed to the repo, version-controlled, diff-friendly).
-> **Last updated:** 15 June 2026 (Stock Costing, Consumables, ERD/Architecture refresh)
+> **Last updated:** 16 June 2026 (Draft/Post governance; meeting minutes persistence fix)
 
 ---
 
@@ -94,6 +94,18 @@ These are patterns that have bitten us more than once. Check here FIRST when deb
 **Rule (accounting decision):** Consumables are expensed on purchase — the GRN for a consumable does NOT debit 1140 Inventory and does NOT create cost layers. The `consumable_stock` table is an **operational quantity tracker only**, fully separate from `product_warehouse_stock` and the FIFO/AVCO costing engine. Issuing a consumable (Consumable Issue Voucher / CIV) decrements `consumable_stock` and records a row in `consumable_transactions`, but posts **NO GL entry** and does not affect business stock-in-hand or COGS. Never route consumables through inventory valuation. Product `product_type` distinguishes STOCK (valued, costed) from CONSUMABLE (tracked only) from FIXED_ASSET (creates draft assets) from SERVICE (no stock).
 **Reference commits:** `5d3af1ba`, `750e5f6d`.
 
+### A14. Document side-effects belong on POST, not CREATE
+**Gotcha:** `createPaymentVoucher` was consuming the cheque leaf, marking the linked invoice paid, AND posting the GL journal at creation time — yet saving the record with status DRAFT. The status said DRAFT but the ledger was already committed, which is misleading and prevents review-before-commit.
+**Rule:** For any financial document with a draft/post lifecycle, CREATE only persists data (status DRAFT). ALL side effects — GL journal, cheque-leaf consumption (AVAILABLE→USED), invoice balance/paid updates, stock movements, credit block/unblock — belong in a separate POST action, guarded against double-posting (`if status === 'POSTED' throw`). POSTED documents must be protected from edit/delete to avoid orphaned journals/leaves.
+**Design consequence:** DRAFT documents must NOT affect downstream financials. This works naturally when credit control and AR aging read from invoice `balance_due` (which only changes on post) and the PDC list filters `status = 'POSTED'` — so a DRAFT receipt is invisible to credit/aging/PDC until posted.
+**Applied to:** Payment Vouchers (`28f499d1`, `d986b8ea`) and Receipts (`0cb8642c`). **Deliberately NOT applied to Sales Invoices** — they post immediately on create because the blast radius (e-invoicing/Fawtara submission, COGS journals, AR aging, credit control) is much wider and needs careful staging. Revisit only as a dedicated, well-tested change.
+
+### A15. Form fields silently dropped when the DB column is missing
+**Symptom:** A form saves and returns HTTP 200, some fields persist, but structured/newer fields vanish — the View/Edit modal shows them empty. (Seen with structured meeting minutes: attendees + flat `agenda` text saved, but `agendaItems`, `meetingType`, `nextMeetingDate` were lost.)
+**Cause:** The frontend sends fields that have no matching DB column / entity `@Column` mapping. TypeORM silently ignores unmapped properties on `save()` — no error, no warning.
+**Fix:** Every field the form sends must have BOTH a DB column AND an entity `@Column` mapping. When adding structured (jsonb) fields to an existing form, add the column + mapping in the SAME change as the form work — don't assume an existing table covers them. Verify by querying the row after a test save (per A1, on the Render DB for production).
+**Reference commit:** `c965c364` (pm_meetings: agenda_items / meeting_type / next_meeting_date).
+
 ---
 
 ## PART B — STANDARD OPERATING PROCEDURES
@@ -132,9 +144,27 @@ Client-side `window.open()` + inline-styled HTML + `window.print()`. Used for Fe
 - Delivery auto-posts the COGS journal `Dr 5001 COGS / Cr 1140 Inventory` at computed cost via `createAutoJournalEntry`.
 - Opening layers for pre-existing stock must be seeded once (stock_qty × cost_price) — they don't build retroactively.
 
+### B6. Draft / Post lifecycle for financial documents
+Pattern (see A14). Implemented for Payment Vouchers and Receipts:
+- **createX()** persists the record with `status = 'DRAFT'`. For cheque-based docs, validate and capture the leaf reference but do NOT consume it. Persist any allocation list (e.g. receipts `allocated_invoice_ids`) for POST to apply.
+- **postX(tenantId, id, userId)** guards `if status === 'POSTED' throw BadRequestException`; then consumes the cheque leaf, applies invoice balances, posts the GL journal via `createAutoJournalEntry`, runs credit checks, and sets `status = 'POSTED'`.
+- Controller route: `@Post('<docs>/:id/post')`. Frontend: a DRAFT-only Post button (Popconfirm) + `disabled`/hidden edit & delete on POSTED rows; status tag orange=DRAFT, green=POSTED.
+- Downstream queries (credit control, AR aging, PDC list) must count only POSTED/non-DRAFT documents.
+- When migrating: existing docs created under old immediate-post logic should be normalized to POSTED (their side effects already fired) — do NOT re-post them.
+
 ---
 
 ## PART C — CHANGE LOG (chronological, newest first)
+
+### 16 June 2026 — Session: Draft/Post governance for Payment Vouchers & Receipts
+| Commit | Summary |
+|---|---|
+| c965c364 | **Fix:** meeting minutes persistence — add pm_meetings.agenda_items / meeting_type / next_meeting_date columns + entity mappings (structured agenda/type/next-date were silently dropped on save) |
+| 0cb8642c | Receipts Post button (DRAFT-only) + edit/delete guards on POSTED + status colors |
+| (sales-svc) | Receipts draft/post flow: create as DRAFT (no GL/invoice/credit); post applies invoice + posts journal with PDC routing (1119 cheque / 1120 cash) + credit unblock; PDC list & due-count now filter status='POSTED'; allocated_invoice_ids column added to persist multi-invoice allocation |
+| d986b8ea | Payment Voucher Post button (DRAFT-only) + edit/delete guards on POSTED + status colors |
+| 28f499d1 | Payment Voucher draft/post flow: create as DRAFT (no GL/leaf); post action consumes cheque leaf + applies to invoice + posts Dr 2110 AP / Cr 1120 Bank |
+| — | Data fix: existing PV-2026-0006/0007 and 25 CONFIRMED receipts normalized to POSTED (side effects already happened under old immediate-post logic) |
 
 ### 15 June 2026 — Session: Stock Costing & Consumables
 | Commit | Summary |
@@ -189,6 +219,7 @@ Credit control foundation, Bank Account Management (bank accounts, cheque books/
 ## PART D — KNOWN PENDING ITEMS / BACKLOG
 - **Gantt / Timeline view** (PM) — last item of the PM enhancement roadmap (Feasibility → Reports → Gantt). Largest UI build.
 - **Daily PDC deposit reminder** on the notification bell (Received Cheques page itself is complete).
+- **Sales Invoices draft/post** — invoices still post GL immediately on create. Applying the draft/post pattern (A14/B6) is deferred: wide blast radius (e-invoicing/Fawtara, COGS journals from costing, AR aging, credit control) needs careful staging. Only as a dedicated change.
 - **Consumable Issue Voucher PDF** — printable CIV like other vouchers (offered, not yet built).
 - **Duplicate COGS accounts** — both 5001 and 5100 exist as "Cost of Goods Sold". The system uses **5001**; 5100 should be cleaned up.
 - **Sales return values inventory at selling price** — the return path currently uses `dto.subtotal` (selling value) as the inventory/COGS-reversal amount. Now that the costing engine exists, this should be corrected to use computed cost for consistency with the sale side.
