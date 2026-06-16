@@ -68,7 +68,7 @@ export class SalesController {
     return this.svc.getStockMovements(req.user.tenantId, q.productId);
   }
 
-  @Post('stock-adjustments')
+  @Post('stock-movements/adjust')
   adjustStock(@Request() req: any, @Body() dto: any) {
     return this.svc.adjustStock(req.user.tenantId, dto.productId, dto.quantity, dto.type, dto.reference, req.user.userId);
   }
