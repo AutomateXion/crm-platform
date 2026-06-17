@@ -507,7 +507,7 @@ export default function FixedAssetsPage() {
       {/* KPI Stats */}
       <Row gutter={12} style={{ marginBottom:16 }}>
         <Col span={4}><Card size="small" style={{ borderRadius:12, borderTop:'3px solid #1890ff', textAlign:'center' }}><Statistic title="Total Assets" value={stats.totalAssets||0} valueStyle={{color:'#1890ff',fontSize:20}} /></Card></Col>
-        <Col span={5}><Card size="small" style={{ borderRadius:12, borderTop:'3px solid #722ed1', textAlign:'center' }}><Statistic title="Total Cost" prefix="OMR " value={Number(stats.totalCost||0).toFixed(3)} valueStyle={{color:'#722ed1',fontSize:18}} /></Card></Col>
+        <Col span={5}><Card size="small" style={{ borderRadius:12, borderTop:'3px solid #2E6DA4', textAlign:'center' }}><Statistic title="Total Cost" prefix="OMR " value={Number(stats.totalCost||0).toFixed(3)} valueStyle={{color:'#2E6DA4',fontSize:18}} /></Card></Col>
         <Col span={5}><Card size="small" style={{ borderRadius:12, borderTop:'3px solid #52c41a', textAlign:'center' }}><Statistic title="Book Value" prefix="OMR " value={Number(stats.totalBookValue||0).toFixed(3)} valueStyle={{color:'#52c41a',fontSize:18}} /></Card></Col>
         <Col span={5}><Card size="small" style={{ borderRadius:12, borderTop:'3px solid #fa8c16', textAlign:'center' }}><Statistic title="Total Depreciation" prefix="OMR " value={Number(stats.totalAccumDepr||0).toFixed(3)} valueStyle={{color:'#fa8c16',fontSize:18}} /></Card></Col>
         <Col span={2}><Card size="small" style={{ borderRadius:12, borderTop:'3px solid #ff4d4f', textAlign:'center' }}><Statistic title="Maintenance Due" value={stats.dueForMaintenance||0} valueStyle={{color:'#ff4d4f',fontSize:20}} /></Card></Col>

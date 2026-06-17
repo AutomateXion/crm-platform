@@ -14,11 +14,11 @@ sApi.interceptors.request.use(c => { const t = localStorage.getItem('accessToken
 
 const TYPE_COLOR: Record<string, string> = {
   'SALES INVOICE': '#1890ff', 'RECEIPT': '#52c41a',
-  'PURCHASE INVOICE': '#722ed1', 'PAYMENT': '#fa8c16', 'JOURNAL': '#13c2c2',
+  'PURCHASE INVOICE': '#2E6DA4', 'PAYMENT': '#fa8c16', 'JOURNAL': '#13c2c2',
 };
 
 const ACCT_TYPE_COLOR: Record<string, string> = {
-  ASSET: '#1890ff', LIABILITY: '#ff4d4f', EQUITY: '#722ed1',
+  ASSET: '#1890ff', LIABILITY: '#ff4d4f', EQUITY: '#2E6DA4',
   INCOME: '#52c41a', EXPENSE: '#fa8c16', COGS: '#eb2f96',
 };
 
@@ -188,7 +188,7 @@ function SupplierLedger() {
         </Row>
       </Card>
       {!report ? <Empty description="Select a supplier and click Search" style={{ padding: 40 }} /> :
-        <Card title={<Space><Text strong>Ledger:</Text><Text style={{ color: '#722ed1' }}>{selected}</Text></Space>} style={{ borderRadius: 12 }} size="small">
+        <Card title={<Space><Text strong>Ledger:</Text><Text style={{ color: '#2E6DA4' }}>{selected}</Text></Space>} style={{ borderRadius: 12 }} size="small">
           <LedgerTable transactions={report.transactions} loading={loading} summary={report.summary} />
         </Card>}
     </div>
@@ -303,7 +303,7 @@ function StatementTab({ type }: { type: 'customers' | 'suppliers' }) {
     <div>
       <Row gutter={12} style={{ marginBottom: 16 }}>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #1890ff' }}><Statistic title={type === 'customers' ? 'Total Customers' : 'Total Suppliers'} value={filtered.length} valueStyle={{ color: '#1890ff' }} /></Card></Col>
-        <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #722ed1' }}><Statistic title="Total Invoiced" prefix="OMR " value={totalInvoiced.toFixed(3)} valueStyle={{ color: '#722ed1' }} /></Card></Col>
+        <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #2E6DA4' }}><Statistic title="Total Invoiced" prefix="OMR " value={totalInvoiced.toFixed(3)} valueStyle={{ color: '#2E6DA4' }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #52c41a' }}><Statistic title="Total Paid" prefix="OMR " value={totalPaid.toFixed(3)} valueStyle={{ color: '#52c41a' }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #ff4d4f' }}><Statistic title="Total Outstanding" prefix="OMR " value={totalBalance.toFixed(3)} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
       </Row>

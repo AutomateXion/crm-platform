@@ -159,7 +159,7 @@ function PurchaseReport() {
     { title: '#', key: 'rank', width: 40, render: (_: any, __: any, i: number) => <Text type="secondary">{i+1}</Text> },
     { title: 'Supplier', dataIndex: 'name', render: (v: string) => <Text strong>{v}</Text> },
     { title: 'Invoices', dataIndex: 'invoiceCount', align: 'center' as const, render: (v: number) => <Tag color="purple">{v}</Tag> },
-    { title: 'Total Purchases', dataIndex: 'totalAmount', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#722ed1' }}>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Total Purchases', dataIndex: 'totalAmount', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#2E6DA4' }}>OMR {Number(v).toFixed(3)}</Text> },
     { title: 'Paid', dataIndex: 'paidAmount', align: 'right' as const, render: (v: number) => <Text style={{ color: '#52c41a' }}>OMR {Number(v).toFixed(3)}</Text> },
     { title: 'Balance', dataIndex: 'balanceDue', align: 'right' as const, render: (v: number) => <Text style={{ color: '#ff4d4f' }}>OMR {Number(v).toFixed(3)}</Text> },
   ];
@@ -168,7 +168,7 @@ function PurchaseReport() {
     { title: '#', key: 'rank', width: 40, render: (_: any, __: any, i: number) => <Text type="secondary">{i+1}</Text> },
     { title: 'Product / Description', dataIndex: 'name', render: (v: string) => <Text strong>{v}</Text> },
     { title: 'Qty Purchased', dataIndex: 'qty', align: 'right' as const, render: (v: number) => <Text>{Number(v).toFixed(3)}</Text> },
-    { title: 'Total Value', dataIndex: 'totalAmount', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#722ed1' }}>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Total Value', dataIndex: 'totalAmount', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#2E6DA4' }}>OMR {Number(v).toFixed(3)}</Text> },
   ];
 
   return (
@@ -182,7 +182,7 @@ function PurchaseReport() {
       </Card>
 
       <Row gutter={12} style={{ marginBottom: 16 }}>
-        <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #722ed1' }}><Statistic title="Total Invoices" value={s.totalInvoices || 0} valueStyle={{ color: '#722ed1' }} /></Card></Col>
+        <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #2E6DA4' }}><Statistic title="Total Invoices" value={s.totalInvoices || 0} valueStyle={{ color: '#2E6DA4' }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #1890ff' }}><Statistic title="Total Purchases" prefix="OMR " value={Number(s.totalPurchases || 0).toFixed(3)} valueStyle={{ color: '#1890ff' }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #52c41a' }}><Statistic title="Total Paid" prefix="OMR " value={Number(s.totalPaid || 0).toFixed(3)} valueStyle={{ color: '#52c41a' }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #ff4d4f' }}><Statistic title="Outstanding" prefix="OMR " value={Number(s.totalBalance || 0).toFixed(3)} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
@@ -191,7 +191,7 @@ function PurchaseReport() {
       <Row gutter={12} style={{ marginBottom: 12 }}>
         <Col span={12}>
           <Card title="📊 Purchases by Supplier (Top 10)" size="small" style={{ borderRadius: 12 }}>
-            <BarChart data={data?.bySupplier} valueKey="totalAmount" labelKey="name" color="#722ed1" prefix="OMR " />
+            <BarChart data={data?.bySupplier} valueKey="totalAmount" labelKey="name" color="#2E6DA4" prefix="OMR " />
           </Card>
         </Col>
         <Col span={12}>
@@ -251,7 +251,7 @@ function StockReport() {
     { title: 'Margin', dataIndex: 'margin', align: 'center' as const, render: (v: number) => (
       <Tag color={v >= 20 ? 'green' : v >= 10 ? 'orange' : 'red'}>{v}%</Tag>
     )},
-    { title: 'Stock Value', dataIndex: 'stockValue', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#722ed1' }}>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Stock Value', dataIndex: 'stockValue', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#2E6DA4' }}>OMR {Number(v).toFixed(3)}</Text> },
     { title: 'Status', align: 'center' as const, render: (_: any, r: any) => r.isLowStock
       ? <Tag color="red"><WarningOutlined /> Low Stock</Tag>
       : <Tag color="green">OK</Tag> },
@@ -262,7 +262,7 @@ function StockReport() {
       <Row gutter={12} style={{ marginBottom: 16 }}>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #1890ff' }}><Statistic title="Total Products" value={data.length} valueStyle={{ color: '#1890ff' }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #ff4d4f' }}><Statistic title="Low Stock Items" value={lowStock.length} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
-        <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #722ed1' }}><Statistic title="Total Stock Value" prefix="OMR " value={totalValue.toFixed(3)} valueStyle={{ color: '#722ed1' }} /></Card></Col>
+        <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #2E6DA4' }}><Statistic title="Total Stock Value" prefix="OMR " value={totalValue.toFixed(3)} valueStyle={{ color: '#2E6DA4' }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #52c41a' }}><Statistic title="Healthy Items" value={data.length - lowStock.length} valueStyle={{ color: '#52c41a' }} /></Card></Col>
       </Row>
 
@@ -280,7 +280,7 @@ function StockReport() {
               <Table.Summary.Cell index={0} colSpan={2}><Text strong>Total</Text></Table.Summary.Cell>
               <Table.Summary.Cell index={2} align="right"><Text strong>{filtered.reduce((s,r) => s+Number(r.stockQty||0),0).toFixed(3)}</Text></Table.Summary.Cell>
               <Table.Summary.Cell index={3} /><Table.Summary.Cell index={4} /><Table.Summary.Cell index={5} /><Table.Summary.Cell index={6} />
-              <Table.Summary.Cell index={7} align="right"><Text strong style={{ color: '#722ed1' }}>OMR {totalValue.toFixed(3)}</Text></Table.Summary.Cell>
+              <Table.Summary.Cell index={7} align="right"><Text strong style={{ color: '#2E6DA4' }}>OMR {totalValue.toFixed(3)}</Text></Table.Summary.Cell>
               <Table.Summary.Cell index={8} />
             </Table.Summary.Row>
           )}
@@ -319,7 +319,7 @@ function TopReport() {
     )},
     { title: 'Supplier', dataIndex: 'name', render: (v: string) => <Text strong>{v}</Text> },
     { title: 'Invoices', dataIndex: 'invoiceCount', align: 'center' as const, render: (v: number) => <Tag color="purple">{v}</Tag> },
-    { title: 'Total Purchases', dataIndex: 'totalAmount', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#722ed1' }}>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Total Purchases', dataIndex: 'totalAmount', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#2E6DA4' }}>OMR {Number(v).toFixed(3)}</Text> },
     { title: 'Outstanding', dataIndex: 'balanceDue', align: 'right' as const, render: (v: number) => <Text style={{ color: '#ff4d4f' }}>OMR {Number(v).toFixed(3)}</Text> },
   ];
 
@@ -334,7 +334,7 @@ function TopReport() {
           </Card>
         </Col>
         <Col span={12}>
-          <Card title={<Space><TrophyOutlined style={{ color: '#722ed1' }} /><Text strong>Top 10 Suppliers by Purchases</Text></Space>}
+          <Card title={<Space><TrophyOutlined style={{ color: '#2E6DA4' }} /><Text strong>Top 10 Suppliers by Purchases</Text></Space>}
             size="small" style={{ borderRadius: 12 }}
             extra={<Button icon={<ReloadOutlined />} size="small" onClick={load} loading={loading} />}>
             <Table dataSource={data?.topSuppliers} columns={suppCols} rowKey="name" size="small" loading={loading} pagination={false} />

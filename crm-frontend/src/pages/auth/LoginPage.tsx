@@ -78,7 +78,7 @@ export default function LoginPage() {
               rules={[{ required: true, message: 'Please enter your company code' }]}
             >
               <Input
-                prefix={<BankOutlined style={{ color: '#1890ff' }} />}
+                prefix={<BankOutlined style={{ color: '#2E6DA4' }} />}
                 placeholder="e.g. ACME_CORP"
                 style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 10 }}
               />
@@ -91,7 +91,7 @@ export default function LoginPage() {
               rules={[{ required: true, type: 'email', message: 'Please enter a valid email' }]}
             >
               <Input
-                prefix={<UserOutlined style={{ color: '#1890ff' }} />}
+                prefix={<UserOutlined style={{ color: '#2E6DA4' }} />}
                 placeholder="your@email.com"
                 style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 10 }}
               />
@@ -104,7 +104,7 @@ export default function LoginPage() {
               rules={[{ required: true, message: 'Please enter your password' }]}
             >
               <Input.Password
-                prefix={<LockOutlined style={{ color: '#1890ff' }} />}
+                prefix={<LockOutlined style={{ color: '#2E6DA4' }} />}
                 placeholder="••••••••"
                 style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 10 }}
               />
@@ -118,7 +118,7 @@ export default function LoginPage() {
                 rules={[{ required: true, len: 6, message: 'Enter the 6-digit code from your authenticator app' }]}
               >
                 <Input
-                  prefix={<SafetyOutlined style={{ color: '#722ed1' }} />}
+                  prefix={<SafetyOutlined style={{ color: '#2E6DA4' }} />}
                   placeholder="000000" maxLength={6}
                   style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(114,46,209,0.5)', color: '#fff', borderRadius: 10, letterSpacing: 8, textAlign: 'center' }}
                 />
@@ -130,7 +130,7 @@ export default function LoginPage() {
                 type="primary" htmlType="submit" block loading={loading}
                 style={{
                   height: 48, borderRadius: 10, fontWeight: 600, fontSize: 15,
-                  background: 'linear-gradient(135deg, #1890ff, #722ed1)',
+                  background: 'linear-gradient(135deg, #0C2446, #2E6DA4)',
                   border: 'none', boxShadow: '0 4px 16px rgba(24,144,255,0.4)',
                 }}
               >

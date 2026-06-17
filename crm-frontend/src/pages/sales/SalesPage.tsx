@@ -21,7 +21,7 @@ const { Option } = Select;
 
 const STAGE_COLORS = {
   PROSPECTING: "#1890ff", QUALIFICATION: "#13c2c2", PROPOSAL: "#fa8c16",
-  NEGOTIATION: "#722ed1", CLOSED_WON: "#52c41a", CLOSED_LOST: "#ff4d4f",
+  NEGOTIATION: "#2E6DA4", CLOSED_WON: "#52c41a", CLOSED_LOST: "#ff4d4f",
 };
 const STAGES = ["PROSPECTING","QUALIFICATION","PROPOSAL","NEGOTIATION","CLOSED_WON","CLOSED_LOST"];
 
@@ -87,7 +87,7 @@ function ContactSearch({ value, onChange, onSelect, accountId }) {
         label: (
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <Space>
-              <div style={{ width:28, height:28, borderRadius:"50%", background:"#722ed1", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700 }}>
+              <div style={{ width:28, height:28, borderRadius:"50%", background:"#2E6DA4", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700 }}>
                 {c.firstName?.[0]}{c.lastName?.[0]}
               </div>
               <div>
@@ -351,7 +351,7 @@ export default function SalesPage() {
           <Tooltip title="Convert to Project">
             <Button size="small" type="primary" icon={<ProjectOutlined />}
               onClick={() => openConvertModal(r)}
-              style={{ background: '#722ed1', borderColor: '#722ed1' }} />
+              style={{ background: '#2E6DA4', borderColor: '#2E6DA4' }} />
           </Tooltip>
         )}
         <Popconfirm title="Delete opportunity?" onConfirm={async () => { await api.delete("/opportunities/"+r.opportunityId); load(); }}>
@@ -384,7 +384,7 @@ export default function SalesPage() {
         {[
           { title:"Pipeline Value", value:"OMR "+pipelineValue.toLocaleString(), icon:<RiseOutlined />, color:"#1890ff", bg:"#e6f7ff" },
           { title:"Won This Month", value:"OMR "+wonValue.toLocaleString(), icon:<DollarOutlined />, color:"#52c41a", bg:"#f6ffed" },
-          { title:"Open Deals", value:pipeline.length, icon:<FunnelPlotOutlined />, color:"#722ed1", bg:"#f9f0ff" },
+          { title:"Open Deals", value:pipeline.length, icon:<FunnelPlotOutlined />, color:"#2E6DA4", bg:"#f9f0ff" },
           { title:"Closing This Month", value:opps.filter(o => {
               if (!o.expectedClose) return false;
               const d=new Date(o.expectedClose), n=new Date();
@@ -559,7 +559,7 @@ export default function SalesPage() {
           {/* STEP 3 — Contact */}
           <div style={{ background:"#f9f0ff", border:"1px solid #efdbff", borderRadius:10, padding:"14px 16px", marginBottom:14 }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
-              <Text strong style={{ color:"#722ed1" }}>
+              <Text strong style={{ color:"#2E6DA4" }}>
                 <UserOutlined /> Step 3 — Contact (Person)
               </Text>
               {contactLinked
@@ -716,12 +716,12 @@ export default function SalesPage() {
 
       {/* ── Convert to Project Modal ─────────────────────────── */}
       <Modal
-        title={<span><ProjectOutlined style={{ color: '#722ed1', marginRight: 8 }} />Convert to Project</span>}
+        title={<span><ProjectOutlined style={{ color: '#2E6DA4', marginRight: 8 }} />Convert to Project</span>}
         open={convertModalOpen} onCancel={() => setConvertModalOpen(false)} footer={null} width={640} style={{ top: 30 }}>
         {convertOpp && (
           <div style={{ marginBottom: 16, padding: 12, background: '#f9f0ff', borderRadius: 8, border: '1px solid #d3adf7' }}>
             <Text type="secondary">Converting from opportunity: </Text>
-            <Text strong style={{ color: '#722ed1' }}>{convertOpp.opportunityName}</Text>
+            <Text strong style={{ color: '#2E6DA4' }}>{convertOpp.opportunityName}</Text>
             {convertOpp.dealValue && <Text type="secondary"> · OMR {Number(convertOpp.dealValue).toLocaleString()}</Text>}
           </div>
         )}
@@ -782,7 +782,7 @@ export default function SalesPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
             <Button onClick={() => setConvertModalOpen(false)}>Cancel</Button>
             <Button type="primary" htmlType="submit" loading={convertSaving}
-              style={{ background: '#722ed1', borderColor: '#722ed1' }}>
+              style={{ background: '#2E6DA4', borderColor: '#2E6DA4' }}>
               <ProjectOutlined /> Create Project
             </Button>
           </div>

@@ -116,7 +116,7 @@ function TrialBalance({ data, period, company }: any) {
           <SectionHeader title="LIABILITIES" color="#ff4d4f" />
           {(data || []).filter((a: any) => a.accountType === 'LIABILITY').map((a: any) => <AccountRow key={a.accountCode} account={a} indent />)}
           {/* Equity */}
-          <SectionHeader title="EQUITY" color="#722ed1" />
+          <SectionHeader title="EQUITY" color="#2E6DA4" />
           {(data || []).filter((a: any) => a.accountType === 'EQUITY').map((a: any) => <AccountRow key={a.accountCode} account={a} indent />)}
           {/* Revenue */}
           <SectionHeader title="REVENUE" color="#52c41a" />
@@ -149,7 +149,7 @@ function ProfitLoss({ data, period, company }: any) {
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #52c41a', textAlign: 'center' }}><Statistic title="Revenue" prefix="OMR " value={Number(totalRevenue).toFixed(3)} valueStyle={{ color: '#52c41a', fontSize: 18 }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #1890ff', textAlign: 'center' }}><Statistic title="Gross Profit" prefix="OMR " value={Number(grossProfit).toFixed(3)} valueStyle={{ color: '#1890ff', fontSize: 18 }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: `3px solid ${netProfit >= 0 ? '#52c41a' : '#ff4d4f'}`, textAlign: 'center' }}><Statistic title="Net Profit" prefix="OMR " value={Number(netProfit).toFixed(3)} valueStyle={{ color: netProfit >= 0 ? '#52c41a' : '#ff4d4f', fontSize: 18 }} /></Card></Col>
-        <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #722ed1', textAlign: 'center' }}><Statistic title="Net Margin" suffix="%" value={Number(netMargin).toFixed(1)} valueStyle={{ color: '#722ed1', fontSize: 18 }} /></Card></Col>
+        <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #2E6DA4', textAlign: 'center' }}><Statistic title="Net Margin" suffix="%" value={Number(netMargin).toFixed(1)} valueStyle={{ color: '#2E6DA4', fontSize: 18 }} /></Card></Col>
       </Row>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
@@ -304,12 +304,12 @@ function BalanceSheet({ data, period, company }: any) {
                 <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: '#c41d7f' }}>{fmt(totalLongTermLiabilities)}</td>
               </tr>
               <tr><td colSpan={3} style={{ padding: 6 }} /></tr>
-              <tr style={{ background: '#f9f0ff' }}><td colSpan={3} style={{ padding: '8px 12px', fontWeight: 700, color: '#722ed1', fontSize: 12 }}>EQUITY</td></tr>
+              <tr style={{ background: '#f9f0ff' }}><td colSpan={3} style={{ padding: '8px 12px', fontWeight: 700, color: '#2E6DA4', fontSize: 12 }}>EQUITY</td></tr>
               {(equity || []).map((a: any) => (
                 <tr key={a.accountCode} style={{ borderBottom: '1px solid #f0f0f0' }}>
                   <td style={{ padding: '5px 12px', fontSize: 11, color: '#8c8c8c' }}>{a.accountCode}</td>
                   <td style={{ padding: '5px 8px', fontSize: 12, paddingLeft: 20 }}>{a.accountName}</td>
-                  <td style={{ padding: '5px 12px', textAlign: 'right', fontSize: 12, color: '#722ed1' }}>{fmt(a.balance)}</td>
+                  <td style={{ padding: '5px 12px', textAlign: 'right', fontSize: 12, color: '#2E6DA4' }}>{fmt(a.balance)}</td>
                 </tr>
               ))}
               <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
@@ -317,9 +317,9 @@ function BalanceSheet({ data, period, company }: any) {
                 <td style={{ padding: '5px 8px', paddingLeft: 20, fontSize: 12 }}>Current Year {netProfit >= 0 ? 'Profit' : 'Loss'}</td>
                 <td style={{ padding: '5px 12px', textAlign: 'right', fontSize: 12, color: netProfit >= 0 ? '#52c41a' : '#ff4d4f' }}>{fmtN(netProfit)}</td>
               </tr>
-              <tr style={{ background: '#f9f0ff', borderTop: '1px solid #722ed1' }}>
+              <tr style={{ background: '#f9f0ff', borderTop: '1px solid #2E6DA4' }}>
                 <td /><td style={{ padding: '7px 8px', fontWeight: 700, fontSize: 12 }}>Total Equity</td>
-                <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: '#722ed1' }}>{fmt(totalEquity)}</td>
+                <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: '#2E6DA4' }}>{fmt(totalEquity)}</td>
               </tr>
               <tr style={{ background: '#ff4d4f', color: '#fff' }}>
                 <td /><td style={{ padding: '12px 8px', fontWeight: 800, fontSize: 14 }}>TOTAL LIABILITIES & EQUITY</td>

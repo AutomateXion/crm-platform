@@ -11,7 +11,7 @@ const { RangePicker } = DatePicker;
 const sApi = axios.create({ baseURL: '/sales-api' });
 sApi.interceptors.request.use(c => { const t = localStorage.getItem('accessToken'); if (t) c.headers.Authorization = `Bearer ${t}`; return c; });
 
-const COLORS = ['#1890ff','#52c41a','#722ed1','#fa8c16','#eb2f96','#13c2c2','#f5222d','#faad14'];
+const COLORS = ['#1890ff','#52c41a','#2E6DA4','#fa8c16','#eb2f96','#13c2c2','#f5222d','#faad14'];
 
 export default function SalesmanReport() {
   const [data, setData] = useState<any>(null);
@@ -104,7 +104,7 @@ export default function SalesmanReport() {
       <Row gutter={12} style={{ marginBottom: 16 }}>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #1890ff' }}><Statistic title="Active Salesmen" value={(data?.bySalesman || []).length} valueStyle={{ color: '#1890ff' }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #52c41a' }}><Statistic title="Total Sales" prefix="OMR " value={totalSales.toFixed(3)} valueStyle={{ color: '#52c41a' }} /></Card></Col>
-        <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #722ed1' }}><Statistic title="Total Invoices" value={totalInvoices} valueStyle={{ color: '#722ed1' }} /></Card></Col>
+        <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #2E6DA4' }}><Statistic title="Total Invoices" value={totalInvoices} valueStyle={{ color: '#2E6DA4' }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #fa8c16' }}><Statistic title="Total Visits" value={totalVisits} valueStyle={{ color: '#fa8c16' }} /></Card></Col>
       </Row>
 

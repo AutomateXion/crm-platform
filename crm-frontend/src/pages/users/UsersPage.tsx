@@ -121,7 +121,7 @@ export default function UsersPage() {
         <Space>
           <Avatar size={40} style={{
             background: r.isActive
-              ? "linear-gradient(135deg,#1890ff,#722ed1)"
+              ? "linear-gradient(135deg,#0C2446,#2E6DA4)"
               : "#d9d9d9",
             fontWeight: 700, fontSize: 16,
           }}>
@@ -214,8 +214,8 @@ export default function UsersPage() {
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card size="small" style={{ borderRadius: 10, borderLeft: "3px solid #722ed1" }}>
-            <Statistic title={<Text style={{ fontSize: 11 }}>User Groups</Text>} value={groups.length} valueStyle={{ fontSize: 20, color: "#722ed1" }} />
+          <Card size="small" style={{ borderRadius: 10, borderLeft: "3px solid #2E6DA4" }}>
+            <Statistic title={<Text style={{ fontSize: 11 }}>User Groups</Text>} value={groups.length} valueStyle={{ fontSize: 20, color: "#2E6DA4" }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>

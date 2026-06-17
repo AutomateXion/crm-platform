@@ -8,11 +8,11 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveCo
 import { pmDashboardApi } from '../../services/pmApi';
 
 const { Title, Text } = Typography;
-const COLORS = ['#1890ff', '#52c41a', '#722ed1', '#fa8c16', '#ff4d4f', '#13c2c2'];
+const COLORS = ['#1890ff', '#52c41a', '#2E6DA4', '#fa8c16', '#ff4d4f', '#13c2c2'];
 const HEALTH_COLORS: Record<string, string> = { ON_TRACK: '#52c41a', AT_RISK: '#fa8c16', OFF_TRACK: '#ff4d4f', COMPLETED: '#1890ff' };
-const STATUS_COLORS: Record<string, string> = { IN_PROGRESS: '#1890ff', ACTIVE: '#1890ff', COMPLETED: '#52c41a', ON_HOLD: '#fa8c16', CANCELLED: '#ff4d4f', PLANNING: '#722ed1' };
+const STATUS_COLORS: Record<string, string> = { IN_PROGRESS: '#1890ff', ACTIVE: '#1890ff', COMPLETED: '#52c41a', ON_HOLD: '#fa8c16', CANCELLED: '#ff4d4f', PLANNING: '#2E6DA4' };
 const SEVERITY_COLORS: Record<string, string> = { LOW: '#52c41a', MEDIUM: '#fa8c16', HIGH: '#ff4d4f', CRITICAL: '#cf1322' };
-const TASK_COLORS: Record<string, string> = { TODO: '#8c8c8c', IN_PROGRESS: '#1890ff', REVIEW: '#722ed1', DONE: '#52c41a', BLOCKED: '#ff4d4f' };
+const TASK_COLORS: Record<string, string> = { TODO: '#8c8c8c', IN_PROGRESS: '#1890ff', REVIEW: '#2E6DA4', DONE: '#52c41a', BLOCKED: '#ff4d4f' };
 
 export default function PMDashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -67,7 +67,7 @@ export default function PMDashboardPage() {
     { title: 'Total Projects', value: projects.total || 0, sub: `${projects.active || 0} active`, icon: <ProjectOutlined />, color: '#1890ff' },
     { title: 'Completed', value: projects.completed || 0, sub: `${projects.total > 0 ? Math.round(((projects.completed||0) / projects.total) * 100) : 0}% completion rate`, icon: <CheckCircleOutlined />, color: '#52c41a' },
     { title: 'At Risk', value: projects.atRisk || 0, sub: 'Need attention', icon: <WarningOutlined />, color: (projects.atRisk||0) > 0 ? '#ff4d4f' : '#52c41a' },
-    { title: 'Total Tasks', value: tasks.total || 0, sub: `${tasks.completionRate || 0}% complete`, icon: <AimOutlined />, color: '#722ed1' },
+    { title: 'Total Tasks', value: tasks.total || 0, sub: `${tasks.completionRate || 0}% complete`, icon: <AimOutlined />, color: '#2E6DA4' },
     { title: 'Overdue Tasks', value: tasks.overdue || 0, sub: `${tasks.dueToday || 0} due today`, icon: <ClockCircleOutlined />, color: (tasks.overdue||0) > 0 ? '#ff4d4f' : '#52c41a' },
     { title: 'Milestones', value: milestones.total || 0, sub: `${milestones.completed || 0} completed`, icon: <FlagOutlined />, color: '#13c2c2' },
     { title: 'Risks', value: risks.total || 0, sub: `${risks.high || 0} high/critical`, icon: <WarningOutlined />, color: (risks.high||0) > 0 ? '#ff4d4f' : '#fa8c16' },

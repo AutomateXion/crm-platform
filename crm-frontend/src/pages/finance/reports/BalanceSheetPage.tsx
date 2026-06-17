@@ -100,7 +100,7 @@ export default function BalanceSheetPage() {
         <Row gutter={12} style={{ marginBottom:20 }} className="no-print">
           <Col span={6}><Card size="small" style={{ borderRadius:12, borderTop:'3px solid #1890ff', textAlign:'center' }}><Statistic title="Total Assets" prefix="OMR " value={Number(bs.totalAssets||0).toFixed(3)} valueStyle={{ color:'#1890ff', fontSize:18 }} /></Card></Col>
           <Col span={6}><Card size="small" style={{ borderRadius:12, borderTop:'3px solid #ff4d4f', textAlign:'center' }}><Statistic title="Total Liabilities" prefix="OMR " value={Number((bs.totalCurrentLiabilities||0)+(bs.totalLongTermLiabilities||0)).toFixed(3)} valueStyle={{ color:'#ff4d4f', fontSize:18 }} /></Card></Col>
-          <Col span={6}><Card size="small" style={{ borderRadius:12, borderTop:'3px solid #722ed1', textAlign:'center' }}><Statistic title="Total Equity" prefix="OMR " value={Number(bs.totalEquity||0).toFixed(3)} valueStyle={{ color:'#722ed1', fontSize:18 }} /></Card></Col>
+          <Col span={6}><Card size="small" style={{ borderRadius:12, borderTop:'3px solid #2E6DA4', textAlign:'center' }}><Statistic title="Total Equity" prefix="OMR " value={Number(bs.totalEquity||0).toFixed(3)} valueStyle={{ color:'#2E6DA4', fontSize:18 }} /></Card></Col>
           <Col span={6}><Card size="small" style={{ borderRadius:12, borderTop:`3px solid ${bs.isBalanced?'#52c41a':'#ff4d4f'}`, textAlign:'center' }}>
             <div style={{ padding:'12px 0', textAlign:'center' }}>
               {bs.isBalanced
@@ -152,13 +152,13 @@ export default function BalanceSheetPage() {
                       <Section title="LONG-TERM LIABILITIES" color="#c41d7f" accounts={bs.longTermLiabilities} total={bs.totalLongTermLiabilities} totalLabel="Total Long-term Liabilities" />
                       {/* Equity */}
                       <tr style={{ background:'#f9f0ff' }}>
-                        <td colSpan={3} style={{ padding:'8px 12px', fontWeight:700, color:'#722ed1', fontSize:13, borderBottom:'2px solid #722ed1' }}>EQUITY</td>
+                        <td colSpan={3} style={{ padding:'8px 12px', fontWeight:700, color:'#2E6DA4', fontSize:13, borderBottom:'2px solid #2E6DA4' }}>EQUITY</td>
                       </tr>
                       {(bs.equity||[]).map((a:any) => (
                         <tr key={a.accountCode} style={{ borderBottom:'1px solid #f5f5f5' }}>
                           <td style={{ padding:'5px 12px', color:'#8c8c8c', fontSize:11, width:'12%' }}>{a.accountCode}</td>
                           <td style={{ padding:'5px 8px', paddingLeft:20, fontSize:12, width:'55%' }}>{a.accountName}</td>
-                          <td style={{ padding:'5px 12px', textAlign:'right', fontSize:12, color:'#722ed1', width:'33%' }}>{fmt(a.balance)}</td>
+                          <td style={{ padding:'5px 12px', textAlign:'right', fontSize:12, color:'#2E6DA4', width:'33%' }}>{fmt(a.balance)}</td>
                         </tr>
                       ))}
                       <tr style={{ borderBottom:'1px solid #f5f5f5' }}>
@@ -166,9 +166,9 @@ export default function BalanceSheetPage() {
                         <td style={{ padding:'5px 8px', paddingLeft:20, fontSize:12 }}>Current Year {bs.netProfit>=0?'Profit':'Loss'}</td>
                         <td style={{ padding:'5px 12px', textAlign:'right', fontSize:12, color:bs.netProfit>=0?'#52c41a':'#ff4d4f' }}>{fmtSigned(bs.netProfit)}</td>
                       </tr>
-                      <tr style={{ background:'#f9f0ff', borderTop:'1px solid #722ed1' }}>
+                      <tr style={{ background:'#f9f0ff', borderTop:'1px solid #2E6DA4' }}>
                         <td/><td style={{ padding:'7px 8px', fontWeight:700, fontSize:12 }}>Total Equity</td>
-                        <td style={{ padding:'7px 12px', textAlign:'right', fontWeight:700, color:'#722ed1', fontSize:13 }}>{fmt(bs.totalEquity)}</td>
+                        <td style={{ padding:'7px 12px', textAlign:'right', fontWeight:700, color:'#2E6DA4', fontSize:13 }}>{fmt(bs.totalEquity)}</td>
                       </tr>
                       <tr><td colSpan={3} style={{ padding:6 }}/></tr>
                       <tr style={{ background:'#ff4d4f', color:'#fff' }}>

@@ -18,16 +18,16 @@ const { RangePicker } = DatePicker;
 
 const STAGE_COLORS = {
   PROSPECTING: "#1890ff", QUALIFICATION: "#13c2c2", PROPOSAL: "#fa8c16",
-  NEGOTIATION: "#722ed1", CLOSED_WON: "#52c41a", CLOSED_LOST: "#ff4d4f",
+  NEGOTIATION: "#2E6DA4", CLOSED_WON: "#52c41a", CLOSED_LOST: "#ff4d4f",
 };
 
 const SOURCE_COLORS = [
-  "#1890ff","#52c41a","#fa8c16","#722ed1","#eb2f96",
+  "#1890ff","#52c41a","#fa8c16","#2E6DA4","#eb2f96",
   "#13c2c2","#faad14","#ff4d4f","#2f54eb","#08979c",
 ];
 
 const ACTIVITY_COLORS = {
-  CALL: "#1890ff", EMAIL: "#52c41a", MEETING: "#722ed1",
+  CALL: "#1890ff", EMAIL: "#52c41a", MEETING: "#2E6DA4",
   DEMO: "#fa8c16", TASK: "#13c2c2", FOLLOWUP: "#eb2f96", VISIT: "#faad14",
 };
 
@@ -266,7 +266,7 @@ export default function ReportsPage() {
         <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
           {[
             { label: "Total Accounts",   value: kpis.totalAccounts,                            color: "#1890ff", bg: "#e6f7ff", icon: <TeamOutlined /> },
-            { label: "Total Contacts",   value: kpis.totalContacts,                            color: "#722ed1", bg: "#f9f0ff", icon: <TeamOutlined /> },
+            { label: "Total Contacts",   value: kpis.totalContacts,                            color: "#2E6DA4", bg: "#f9f0ff", icon: <TeamOutlined /> },
             { label: "Total Leads",      value: kpis.totalLeads,                               color: "#13c2c2", bg: "#e6fffb", icon: <FunnelPlotOutlined /> },
             { label: "Open Deals",       value: kpis.totalOpps,                                color: "#fa8c16", bg: "#fff7e6", icon: <RiseOutlined /> },
             { label: "Pipeline Value",   value: "OMR " + kpis.pipelineValue.toLocaleString(),  color: "#1890ff", bg: "#e6f7ff", icon: <RiseOutlined /> },
@@ -345,7 +345,7 @@ export default function ReportsPage() {
           {/* Lead Source Analysis */}
           <Col xs={24} lg={12}>
             <Card
-              title={<Space><PieChartOutlined style={{ color: "#722ed1" }} /><Text strong>Lead Source Analysis</Text></Space>}
+              title={<Space><PieChartOutlined style={{ color: "#2E6DA4" }} /><Text strong>Lead Source Analysis</Text></Space>}
               extra={
                 <Button size="small" icon={<DownloadOutlined />}
                   onClick={() => exportCSV(leadSources, "lead_sources", [

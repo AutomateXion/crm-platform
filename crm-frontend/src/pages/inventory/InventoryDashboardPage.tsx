@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import salesApi from '../../services/salesApi';
 
 const { Title, Text } = Typography;
-const COLORS = ['#1890ff', '#52c41a', '#722ed1', '#fa8c16', '#ff4d4f', '#13c2c2'];
+const COLORS = ['#1890ff', '#52c41a', '#2E6DA4', '#fa8c16', '#ff4d4f', '#13c2c2'];
 
 export default function InventoryDashboardPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -41,7 +41,7 @@ export default function InventoryDashboardPage() {
   const kpis = [
     { title: 'Total Products', value: totalProducts, icon: <ShoppingOutlined />, color: '#1890ff' },
     { title: 'Inventory Items', value: inventoryItems.length, icon: <InboxOutlined />, color: '#52c41a' },
-    { title: 'Service Items', value: serviceItems.length, icon: <ShoppingOutlined />, color: '#722ed1' },
+    { title: 'Service Items', value: serviceItems.length, icon: <ShoppingOutlined />, color: '#2E6DA4' },
     { title: 'Low Stock Alerts', value: lowStockItems.length, icon: <WarningOutlined />, color: lowStockItems.length > 0 ? '#ff4d4f' : '#52c41a' },
     { title: 'Out of Stock', value: outOfStock.length, icon: <WarningOutlined />, color: outOfStock.length > 0 ? '#ff4d4f' : '#52c41a' },
     { title: 'Categories', value: Object.keys(categoryData).length, icon: <SwapOutlined />, color: '#13c2c2' },

@@ -45,20 +45,20 @@ export default function BudgetVsActualPage() {
 
   const PDFContent = () => (
     <div id="budget-actual-pdf" style={{ width:'210mm', background:'#fff', padding:'12mm 15mm', fontFamily:'Arial, sans-serif', fontSize:'9pt', color:'#333' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', borderBottom:'3px solid #722ed1', paddingBottom:14, marginBottom:20 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', borderBottom:'3px solid #2E6DA4', paddingBottom:14, marginBottom:20 }}>
         <div>
-          <div style={{ fontSize:20, fontWeight:700, color:'#722ed1' }}>{company?.companyName || 'My Company'}</div>
+          <div style={{ fontSize:20, fontWeight:700, color:'#2E6DA4' }}>{company?.companyName || 'My Company'}</div>
           <div style={{ fontSize:10, color:'#666' }}>{[company?.addressLine1, company?.city, company?.country].filter(Boolean).join(', ') || 'Muscat, Sultanate of Oman'}</div>
         </div>
         <div style={{ textAlign:'right' }}>
-          <div style={{ fontSize:16, fontWeight:700, color:'#722ed1' }}>BUDGET VS ACTUAL</div>
+          <div style={{ fontSize:16, fontWeight:700, color:'#2E6DA4' }}>BUDGET VS ACTUAL</div>
           <div style={{ fontSize:10, color:'#888' }}>{fromDate} to {toDate}</div>
           <div style={{ fontSize:9, color:'#aaa' }}>Generated: {dayjs().format('DD MMM YYYY HH:mm')}</div>
         </div>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:16 }}>
         {[
-          { label:'Total Budget', value:`OMR ${Number(data?.totalBudget||0).toFixed(3)}`, color:'#722ed1' },
+          { label:'Total Budget', value:`OMR ${Number(data?.totalBudget||0).toFixed(3)}`, color:'#2E6DA4' },
           { label:'Total Actual', value:`OMR ${Number(data?.totalActual||0).toFixed(3)}`, color:'#1890ff' },
           { label:'Total Variance', value:`OMR ${Number(data?.totalVariance||0).toFixed(3)}`, color:Number(data?.totalVariance||0)>=0?'#52c41a':'#ff4d4f' },
           { label:'Achievement', value:`${Number(data?.achievementPct||0).toFixed(1)}%`, color:'#fa8c16' },
@@ -70,7 +70,7 @@ export default function BudgetVsActualPage() {
         ))}
       </div>
       <table style={{ width:'100%', borderCollapse:'collapse', fontSize:9 }}>
-        <thead><tr style={{ background:'#722ed1', color:'#fff' }}>
+        <thead><tr style={{ background:'#2E6DA4', color:'#fff' }}>
           {['Category','Budget (OMR)','Actual (OMR)','Variance (OMR)','Achievement %'].map(h=><th key={h} style={{ padding:'7px 8px', textAlign:'left' }}>{h}</th>)}
         </tr></thead>
         <tbody>
@@ -90,7 +90,7 @@ export default function BudgetVsActualPage() {
           })}
         </tbody>
         <tfoot>
-          <tr style={{ background:'#722ed1', color:'#fff', fontWeight:700 }}>
+          <tr style={{ background:'#2E6DA4', color:'#fff', fontWeight:700 }}>
             <td style={{ padding:'8px' }}>TOTAL</td>
             <td style={{ padding:'8px', textAlign:'right' }}>OMR {Number(data?.totalBudget||0).toFixed(3)}</td>
             <td style={{ padding:'8px', textAlign:'right' }}>OMR {Number(data?.totalActual||0).toFixed(3)}</td>
@@ -123,7 +123,7 @@ export default function BudgetVsActualPage() {
         <>
           <Row gutter={12} style={{ marginBottom:16 }}>
             {[
-              { label:'Total Budget', value:Number(data.totalBudget||0).toFixed(3), color:'#722ed1' },
+              { label:'Total Budget', value:Number(data.totalBudget||0).toFixed(3), color:'#2E6DA4' },
               { label:'Total Actual', value:Number(data.totalActual||0).toFixed(3), color:'#1890ff' },
               { label:'Variance', value:Number(data.totalVariance||0).toFixed(3), color:Number(data.totalVariance||0)>=0?'#52c41a':'#ff4d4f' },
               { label:'Achievement', value:`${Number(data.achievementPct||0).toFixed(1)}%`, color:'#fa8c16' },
@@ -143,7 +143,7 @@ export default function BudgetVsActualPage() {
                   <YAxis tick={{ fontSize:11 }} />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="budget" fill="#722ed1" name="Budget" />
+                  <Bar dataKey="budget" fill="#2E6DA4" name="Budget" />
                   <Bar dataKey="actual" fill="#1890ff" name="Actual" />
                 </BarChart>
               </ResponsiveContainer>

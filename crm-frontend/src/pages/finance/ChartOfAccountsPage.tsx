@@ -11,7 +11,7 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 const TYPE_COLORS: Record<string, string> = {
-  ASSET: '#1890ff', LIABILITY: '#ff4d4f', EQUITY: '#722ed1',
+  ASSET: '#1890ff', LIABILITY: '#ff4d4f', EQUITY: '#2E6DA4',
   REVENUE: '#52c41a', EXPENSE: '#fa8c16',
 };
 

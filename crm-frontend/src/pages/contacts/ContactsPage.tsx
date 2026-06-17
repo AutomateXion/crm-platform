@@ -181,7 +181,7 @@ export default function ContactsPage() {
       title: 'Contact', key: 'name',
       render: (_: any, r: any) => (
         <Space>
-          <Avatar size={36} style={{ background: 'linear-gradient(135deg,#722ed1,#eb2f96)', fontWeight: 700 }}>
+          <Avatar size={36} style={{ background: 'linear-gradient(135deg,#2E6DA4,#eb2f96)', fontWeight: 700 }}>
             {r.firstName?.[0]}{r.lastName?.[0]}
           </Avatar>
           <div>
@@ -256,7 +256,7 @@ export default function ContactsPage() {
               renderItem={(c: any) => (
                 <List.Item>
                   <List.Item.Meta
-                    avatar={<Avatar size={32} style={{ background: '#722ed1' }}>{c.firstName?.[0]}</Avatar>}
+                    avatar={<Avatar size={32} style={{ background: '#2E6DA4' }}>{c.firstName?.[0]}</Avatar>}
                     title={`${c.firstName} ${c.lastName}`}
                     description={c.jobTitle || c.email}
                   />

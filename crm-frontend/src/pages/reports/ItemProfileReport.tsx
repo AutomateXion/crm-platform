@@ -106,10 +106,10 @@ export default function ItemProfileReport() {
       {report && (
         <>
           {/* Product Info */}
-          <Card style={{ borderRadius: 12, marginBottom: 16, borderLeft: '4px solid #722ed1' }} size="small">
+          <Card style={{ borderRadius: 12, marginBottom: 16, borderLeft: '4px solid #2E6DA4' }} size="small">
             <Row gutter={16} align="middle">
               <Col span={12}>
-                <Title level={5} style={{ margin: 0, color: '#722ed1' }}>{p?.productName}</Title>
+                <Title level={5} style={{ margin: 0, color: '#2E6DA4' }}>{p?.productName}</Title>
                 <Space style={{ marginTop: 4 }}>
                   <Tag color="purple">{p?.productCode}</Tag>
                   {p?.category && <Tag>{p.category}</Tag>}
@@ -119,7 +119,7 @@ export default function ItemProfileReport() {
               <Col span={12}>
                 <Row gutter={8}>
                   <Col span={8}><Statistic title="Current Stock" value={Number(s?.currentStock || 0).toFixed(3)} valueStyle={{ color: '#1890ff', fontSize: 18 }} /></Col>
-                  <Col span={8}><Statistic title="Stock Value" prefix="OMR " value={Number(s?.stockValue || 0).toFixed(3)} valueStyle={{ color: '#722ed1', fontSize: 18 }} /></Col>
+                  <Col span={8}><Statistic title="Stock Value" prefix="OMR " value={Number(s?.stockValue || 0).toFixed(3)} valueStyle={{ color: '#2E6DA4', fontSize: 18 }} /></Col>
                   <Col span={8}><Statistic title="UOM" value={p?.unitOfMeasure || '—'} valueStyle={{ fontSize: 18 }} /></Col>
                 </Row>
               </Col>

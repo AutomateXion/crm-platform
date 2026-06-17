@@ -10,10 +10,10 @@ import api from '../../services/api';
 const { Title, Text } = Typography;
 
 const STAGE_COLORS: Record<string, string> = {
-  PROSPECTING: '#1890ff', QUALIFICATION: '#13c2c2', PROPOSAL: '#722ed1',
+  PROSPECTING: '#1890ff', QUALIFICATION: '#13c2c2', PROPOSAL: '#2E6DA4',
   NEGOTIATION: '#fa8c16', CLOSED_WON: '#52c41a', CLOSED_LOST: '#ff4d4f',
 };
-const COLORS = ['#1890ff', '#52c41a', '#722ed1', '#fa8c16', '#ff4d4f', '#13c2c2', '#eb2f96'];
+const COLORS = ['#1890ff', '#52c41a', '#2E6DA4', '#fa8c16', '#ff4d4f', '#13c2c2', '#eb2f96'];
 
 export default function CRMDashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -42,7 +42,7 @@ export default function CRMDashboardPage() {
   const kpis = [
     { title: 'Total Leads', value: leads.total, sub: `+${leads.thisMonth} this month`, icon: <FunnelPlotOutlined />, color: '#1890ff' },
     { title: 'Open Deals', value: opportunities.total, sub: `Win rate: ${opportunities.winRate}%`, icon: <TrophyOutlined />, color: '#52c41a' },
-    { title: 'Pipeline Value', value: `OMR ${Number(opportunities.pipelineValue).toLocaleString()}`, sub: `Won: OMR ${Number(opportunities.wonValue).toLocaleString()}`, icon: <DollarOutlined />, color: '#722ed1' },
+    { title: 'Pipeline Value', value: `OMR ${Number(opportunities.pipelineValue).toLocaleString()}`, sub: `Won: OMR ${Number(opportunities.wonValue).toLocaleString()}`, icon: <DollarOutlined />, color: '#2E6DA4' },
     { title: 'Total Accounts', value: accounts.total, sub: `+${accounts.thisMonth} this month`, icon: <TeamOutlined />, color: '#fa8c16' },
     { title: 'Total Contacts', value: contacts.total, sub: 'In database', icon: <UserOutlined />, color: '#13c2c2' },
     { title: 'Conversion Rate', value: `${leads.conversionRate}%`, sub: `${leads.converted} converted`, icon: <RiseOutlined />, color: '#eb2f96' },

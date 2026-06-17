@@ -13,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 const { Title, Text } = Typography;
 
 const GROUP_CONFIG: Record<string, { color: string; icon: React.ReactNode; dept: string }> = {
-  TENANT_ADMIN:   { color: "#722ed1", icon: <CrownOutlined />, dept: "System" },
+  TENANT_ADMIN:   { color: "#2E6DA4", icon: <CrownOutlined />, dept: "System" },
   MANAGEMENT:     { color: "#1890ff", icon: <CrownOutlined />, dept: "Management" },
   SALES_MGR:      { color: "#13c2c2", icon: <TeamOutlined />,  dept: "Sales" },
   SALES_REP:      { color: "#13c2c2", icon: <UserOutlined />,  dept: "Sales" },

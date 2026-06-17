@@ -75,7 +75,7 @@ export default function SalesVsTargetPage() {
   const targetCols = [
     { title:'Period', render:(_:any, r:any) => <Tag color="blue">{r.period_month ? MONTHS[r.period_month-1] : `Q${r.period_quarter}`} {r.period_year}</Tag> },
     { title:'Salesman', dataIndex:'salesman_name', render:(v:string) => v || <Text type="secondary">All Salesmen</Text> },
-    { title:'Target Amount', dataIndex:'target_amount', align:'right' as const, render:(v:number) => <Text strong style={{color:'#722ed1'}}>OMR {Number(v).toFixed(3)}</Text> },
+    { title:'Target Amount', dataIndex:'target_amount', align:'right' as const, render:(v:number) => <Text strong style={{color:'#2E6DA4'}}>OMR {Number(v).toFixed(3)}</Text> },
     { title:'Notes', dataIndex:'notes', render:(v:string) => v || '—' },
     { title:'', render:(_:any, r:any) => (
       <Space>
@@ -89,7 +89,7 @@ export default function SalesVsTargetPage() {
 
   const monthlyCols = [
     { title:'Month', dataIndex:'month', render:(v:string) => <Tag color="blue">{v}</Tag> },
-    { title:'Target (OMR)', dataIndex:'target', align:'right' as const, render:(v:number) => v > 0 ? <Text style={{color:'#722ed1'}}>OMR {v.toFixed(3)}</Text> : <Text type="secondary">No target</Text> },
+    { title:'Target (OMR)', dataIndex:'target', align:'right' as const, render:(v:number) => v > 0 ? <Text style={{color:'#2E6DA4'}}>OMR {v.toFixed(3)}</Text> : <Text type="secondary">No target</Text> },
     { title:'Actual (OMR)', dataIndex:'actual', align:'right' as const, render:(v:number) => <Text strong style={{color:'#52c41a'}}>OMR {v.toFixed(3)}</Text> },
     { title:'Variance', dataIndex:'variance', align:'right' as const, render:(v:number) => <Text strong style={{color:v>=0?'#52c41a':'#ff4d4f'}}>{v>=0?'+':''}OMR {v.toFixed(3)}</Text> },
     { title:'Achievement', dataIndex:'achievement', align:'center' as const, render:(v:number, r:any) => r.target > 0 ? (
@@ -103,7 +103,7 @@ export default function SalesVsTargetPage() {
 
   const salesmanCols = [
     { title:'Salesman', dataIndex:'salesmanName', render:(v:string) => <><Text strong>{v||'Unassigned'}</Text></> },
-    { title:'Target (OMR)', dataIndex:'target', align:'right' as const, render:(v:number) => v > 0 ? <Text style={{color:'#722ed1'}}>OMR {v.toFixed(3)}</Text> : <Text type="secondary">No target</Text> },
+    { title:'Target (OMR)', dataIndex:'target', align:'right' as const, render:(v:number) => v > 0 ? <Text style={{color:'#2E6DA4'}}>OMR {v.toFixed(3)}</Text> : <Text type="secondary">No target</Text> },
     { title:'Actual (OMR)', dataIndex:'actual', align:'right' as const, render:(v:number) => <Text strong style={{color:'#52c41a'}}>OMR {Number(v).toFixed(3)}</Text> },
     { title:'Variance', dataIndex:'variance', align:'right' as const, render:(v:number) => <Text strong style={{color:v>=0?'#52c41a':'#ff4d4f'}}>{v>=0?'+':''}OMR {Number(v).toFixed(3)}</Text> },
     { title:'Achievement', dataIndex:'achievement', align:'center' as const, render:(v:number, r:any) => r.target > 0 ? (
@@ -118,13 +118,13 @@ export default function SalesVsTargetPage() {
 
   const PDFContent = () => (
     <div id="sales-target-pdf" style={{ width:'210mm', background:'#fff', padding:'12mm 15mm', fontFamily:'Arial, sans-serif', fontSize:'9pt', color:'#333' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', borderBottom:'3px solid #722ed1', paddingBottom:14, marginBottom:20 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', borderBottom:'3px solid #2E6DA4', paddingBottom:14, marginBottom:20 }}>
         <div>
-          <div style={{ fontSize:20, fontWeight:700, color:'#722ed1' }}>{company?.companyName || 'My Company'}</div>
+          <div style={{ fontSize:20, fontWeight:700, color:'#2E6DA4' }}>{company?.companyName || 'My Company'}</div>
           <div style={{ fontSize:10, color:'#666' }}>{[company?.addressLine1, company?.city, company?.country].filter(Boolean).join(', ') || 'Muscat, Sultanate of Oman'}</div>
         </div>
         <div style={{ textAlign:'right' }}>
-          <div style={{ fontSize:16, fontWeight:700, color:'#722ed1' }}>SALES VS TARGET REPORT</div>
+          <div style={{ fontSize:16, fontWeight:700, color:'#2E6DA4' }}>SALES VS TARGET REPORT</div>
           <div style={{ fontSize:12, color:'#888', fontWeight:600 }}>Year: {year}</div>
           <div style={{ fontSize:9, color:'#aaa' }}>Generated: {dayjs().format('DD MMM YYYY HH:mm')}</div>
         </div>
@@ -132,7 +132,7 @@ export default function SalesVsTargetPage() {
       {/* KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:16 }}>
         {[
-          { label:'Total Target', value:`OMR ${Number(s.totalTarget||0).toFixed(3)}`, color:'#722ed1' },
+          { label:'Total Target', value:`OMR ${Number(s.totalTarget||0).toFixed(3)}`, color:'#2E6DA4' },
           { label:'Total Actual', value:`OMR ${Number(s.totalActual||0).toFixed(3)}`, color:'#52c41a' },
           { label:'Variance', value:`${s.totalVariance>=0?'+':''}OMR ${Math.abs(Number(s.totalVariance||0)).toFixed(3)}`, color:Number(s.totalVariance||0)>=0?'#52c41a':'#ff4d4f' },
           { label:'Achievement', value:`${s.achievement||0}%`, color:achievementColor(s.achievement||0) },
@@ -144,23 +144,23 @@ export default function SalesVsTargetPage() {
         ))}
       </div>
       {/* Monthly Table */}
-      <div style={{ background:'#722ed115', borderLeft:'4px solid #722ed1', padding:'6px 10px', fontWeight:700, color:'#722ed1', marginBottom:8, fontSize:11 }}>MONTHLY BREAKDOWN</div>
+      <div style={{ background:'#2E6DA415', borderLeft:'4px solid #2E6DA4', padding:'6px 10px', fontWeight:700, color:'#2E6DA4', marginBottom:8, fontSize:11 }}>MONTHLY BREAKDOWN</div>
       <table style={{ width:'100%', borderCollapse:'collapse', fontSize:9, marginBottom:16 }}>
-        <thead><tr style={{ background:'#722ed1', color:'#fff' }}>
+        <thead><tr style={{ background:'#2E6DA4', color:'#fff' }}>
           {['Month','Target (OMR)','Actual (OMR)','Variance (OMR)','Achievement %','Invoices'].map(h=><th key={h} style={{ padding:'7px 8px', textAlign:'left' }}>{h}</th>)}
         </tr></thead>
         <tbody>
           {monthly.map((row:any,i:number) => (
             <tr key={i} style={{ background:i%2===0?'#fff':'#f9f9f9', borderBottom:'1px solid #eee' }}>
               <td style={{ padding:'5px 8px', fontWeight:600 }}>{row.month}</td>
-              <td style={{ padding:'5px 8px', textAlign:'right', color:'#722ed1' }}>{row.target>0?`OMR ${row.target.toFixed(3)}`:'No target'}</td>
+              <td style={{ padding:'5px 8px', textAlign:'right', color:'#2E6DA4' }}>{row.target>0?`OMR ${row.target.toFixed(3)}`:'No target'}</td>
               <td style={{ padding:'5px 8px', textAlign:'right', color:'#52c41a', fontWeight:600 }}>OMR {row.actual.toFixed(3)}</td>
               <td style={{ padding:'5px 8px', textAlign:'right', color:row.variance>=0?'#52c41a':'#ff4d4f', fontWeight:600 }}>{row.variance>=0?'+':''}OMR {row.variance.toFixed(3)}</td>
               <td style={{ padding:'5px 8px', textAlign:'right', color:achievementColor(row.achievement), fontWeight:700 }}>{row.target>0?`${row.achievement}%`:'—'}</td>
               <td style={{ padding:'5px 8px', textAlign:'center' }}>{row.invoiceCount}</td>
             </tr>
           ))}
-          <tr style={{ background:'#722ed1', color:'#fff', fontWeight:700 }}>
+          <tr style={{ background:'#2E6DA4', color:'#fff', fontWeight:700 }}>
             <td style={{ padding:'8px' }}>TOTAL</td>
             <td style={{ padding:'8px', textAlign:'right' }}>OMR {Number(s.totalTarget||0).toFixed(3)}</td>
             <td style={{ padding:'8px', textAlign:'right' }}>OMR {Number(s.totalActual||0).toFixed(3)}</td>
@@ -182,7 +182,7 @@ export default function SalesVsTargetPage() {
               {bySalesman.map((row:any,i:number) => (
                 <tr key={i} style={{ background:i%2===0?'#fff':'#f9f9f9', borderBottom:'1px solid #eee' }}>
                   <td style={{ padding:'5px 8px', fontWeight:600 }}>{row.salesmanName||'Unassigned'}</td>
-                  <td style={{ padding:'5px 8px', textAlign:'right', color:'#722ed1' }}>{row.target>0?`OMR ${Number(row.target).toFixed(3)}`:'No target'}</td>
+                  <td style={{ padding:'5px 8px', textAlign:'right', color:'#2E6DA4' }}>{row.target>0?`OMR ${Number(row.target).toFixed(3)}`:'No target'}</td>
                   <td style={{ padding:'5px 8px', textAlign:'right', color:'#52c41a', fontWeight:600 }}>OMR {Number(row.actual).toFixed(3)}</td>
                   <td style={{ padding:'5px 8px', textAlign:'right', color:row.variance>=0?'#52c41a':'#ff4d4f' }}>{row.variance>=0?'+':''}OMR {Number(row.variance).toFixed(3)}</td>
                   <td style={{ padding:'5px 8px', textAlign:'right', color:achievementColor(row.achievement), fontWeight:700 }}>{row.target>0?`${row.achievement}%`:'—'}</td>
@@ -217,8 +217,8 @@ export default function SalesVsTargetPage() {
 
       {/* KPI Cards */}
       <Row gutter={12} style={{ marginBottom:16 }}>
-        <Col span={6}><Card size="small" style={{ borderRadius:12, borderTop:'3px solid #722ed1', textAlign:'center' }}>
-          <Statistic title="Total Target" prefix="OMR " value={Number(s.totalTarget||0).toFixed(3)} valueStyle={{ color:'#722ed1', fontSize:18 }} /></Card></Col>
+        <Col span={6}><Card size="small" style={{ borderRadius:12, borderTop:'3px solid #2E6DA4', textAlign:'center' }}>
+          <Statistic title="Total Target" prefix="OMR " value={Number(s.totalTarget||0).toFixed(3)} valueStyle={{ color:'#2E6DA4', fontSize:18 }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius:12, borderTop:'3px solid #52c41a', textAlign:'center' }}>
           <Statistic title="Total Actual" prefix="OMR " value={Number(s.totalActual||0).toFixed(3)} valueStyle={{ color:'#52c41a', fontSize:18 }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius:12, borderTop:`3px solid ${Number(s.totalVariance||0)>=0?'#52c41a':'#ff4d4f'}`, textAlign:'center' }}>
@@ -246,7 +246,7 @@ export default function SalesVsTargetPage() {
                       <YAxis tick={{ fontSize:11 }} />
                       <Tooltip formatter={(v:any) => `OMR ${Number(v).toFixed(3)}`} />
                       <Legend />
-                      <Bar dataKey="target" fill="#722ed1" name="Target" opacity={0.8} />
+                      <Bar dataKey="target" fill="#2E6DA4" name="Target" opacity={0.8} />
                       <Bar dataKey="actual" fill="#52c41a" name="Actual" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -272,7 +272,7 @@ export default function SalesVsTargetPage() {
                         <YAxis tick={{ fontSize:10 }} />
                         <Tooltip formatter={(v:any) => `OMR ${Number(v).toFixed(3)}`} />
                         <Legend />
-                        <Bar dataKey="target" fill="#722ed1" name="Target" opacity={0.8} />
+                        <Bar dataKey="target" fill="#2E6DA4" name="Target" opacity={0.8} />
                         <Bar dataKey="actual" fill="#52c41a" name="Actual" />
                       </BarChart>
                     </ResponsiveContainer>

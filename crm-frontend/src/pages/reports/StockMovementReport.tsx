@@ -82,7 +82,7 @@ export default function StockMovementReport() {
         {r.isLowStock && <WarningOutlined style={{ color: '#ff4d4f' }} />}
       </Space>
     )},
-    { title: 'Stock Value', dataIndex: 'stockValue', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#722ed1' }}>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Stock Value', dataIndex: 'stockValue', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#2E6DA4' }}>OMR {Number(v).toFixed(3)}</Text> },
     { title: 'Cost Price', dataIndex: 'costPrice', align: 'right' as const, render: (v: number) => <Text>OMR {Number(v).toFixed(3)}</Text> },
     { title: 'Sell Price', dataIndex: 'unitPrice', align: 'right' as const, render: (v: number) => <Text>OMR {Number(v).toFixed(3)}</Text> },
     { title: 'Status', align: 'center' as const, render: (_: any, r: any) => r.isLowStock
@@ -119,7 +119,7 @@ export default function StockMovementReport() {
 
       {/* KPIs */}
       <Row gutter={12} style={{ marginBottom: 16 }}>
-        <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #722ed1' }}><Statistic title="Total Products" value={filtered.length} valueStyle={{ color: '#722ed1' }} /></Card></Col>
+        <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #2E6DA4' }}><Statistic title="Total Products" value={filtered.length} valueStyle={{ color: '#2E6DA4' }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #ff4d4f' }}><Statistic title="Low Stock Items" value={lowStock.length} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #52c41a' }}><Statistic title="Total Purchases Value" prefix="OMR " value={totalPurchasesValue.toFixed(3)} valueStyle={{ color: '#52c41a' }} /></Card></Col>
         <Col span={6}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #1890ff' }}><Statistic title="Total Stock Value" prefix="OMR " value={totalStockValue.toFixed(3)} valueStyle={{ color: '#1890ff' }} /></Card></Col>
@@ -142,7 +142,7 @@ export default function StockMovementReport() {
               <Table.Summary.Cell index={4} align="right"><Text strong style={{ color: '#ff4d4f' }}>{filtered.reduce((s,r) => s + Number(r.salesOut||0), 0).toFixed(3)}</Text></Table.Summary.Cell>
               <Table.Summary.Cell index={5} />
               <Table.Summary.Cell index={6} align="right"><Text strong style={{ color: '#1890ff' }}>{filtered.reduce((s,r) => s + Number(r.closingStock||0), 0).toFixed(3)}</Text></Table.Summary.Cell>
-              <Table.Summary.Cell index={7} align="right"><Text strong style={{ color: '#722ed1' }}>OMR {totalStockValue.toFixed(3)}</Text></Table.Summary.Cell>
+              <Table.Summary.Cell index={7} align="right"><Text strong style={{ color: '#2E6DA4' }}>OMR {totalStockValue.toFixed(3)}</Text></Table.Summary.Cell>
               <Table.Summary.Cell index={8} />
               <Table.Summary.Cell index={9} />
               <Table.Summary.Cell index={10} />

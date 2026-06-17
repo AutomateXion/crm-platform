@@ -11,11 +11,11 @@ import {
 import salesApi from '../../services/salesApi';
 
 const { Title, Text } = Typography;
-const COLORS = ['#1890ff', '#52c41a', '#722ed1', '#fa8c16', '#ff4d4f', '#13c2c2'];
+const COLORS = ['#1890ff', '#52c41a', '#2E6DA4', '#fa8c16', '#ff4d4f', '#13c2c2'];
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: '#8c8c8c', SENT: '#1890ff', ACCEPTED: '#13c2c2',
-  INVOICED: '#722ed1', PAID: '#52c41a', OVERDUE: '#ff4d4f',
+  INVOICED: '#2E6DA4', PAID: '#52c41a', OVERDUE: '#ff4d4f',
   PARTIALLY_PAID: '#fa8c16', CANCELLED: '#ff4d4f',
 };
 
@@ -42,10 +42,10 @@ export default function FinanceDashboardPage() {
     { title: 'Total Revenue', value: `OMR ${Number(invoices.totalRevenue).toFixed(3)}`, sub: `This month: OMR ${Number(invoices.revenueThisMonth).toFixed(3)}`, icon: <DollarOutlined />, color: '#52c41a' },
     { title: 'Outstanding', value: `OMR ${Number(invoices.totalOutstanding).toFixed(3)}`, sub: `${invoices.overdueCount} overdue invoices`, icon: <WarningOutlined />, color: invoices.overdueAmount > 0 ? '#ff4d4f' : '#fa8c16' },
     { title: 'Total Received', value: `OMR ${Number(receipts.totalReceived).toFixed(3)}`, sub: `${receipts.total} receipts`, icon: <CheckCircleOutlined />, color: '#1890ff' },
-    { title: 'Total Invoices', value: invoices.total, sub: `+${invoices.thisMonth} this month`, icon: <FileTextOutlined />, color: '#722ed1' },
+    { title: 'Total Invoices', value: invoices.total, sub: `+${invoices.thisMonth} this month`, icon: <FileTextOutlined />, color: '#2E6DA4' },
     { title: 'Quotations', value: quotations.total, sub: `+${quotations.thisMonth} this month`, icon: <FileTextOutlined />, color: '#13c2c2' },
     { title: 'Purchases', value: `OMR ${Number(purchases.totalAmount).toFixed(3)}`, sub: `${purchases.total} invoices`, icon: <ShoppingCartOutlined />, color: '#fa8c16' },
-    { title: 'VAT Collected', value: `OMR ${Number(vat.collected).toFixed(3)}`, sub: 'This year', icon: <CalculatorOutlined />, color: '#722ed1' },
+    { title: 'VAT Collected', value: `OMR ${Number(vat.collected).toFixed(3)}`, sub: 'This year', icon: <CalculatorOutlined />, color: '#2E6DA4' },
     { title: 'Revenue Growth', value: `${revenueGrowth > 0 ? '+' : ''}${revenueGrowth}%`, sub: 'vs last month', icon: revenueGrowth >= 0 ? <RiseOutlined /> : <FallOutlined />, color: revenueGrowth >= 0 ? '#52c41a' : '#ff4d4f' },
   ];
 
@@ -104,7 +104,7 @@ export default function FinanceDashboardPage() {
                 <Tooltip formatter={(v: any) => [`OMR ${v}`, '']} />
                 <Legend />
                 <Bar dataKey="revenue" name="Revenue" fill="#52c41a" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="vat" name="VAT" fill="#722ed1" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="vat" name="VAT" fill="#2E6DA4" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Card>
@@ -163,9 +163,9 @@ export default function FinanceDashboardPage() {
               <div style={{ marginBottom: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                   <Text>VAT Paid (Input)</Text>
-                  <Text strong style={{ color: '#722ed1' }}>OMR {Number(vat.paid).toFixed(3)}</Text>
+                  <Text strong style={{ color: '#2E6DA4' }}>OMR {Number(vat.paid).toFixed(3)}</Text>
                 </div>
-                <Progress percent={vat.collected > 0 ? Math.round((vat.paid / vat.collected) * 100) : 0} strokeColor="#722ed1" showInfo={false} />
+                <Progress percent={vat.collected > 0 ? Math.round((vat.paid / vat.collected) * 100) : 0} strokeColor="#2E6DA4" showInfo={false} />
               </div>
               <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: '12px 16px', marginTop: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>

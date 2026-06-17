@@ -16,7 +16,7 @@ const PERM_LEVELS = [
   { value: 'VO', label: 'View Only',   color: '#1890ff', bg: '#e6f7ff', border: '#91d5ff' },
   { value: 'HI', label: 'Hidden',      color: '#fa8c16', bg: '#fff7e6', border: '#ffd591' },
   { value: 'NA', label: 'No Access',   color: '#ff4d4f', bg: '#fff1f0', border: '#ffa39e' },
-  { value: 'MA', label: 'Mandatory',   color: '#722ed1', bg: '#f9f0ff', border: '#d3adf7' },
+  { value: 'MA', label: 'Mandatory',   color: '#2E6DA4', bg: '#f9f0ff', border: '#d3adf7' },
 ];
 
 function PermBadge({ level, onChange, readonly }: { level: string; onChange?: (v: string) => void; readonly?: boolean }) {

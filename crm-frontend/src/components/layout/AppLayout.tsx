@@ -269,7 +269,7 @@ export default function AppLayout() {
             </Tooltip>
             <Dropdown menu={userMenu} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
-                <Avatar style={{ background: 'linear-gradient(135deg, #1890ff, #722ed1)' }}>
+                <Avatar style={{ background: 'linear-gradient(135deg, #0C2446, #2E6DA4)' }}>
                   {user?.fullName?.[0]?.toUpperCase()}
                 </Avatar>
                 {!isMobile && (

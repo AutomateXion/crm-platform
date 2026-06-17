@@ -21,7 +21,7 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const STATUS_COLORS: Record<string, string> = {
   PLANNING: '#1890ff', ACTIVE: '#52c41a', ON_HOLD: '#fa8c16',
-  CHANGE_REQUEST: '#722ed1', COMPLETED: '#13c2c2', CANCELLED: '#ff4d4f',
+  CHANGE_REQUEST: '#2E6DA4', COMPLETED: '#13c2c2', CANCELLED: '#ff4d4f',
 };
 const HEALTH_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#fa8c16', RED: '#ff4d4f' };
 
@@ -891,7 +891,7 @@ export default function ProjectDetailPage() {
         <Col span={6}><Card size="small" style={{borderRadius:10,borderLeft:'4px solid #1890ff'}}><Statistic title="Contract Value" value={`OMR ${Number(project.contractValue||0).toLocaleString()}`} /></Card></Col>
         <Col span={6}><Card size="small" style={{borderRadius:10,borderLeft:'4px solid #fa8c16'}}><Statistic title="Planned Budget" value={`OMR ${Number(project.plannedBudget||0).toLocaleString()}`} /></Card></Col>
         <Col span={6}><Card size="small" style={{borderRadius:10,borderLeft:'4px solid #52c41a'}}><Statistic title="Client" value={project.clientName || '—'} /></Card></Col>
-        <Col span={6}><Card size="small" style={{borderRadius:10,borderLeft:'4px solid #722ed1'}}>
+        <Col span={6}><Card size="small" style={{borderRadius:10,borderLeft:'4px solid #2E6DA4'}}>
           <div style={{fontSize:12,color:'#8c8c8c',marginBottom:4}}>Progress</div>
           <Progress percent={Math.round(Number(project.progress)||0)} strokeColor={Number(project.progress)>=100?'#52c41a':'#1890ff'} />
         </Card></Col>

@@ -225,7 +225,7 @@ export default function InvoicesPage() {
           <Tooltip title="View PDF"><Button size="small" icon={<FilePdfOutlined />} onClick={async () => { try { const d = await invoicesApi.getOne(r.invoiceId); setPdfData(d.data); setPdfOpen(true); } catch {} }} /></Tooltip>
           {signedMap[r.invoiceId] ? (<Tooltip title={`Signed by ${signedMap[r.invoiceId].signerName}`}><Button size="small" style={{ color: '#52c41a', borderColor: '#52c41a' }} onClick={() => { setSigRec(r); setSigViewMode(true); setSigOpen(true); }}>✓ Signed</Button></Tooltip>) : (<Tooltip title="Capture Signature"><Button size="small" onClick={() => { setSigRec(r); setSigViewMode(false); setSigOpen(true); }}>✍ Sign</Button></Tooltip>)}
           <Tooltip title="Generate E-Invoice XML (Fawtara)">
-            <Button size="small" icon={<FileTextOutlined />} style={{color:'#722ed1',borderColor:'#722ed1'}}
+            <Button size="small" icon={<FileTextOutlined />} style={{color:'#2E6DA4',borderColor:'#2E6DA4'}}
               onClick={async () => {
                 try {
                   const axios = (await import('axios')).default;

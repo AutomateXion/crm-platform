@@ -113,7 +113,7 @@ export default function PurchaseReturnsPage() {
     { title: 'Status', dataIndex: 'status', render: (v: string) => <Tag color={STATUS_COLORS[v]}>{v}</Tag> },
     { title: '', key: 'actions', render: (_: any, r: any) => (
       <Space>
-        {r.status === 'DRAFT' && <Button size="small" type="primary" style={{background:'#722ed1'}} onClick={async () => { await sApi.patch(`/sales/purchase-returns/${r.returnId}/status`, { status: 'APPROVED' }); load(); message.success('Approved!'); }}>Approve</Button>}
+        {r.status === 'DRAFT' && <Button size="small" type="primary" style={{background:'#2E6DA4'}} onClick={async () => { await sApi.patch(`/sales/purchase-returns/${r.returnId}/status`, { status: 'APPROVED' }); load(); message.success('Approved!'); }}>Approve</Button>}
         {r.status === 'APPROVED' && <Button size="small" type="primary" style={{background:'#52c41a'}} onClick={async () => { await sApi.patch(`/sales/purchase-returns/${r.returnId}/status`, { status: 'PROCESSED' }); load(); message.success('Processed!'); }}>Process</Button>}
         <Button size="small" icon={<EditOutlined />} onClick={() => {
           setEditRecord(r); form.setFieldsValue({ ...r, returnDate: r.returnDate?.slice(0,10) });

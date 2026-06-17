@@ -139,7 +139,7 @@ export default function PurchaseInvoicesPage() {
     { title: 'Status', dataIndex: 'status', render: (v: string) => <Tag color={STATUS_COLORS[v]}>{v?.replace('_',' ')}</Tag> },
     { title: '', key: 'actions', render: (_: any, r: any) => (
       <Space>
-        {r.status === 'DRAFT' && <Tooltip title="Mark as Received"><Button size="small" type="primary" style={{background:'#722ed1'}} onClick={async () => { await updateStatus.purchaseInvoice(r.invoiceId, 'RECEIVED'); load(); message.success('Marked as Received!'); }}>Receive</Button></Tooltip>}
+        {r.status === 'DRAFT' && <Tooltip title="Mark as Received"><Button size="small" type="primary" style={{background:'#2E6DA4'}} onClick={async () => { await updateStatus.purchaseInvoice(r.invoiceId, 'RECEIVED'); load(); message.success('Marked as Received!'); }}>Receive</Button></Tooltip>}
         <Tooltip title="View PDF"><Button size="small" icon={<FilePdfOutlined />} onClick={async () => { try { const d = await purchaseInvoicesApi.getOne(r.invoiceId); setPdfData(d.data); setPdfOpen(true); } catch {} }} /></Tooltip>
         <Tooltip title="Edit"><Button size="small" icon={<EditOutlined />} onClick={async () => { setEditRecord(r); try { const d = await purchaseInvoicesApi.getOne(r.invoiceId); form.setFieldsValue({...d.data, invoiceDate: d.data.invoiceDate?.slice(0,10), dueDate: d.data.dueDate?.slice(0,10)}); setLineItems(d.data.items||[defaultLine()]); } catch {} setModalOpen(true); }} /></Tooltip>
         {['RECEIVED','PARTIALLY_PAID','OVERDUE'].includes(r.status) && <Tooltip title="Record Payment"><Button size="small" type="primary" icon={<DollarOutlined />} onClick={() => openPayment(r)} style={{background:'#52c41a',borderColor:'#52c41a'}} /></Tooltip>}
@@ -154,7 +154,7 @@ export default function PurchaseInvoicesPage() {
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} style={{borderRadius:8}}>New Invoice</Button>
       </div>
       <Row gutter={16} style={{marginBottom:20}}>
-        <Col span={8}><Card style={{borderRadius:12, borderLeft:'4px solid #722ed1'}}><Statistic title="Total Invoiced" value={`OMR ${totalInvoiced.toFixed(3)}`} /></Card></Col>
+        <Col span={8}><Card style={{borderRadius:12, borderLeft:'4px solid #2E6DA4'}}><Statistic title="Total Invoiced" value={`OMR ${totalInvoiced.toFixed(3)}`} /></Card></Col>
         <Col span={8}><Card style={{borderRadius:12, borderLeft:'4px solid #52c41a'}}><Statistic title="Total Paid" value={`OMR ${totalPaid.toFixed(3)}`} /></Card></Col>
         <Col span={8}><Card style={{borderRadius:12, borderLeft:'4px solid #ff4d4f'}}><Statistic title="Outstanding" value={`OMR ${totalBalance.toFixed(3)}`} /></Card></Col>
       </Row>
@@ -211,7 +211,7 @@ export default function PurchaseInvoicesPage() {
               <Col span={2}><InputNumber style={{width:'100%'}} min={0} step={0.001} value={item.quantity} onChange={v => updateLine(idx,'quantity',v)} /></Col>
               <Col span={3}><InputNumber style={{width:'100%'}} min={0} step={0.001} value={item.unitPrice} onChange={v => updateLine(idx,'unitPrice',v)} /></Col>
               <Col span={2}><InputNumber style={{width:'100%'}} min={0} max={100} value={item.discountPct} onChange={v => updateLine(idx,'discountPct',v)} /></Col>
-              <Col span={3}><Text strong style={{color:'#722ed1'}}>{Number(item.lineTotal).toFixed(3)}</Text></Col>
+              <Col span={3}><Text strong style={{color:'#2E6DA4'}}>{Number(item.lineTotal).toFixed(3)}</Text></Col>
               <Col span={1}><Button size="small" danger onClick={() => { const u = lineItems.filter((_,i)=>i!==idx); setLineItems(u); calcTotals(u, Number(form.getFieldValue('vatRate')||5)); }}>×</Button></Col>
             </Row>
           ))}
@@ -222,7 +222,7 @@ export default function PurchaseInvoicesPage() {
                 <Row justify="space-between" style={{marginBottom:4}}><Text>Subtotal:</Text><Text strong>OMR {Number(form.getFieldValue('subtotal')||0).toFixed(3)}</Text></Row>
                 <Row justify="space-between" style={{marginBottom:4}}><Text>VAT:</Text><Text strong>OMR {Number(form.getFieldValue('vatAmount')||0).toFixed(3)}</Text></Row>
                 <Divider style={{margin:'8px 0'}} />
-                <Row justify="space-between"><Text strong style={{fontSize:15}}>Total:</Text><Text strong style={{fontSize:15, color:'#722ed1'}}>OMR {Number(form.getFieldValue('totalAmount')||0).toFixed(3)}</Text></Row>
+                <Row justify="space-between"><Text strong style={{fontSize:15}}>Total:</Text><Text strong style={{fontSize:15, color:'#2E6DA4'}}>OMR {Number(form.getFieldValue('totalAmount')||0).toFixed(3)}</Text></Row>
               </div>
             </Col>
           </Row>
@@ -270,7 +270,7 @@ export default function PurchaseInvoicesPage() {
           <Form.Item name="notes" label="Notes"><Input.TextArea rows={2} /></Form.Item>
           <div style={{display:'flex', justifyContent:'flex-end', gap:8}}>
             <Button onClick={() => setPaymentModalOpen(false)}>Cancel</Button>
-            <Button type="primary" htmlType="submit" style={{background:'#722ed1', borderColor:'#722ed1'}}>Record Payment</Button>
+            <Button type="primary" htmlType="submit" style={{background:'#2E6DA4', borderColor:'#2E6DA4'}}>Record Payment</Button>
           </div>
         </Form>
       </Modal>

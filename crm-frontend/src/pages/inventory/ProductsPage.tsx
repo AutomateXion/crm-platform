@@ -99,7 +99,7 @@ export default function ProductsPage() {
     { title: 'Stock Items', value: products.filter(p => p.productType==='STOCK'||(!p.productType&&p.isInventoryItem)).length, color: '#52c41a', icon: <InboxOutlined /> },
     { title: 'Consumables', value: products.filter(p => p.productType==='CONSUMABLE').length, color: '#fa8c16', icon: <ShoppingOutlined /> },
     { title: 'Fixed Assets', value: products.filter(p => p.productType==='FIXED_ASSET').length, color: '#1890ff', icon: <ShoppingOutlined /> },
-    { title: 'Services', value: products.filter(p => p.productType==='SERVICE'||(!p.productType&&!p.isInventoryItem)).length, color: '#722ed1', icon: <ShoppingOutlined /> },
+    { title: 'Services', value: products.filter(p => p.productType==='SERVICE'||(!p.productType&&!p.isInventoryItem)).length, color: '#2E6DA4', icon: <ShoppingOutlined /> },
     { title: 'Low Stock', value: products.filter(p => p.isInventoryItem && p.trackStock && Number(p.stockQuantity || 0) <= Number(p.minStockQty || 5)).length, color: '#ff4d4f', icon: <WarningOutlined /> },
   ];
 

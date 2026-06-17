@@ -42,7 +42,7 @@ body {
 .perm-VO { background: #e6f7ff; color: #1890ff; border-color: #91d5ff; }
 .perm-HI { background: #fff7e6; color: #fa8c16; border-color: #ffd591; }
 .perm-NA { background: #fff1f0; color: #ff4d4f; border-color: #ffa39e; }
-.perm-MA { background: #f9f0ff; color: #722ed1; border-color: #d3adf7; }
+.perm-MA { background: #f9f0ff; color: #2E6DA4; border-color: #d3adf7; }
 
 /* ── Visible Scrollbars ──────────────────────────────────────── */
 ::-webkit-scrollbar {

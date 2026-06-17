@@ -134,7 +134,7 @@ export default function AccountingConfigPage() {
                 ))}
               </Row>
 
-              <Divider orientation="left" style={{ color: '#722ed1' }}>🛒 Purchase Accounts</Divider>
+              <Divider orientation="left" style={{ color: '#2E6DA4' }}>🛒 Purchase Accounts</Divider>
               <Row gutter={12}>
                 {ACCOUNT_MAPPINGS.filter(m => ['accountsPayable', 'vatReceivable', 'purchaseReturns', 'grni'].includes(m.key)).map(mapping => (
                   <Col span={12} key={mapping.key}>

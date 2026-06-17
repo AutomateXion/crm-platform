@@ -141,11 +141,11 @@ export default function TenantSettingsPage() {
             <Col xs={24} sm={12} md={8}>
               <div style={{
                 padding: '14px 16px', borderRadius: 10,
-                border: '2px solid #722ed1', background: '#f9f0ff',
+                border: '2px solid #2E6DA4', background: '#f9f0ff',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               }}>
                 <div>
-                  <Text strong style={{ color: '#722ed1' }}>Core Platform</Text>
+                  <Text strong style={{ color: '#2E6DA4' }}>Core Platform</Text>
                   <div style={{ fontSize: 11, color: '#bfbfbf' }}>Auth, Users, Permissions, Masters</div>
                 </div>
                 <Tag color="purple">Always On</Tag>

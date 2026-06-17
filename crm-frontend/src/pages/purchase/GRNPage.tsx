@@ -88,7 +88,7 @@ export default function GRNPage() {
         {r.status === 'DRAFT' && <Tooltip title="Mark as Received"><Button size="small" type="primary" style={{background:'#52c41a'}} onClick={async () => { await updateStatus.grn(r.grnId, 'RECEIVED'); load(); message.success('Marked as Received!'); }}>Receive</Button></Tooltip>}
         <Tooltip title="View PDF"><Button size="small" icon={<FilePdfOutlined />} onClick={async () => { try { const d = await grnsApi.getOne(r.grnId); setPdfData(d.data); setPdfOpen(true); } catch {} }} /></Tooltip>
         <Button size="small" icon={<EditOutlined />} onClick={async () => { setEditRecord(r); try { const d = await grnsApi.getOne(r.grnId); form.setFieldsValue({...d.data, grnDate: d.data.grnDate?.slice(0,10)}); setLineItems(d.data.items||[defaultLine()]); } catch {} setModalOpen(true); }} />
-        {r.status === 'RECEIVED' && <Tooltip title="Convert to Invoice"><Button size="small" type="primary" icon={<ArrowRightOutlined />} onClick={() => handleConvert(r.grnId)} style={{background:'#722ed1',borderColor:'#722ed1'}} /></Tooltip>}
+        {r.status === 'RECEIVED' && <Tooltip title="Convert to Invoice"><Button size="small" type="primary" icon={<ArrowRightOutlined />} onClick={() => handleConvert(r.grnId)} style={{background:'#2E6DA4',borderColor:'#2E6DA4'}} /></Tooltip>}
         <Popconfirm title="Delete GRN?" onConfirm={async () => { await grnsApi.delete(r.grnId); load(); }}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm>
       </Space>
     )},

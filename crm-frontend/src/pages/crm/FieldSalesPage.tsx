@@ -318,7 +318,7 @@ function CustomerMapView({ accounts }: any) {
                 </Button>
               </div>
               {acc.phone && <div style={{ fontSize: 12, color: '#1890ff' }}><PhoneOutlined /> {acc.phone}</div>}
-              {acc.salesmanName && <div style={{ fontSize: 12, color: '#722ed1' }}><UserOutlined /> {acc.salesmanName}</div>}
+              {acc.salesmanName && <div style={{ fontSize: 12, color: '#2E6DA4' }}><UserOutlined /> {acc.salesmanName}</div>}
             </div>
           ))}
         </div>
@@ -413,7 +413,7 @@ export default function FieldSalesPage() {
         {[
           { label: "Today's Visits", value: todayVisits.length, color: '#1890ff' },
           { label: 'Active Now', value: (stats.byStatus||[]).find((s:any)=>s.status==='CHECKED_IN')?.count||0, color: '#52c41a' },
-          { label: 'Total Visits', value: stats.total||0, color: '#722ed1' },
+          { label: 'Total Visits', value: stats.total||0, color: '#2E6DA4' },
           { label: 'With GPS', value: accounts.filter(a=>a.locationLat).length, color: '#fa8c16' },
         ].map((s,i) => (
           <Card key={i} size="small" style={{ borderRadius: 14, borderTop: `3px solid ${s.color}`, textAlign: 'center' }}>

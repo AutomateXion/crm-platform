@@ -26,7 +26,7 @@ const FILE_ICONS: Record<string, React.ReactNode> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  CONTRACT: '#722ed1', PROPOSAL: '#1890ff', NDA: '#fa8c16',
+  CONTRACT: '#2E6DA4', PROPOSAL: '#1890ff', NDA: '#fa8c16',
   INVOICE: '#52c41a', SOW: '#13c2c2', OTHER: '#8c8c8c',
 };
 
@@ -203,7 +203,7 @@ export default function DocumentsPage() {
       <Row gutter={12} style={{ marginBottom: 16 }}>
         {[
           { label: 'Total Documents', value: total, icon: <FileTextOutlined />, color: '#1890ff', bg: '#e6f7ff' },
-          { label: 'Total Size', value: formatBytes(totalSize), icon: <FolderOutlined />, color: '#722ed1', bg: '#f9f0ff' },
+          { label: 'Total Size', value: formatBytes(totalSize), icon: <FolderOutlined />, color: '#2E6DA4', bg: '#f9f0ff' },
           { label: 'Expiring Soon', value: expiringCount, icon: <FileTextOutlined />, color: '#fa8c16', bg: '#fff7e6' },
         ].map(s => (
           <Col xs={24} sm={8} key={s.label}>

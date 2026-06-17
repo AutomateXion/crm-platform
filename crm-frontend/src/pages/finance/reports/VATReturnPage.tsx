@@ -91,7 +91,7 @@ export default function VATReturnPage() {
         <tbody>
           {(data?.purchaseInvoices||[]).map((row:any,i:number) => (
             <tr key={i} style={{ background:i%2===0?'#fff':'#f9f9f9', borderBottom:'1px solid #eee' }}>
-              <td style={{ padding:'5px 8px', color:'#722ed1' }}>{row.invoiceNumber}</td>
+              <td style={{ padding:'5px 8px', color:'#2E6DA4' }}>{row.invoiceNumber}</td>
               <td style={{ padding:'5px 8px' }}>{row.invoiceDate?dayjs(row.invoiceDate).format('DD/MM/YY'):'—'}</td>
               <td style={{ padding:'5px 8px' }}>{row.supplierName}</td>
               <td style={{ padding:'5px 8px', color:'#8c8c8c' }}>{row.supplierTrn||'—'}</td>

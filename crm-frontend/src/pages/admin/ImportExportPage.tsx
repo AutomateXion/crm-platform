@@ -125,7 +125,7 @@ const IMPORT_CONFIGS = [
     title: 'Accounts & Customers',
     description: 'Import customer and supplier accounts from your existing records',
     icon: '🏢',
-    color: '#722ed1',
+    color: '#2E6DA4',
     template: TEMPLATES.accounts,
     apiEndpoint: '/accounts/bulk',
     mapRow: (row: any) => ({

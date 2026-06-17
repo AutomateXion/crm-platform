@@ -8,7 +8,7 @@ const { Option } = Select;
 
 const TYPE_COLORS: Record<string, string> = {
   JOURNAL: '#1890ff', PAYMENT: '#ff4d4f', RECEIPT: '#52c41a',
-  CONTRA: '#722ed1', DEBIT_NOTE: '#fa8c16', CREDIT_NOTE: '#13c2c2',
+  CONTRA: '#2E6DA4', DEBIT_NOTE: '#fa8c16', CREDIT_NOTE: '#13c2c2',
 };
 
 export default function GeneralLedgerPage() {
@@ -83,7 +83,7 @@ export default function GeneralLedgerPage() {
     },
     {
       title: 'Credit (OMR)', dataIndex: 'creditAmount', width: 120, align: 'right' as const,
-      render: (v: number) => Number(v) > 0 ? <Text strong style={{ color: '#722ed1' }}>OMR {Number(v).toFixed(3)}</Text> : '—',
+      render: (v: number) => Number(v) > 0 ? <Text strong style={{ color: '#2E6DA4' }}>OMR {Number(v).toFixed(3)}</Text> : '—',
     },
     {
       title: 'Balance (OMR)', dataIndex: 'runningBalance', width: 130, align: 'right' as const,
@@ -151,9 +151,9 @@ export default function GeneralLedgerPage() {
             </Card>
           </Col>
           <Col span={6}>
-            <Card style={{ borderRadius: 12, borderLeft: '4px solid #722ed1' }} size="small">
+            <Card style={{ borderRadius: 12, borderLeft: '4px solid #2E6DA4' }} size="small">
               <Statistic title="Total Credit" value={`OMR ${Number(summary.totalCredit || 0).toFixed(3)}`}
-                valueStyle={{ color: '#722ed1', fontSize: 18 }} />
+                valueStyle={{ color: '#2E6DA4', fontSize: 18 }} />
             </Card>
           </Col>
           <Col span={6}>
@@ -193,7 +193,7 @@ export default function GeneralLedgerPage() {
                     </Text>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={8} align="right">
-                    <Text strong style={{ color: '#722ed1' }}>
+                    <Text strong style={{ color: '#2E6DA4' }}>
                       OMR {data.reduce((s, r) => s + Number(r.creditAmount || 0), 0).toFixed(3)}
                     </Text>
                   </Table.Summary.Cell>

@@ -16,7 +16,7 @@ const { Option } = Select;
 
 const STATUS_COLORS: Record<string, string> = {
   NEW: '#1890ff', CONTACTED: '#13c2c2', QUALIFIED: '#52c41a',
-  PROPOSAL: '#fa8c16', DISQUALIFIED: '#ff4d4f', CONVERTED: '#722ed1',
+  PROPOSAL: '#fa8c16', DISQUALIFIED: '#ff4d4f', CONVERTED: '#2E6DA4',
 };
 
 function AccountSearch({ value, onChange, onSelect }: any) {
@@ -82,7 +82,7 @@ function ContactSearch({ value, onChange, onSelect, accountId }: any) {
         label: (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Space>
-              <Avatar size={28} style={{ background: '#722ed1', fontSize: 11 }}>
+              <Avatar size={28} style={{ background: '#2E6DA4', fontSize: 11 }}>
                 {c.firstName?.[0]}{c.lastName?.[0]}
               </Avatar>
               <div>
@@ -394,7 +394,7 @@ export default function LeadsPage() {
 
           <div style={{ background: '#f9f0ff', border: '1px solid #efdbff', borderRadius: 10, padding: '14px 16px', marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <Text strong style={{ color: '#722ed1' }}><UserOutlined /> Contact (Person)</Text>
+              <Text strong style={{ color: '#2E6DA4' }}><UserOutlined /> Contact (Person)</Text>
               {contactLinked
                 ? <Tag color="purple" icon={<CheckCircleOutlined />}>Linked to existing contact</Tag>
                 : contactName ? <Tag color="orange">Will create new contact</Tag> : null}

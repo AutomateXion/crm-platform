@@ -19,7 +19,7 @@ const { Option } = Select;
 
 const STATUS_COLORS: Record<string, string> = {
   PLANNING: '#1890ff', ACTIVE: '#52c41a', ON_HOLD: '#fa8c16',
-  CHANGE_REQUEST: '#722ed1', COMPLETED: '#13c2c2', CANCELLED: '#ff4d4f',
+  CHANGE_REQUEST: '#2E6DA4', COMPLETED: '#13c2c2', CANCELLED: '#ff4d4f',
 };
 
 const HEALTH_COLORS: Record<string, string> = {

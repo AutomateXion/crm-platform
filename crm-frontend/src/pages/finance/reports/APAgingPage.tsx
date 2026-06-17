@@ -34,20 +34,20 @@ export default function APAgingPage() {
     { title:'Age', dataIndex:'daysOverdue', render:(v:number) => <Tag color={v<=0?'green':v<=30?'blue':v<=60?'orange':'red'}>{v<=0?'Current':`${v} days`}</Tag> },
     { title:'Total (OMR)', dataIndex:'totalAmount', align:'right' as const, render:(v:number) => `OMR ${Number(v).toFixed(3)}` },
     { title:'Paid (OMR)', dataIndex:'paidAmount', align:'right' as const, render:(v:number) => <Text style={{color:'#52c41a'}}>OMR {Number(v).toFixed(3)}</Text> },
-    { title:'Balance (OMR)', dataIndex:'balanceDue', align:'right' as const, render:(v:number) => <Text strong style={{color:'#722ed1'}}>OMR {Number(v).toFixed(3)}</Text> },
+    { title:'Balance (OMR)', dataIndex:'balanceDue', align:'right' as const, render:(v:number) => <Text strong style={{color:'#2E6DA4'}}>OMR {Number(v).toFixed(3)}</Text> },
   ];
 
   const { settings: company } = useCompanySettings();
 
   const PDFContent = () => (
     <div id="ap-aging-pdf" style={{ width:'210mm', background:'#fff', padding:'12mm 15mm', fontFamily:'Arial, sans-serif', fontSize:'9pt', color:'#333' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', borderBottom:'3px solid #722ed1', paddingBottom:14, marginBottom:20 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', borderBottom:'3px solid #2E6DA4', paddingBottom:14, marginBottom:20 }}>
         <div>
-          <div style={{ fontSize:20, fontWeight:700, color:'#722ed1' }}>{company?.companyName || 'My Company'}</div>
+          <div style={{ fontSize:20, fontWeight:700, color:'#2E6DA4' }}>{company?.companyName || 'My Company'}</div>
           <div style={{ fontSize:10, color:'#666' }}>{[company?.addressLine1, company?.city, company?.country].filter(Boolean).join(', ') || 'Muscat, Sultanate of Oman'}</div>
         </div>
         <div style={{ textAlign:'right' }}>
-          <div style={{ fontSize:16, fontWeight:700, color:'#722ed1' }}>AP AGING REPORT</div>
+          <div style={{ fontSize:16, fontWeight:700, color:'#2E6DA4' }}>AP AGING REPORT</div>
           <div style={{ fontSize:10, color:'#888' }}>As of: {asOfDate}</div>
           <div style={{ fontSize:9, color:'#aaa' }}>Generated: {dayjs().format('DD MMM YYYY HH:mm')}</div>
         </div>
@@ -62,7 +62,7 @@ export default function APAgingPage() {
       </div>
       <table style={{ width:'100%', borderCollapse:'collapse', fontSize:9 }}>
         <thead>
-          <tr style={{ background:'#722ed1', color:'#fff' }}>
+          <tr style={{ background:'#2E6DA4', color:'#fff' }}>
             {['Supplier','Invoice #','Invoice Date','Due Date','Age','Total (OMR)','Paid (OMR)','Balance (OMR)'].map(h => (
               <th key={h} style={{ padding:'7px 8px', textAlign:'left' }}>{h}</th>
             ))}
@@ -72,18 +72,18 @@ export default function APAgingPage() {
           {(data?.invoices||[]).map((row:any, i:number) => (
             <tr key={i} style={{ background:i%2===0?'#fff':'#f9f9f9', borderBottom:'1px solid #eee' }}>
               <td style={{ padding:'5px 8px', fontWeight:600 }}>{row.supplierName}</td>
-              <td style={{ padding:'5px 8px', color:'#722ed1' }}>{row.invoiceNumber}</td>
+              <td style={{ padding:'5px 8px', color:'#2E6DA4' }}>{row.invoiceNumber}</td>
               <td style={{ padding:'5px 8px' }}>{row.invoiceDate?dayjs(row.invoiceDate).format('DD/MM/YYYY'):'—'}</td>
               <td style={{ padding:'5px 8px' }}>{row.dueDate?dayjs(row.dueDate).format('DD/MM/YYYY'):'—'}</td>
               <td style={{ padding:'5px 8px', color:row.daysOverdue<=0?'#52c41a':'#ff4d4f', fontWeight:600 }}>{row.daysOverdue<=0?'Current':`${row.daysOverdue}d`}</td>
               <td style={{ padding:'5px 8px', textAlign:'right' }}>OMR {Number(row.totalAmount||0).toFixed(3)}</td>
               <td style={{ padding:'5px 8px', textAlign:'right', color:'#52c41a' }}>OMR {Number(row.paidAmount||0).toFixed(3)}</td>
-              <td style={{ padding:'5px 8px', textAlign:'right', color:'#722ed1', fontWeight:700 }}>OMR {Number(row.balanceDue||0).toFixed(3)}</td>
+              <td style={{ padding:'5px 8px', textAlign:'right', color:'#2E6DA4', fontWeight:700 }}>OMR {Number(row.balanceDue||0).toFixed(3)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ background:'#722ed1', color:'#fff', fontWeight:700 }}>
+          <tr style={{ background:'#2E6DA4', color:'#fff', fontWeight:700 }}>
             <td colSpan={7} style={{ padding:'8px', textAlign:'right', fontSize:11 }}>TOTAL PAYABLE</td>
             <td style={{ padding:'8px', textAlign:'right', fontSize:13 }}>OMR {Number(data?.totalOutstanding||0).toFixed(3)}</td>
           </tr>
@@ -122,7 +122,7 @@ export default function APAgingPage() {
           </Row>
           <Card style={{ borderRadius:12 }}>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:12 }}>
-              <Text>Total Payable: <Text strong style={{ color:'#722ed1', fontSize:16 }}>OMR {Number(data.totalOutstanding||0).toFixed(3)}</Text></Text>
+              <Text>Total Payable: <Text strong style={{ color:'#2E6DA4', fontSize:16 }}>OMR {Number(data.totalOutstanding||0).toFixed(3)}</Text></Text>
               <Text type="secondary">{data.invoices?.length||0} invoices</Text>
             </div>
             <Table dataSource={data.invoices||[]} columns={columns} rowKey="invoiceId" size="small" pagination={{ pageSize:20, showTotal:t=>`${t} invoices` }} />

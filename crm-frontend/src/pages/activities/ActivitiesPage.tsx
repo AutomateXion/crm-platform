@@ -22,7 +22,7 @@ const { TextArea } = Input;
 const ACTIVITY_TYPES = [
   { code: "CALL",     label: "Call",       icon: <PhoneOutlined />,        color: "#1890ff", bg: "#e6f7ff" },
   { code: "EMAIL",    label: "Email",      icon: <MailOutlined />,         color: "#52c41a", bg: "#f6ffed" },
-  { code: "MEETING",  label: "Meeting",    icon: <TeamOutlined />,         color: "#722ed1", bg: "#f9f0ff" },
+  { code: "MEETING",  label: "Meeting",    icon: <TeamOutlined />,         color: "#2E6DA4", bg: "#f9f0ff" },
   { code: "DEMO",     label: "Demo",       icon: <RiseOutlined />,         color: "#fa8c16", bg: "#fff7e6" },
   { code: "TASK",     label: "Task",       icon: <CheckCircleOutlined />,  color: "#13c2c2", bg: "#e6fffb" },
   { code: "FOLLOWUP", label: "Follow Up",  icon: <ClockCircleOutlined />,  color: "#eb2f96", bg: "#fff0f6" },

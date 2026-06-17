@@ -16,7 +16,7 @@ const { Option } = Select;
 
 const TYPE_COLORS: Record<string, string> = {
   JOURNAL: '#1890ff', PAYMENT: '#ff4d4f', RECEIPT: '#52c41a',
-  CONTRA: '#722ed1', DEBIT_NOTE: '#fa8c16', CREDIT_NOTE: '#13c2c2',
+  CONTRA: '#2E6DA4', DEBIT_NOTE: '#fa8c16', CREDIT_NOTE: '#13c2c2',
   OPENING: '#eb2f96', CLOSING: '#8c8c8c',
 };
 
@@ -267,7 +267,7 @@ export default function JournalVouchersPage() {
                   <Col span={12}>
                     <div style={{ textAlign: 'center' }}>
                       <Text type="secondary" style={{ fontSize: 12 }}>Total Credit</Text>
-                      <div style={{ fontSize: 20, fontWeight: 700, color: '#722ed1' }}>OMR {totalCredit.toFixed(3)}</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: '#2E6DA4' }}>OMR {totalCredit.toFixed(3)}</div>
                     </div>
                   </Col>
                 </Row>

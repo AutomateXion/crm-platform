@@ -25,7 +25,7 @@ const PRINT_STYLE = `@media print {
   @page { margin: 15mm; size: A4; }
 }`;
 
-const TYPE_COLOR: Record<string,string> = { ASSET:'#1890ff', LIABILITY:'#ff4d4f', EQUITY:'#722ed1', REVENUE:'#52c41a', EXPENSE:'#fa8c16' };
+const TYPE_COLOR: Record<string,string> = { ASSET:'#1890ff', LIABILITY:'#ff4d4f', EQUITY:'#2E6DA4', REVENUE:'#52c41a', EXPENSE:'#fa8c16' };
 
 export default function TrialBalancePage() {
   const [data, setData] = useState<any[]>([]);

@@ -120,7 +120,7 @@ export function ProfitLossPDF({ data, period }: { data: any, period: string }) {
             { label:'Total Revenue', value:fmt(totalRevenue), color:'#52c41a' },
             { label:'Gross Profit', value:fmt(grossProfit), color:'#1890ff' },
             { label:`Net ${netProfit>=0?'Profit':'Loss'}`, value:fmt(netProfit), color:netProfit>=0?'#52c41a':'#ff4d4f' },
-            { label:'Net Margin', value:`${Number(netMargin||0).toFixed(1)}%`, color:'#722ed1' },
+            { label:'Net Margin', value:`${Number(netMargin||0).toFixed(1)}%`, color:'#2E6DA4' },
           ].map((k,i) => (
             <div key={i} style={{ background:`${k.color}10`, border:`1px solid ${k.color}30`, borderRadius:6, padding:'8px 10px', textAlign:'center' }}>
               <div style={{ fontSize:14, fontWeight:700, color:k.color }}>{k.value}</div>
@@ -221,10 +221,10 @@ export function BalanceSheetPDF({ data, period }: { data: any, period: string })
             <SectionTitle title="LONG-TERM LIABILITIES" color="#c41d7f" />
             <ReportTable color="#c41d7f" columns={accCols} data={longTermLiabilities} />
             <SummaryRow label="Total Long-term Liabilities" value={fmt(totalLongTermLiabilities)} bold color="#c41d7f" borderTop />
-            <SectionTitle title="EQUITY" color="#722ed1" />
-            <ReportTable color="#722ed1" columns={accCols} data={equity} />
+            <SectionTitle title="EQUITY" color="#2E6DA4" />
+            <ReportTable color="#2E6DA4" columns={accCols} data={equity} />
             <SummaryRow label={`Current Year ${netProfit>=0?'Profit':'Loss'}`} value={fmtSigned(netProfit)} color={netProfit>=0?'#52c41a':'#ff4d4f'} indent />
-            <SummaryRow label="Total Equity" value={fmt(totalEquity)} bold color="#722ed1" borderTop />
+            <SummaryRow label="Total Equity" value={fmt(totalEquity)} bold color="#2E6DA4" borderTop />
             <div style={{ background:'#ff4d4f', color:'#fff', padding:'8px 12px', display:'flex', justifyContent:'space-between', fontWeight:800, fontSize:11, marginTop:6, borderRadius:4 }}>
               <span>TOTAL LIABILITIES & EQUITY</span><span>{fmt(totalLiabilitiesEquity)}</span>
             </div>
@@ -243,7 +243,7 @@ export function TrialBalancePDF({ data, period }: { data: any[], period: string 
   const totalCredit = (data||[]).reduce((s:number,a:any) => s+Number(a.credit||0), 0);
   const isBalanced = Math.abs(totalDebit-totalCredit) < 0.01;
   const groups = ['ASSET','LIABILITY','EQUITY','REVENUE','EXPENSE'];
-  const TYPE_COLOR: Record<string,string> = { ASSET:'#1890ff', LIABILITY:'#ff4d4f', EQUITY:'#722ed1', REVENUE:'#52c41a', EXPENSE:'#fa8c16' };
+  const TYPE_COLOR: Record<string,string> = { ASSET:'#1890ff', LIABILITY:'#ff4d4f', EQUITY:'#2E6DA4', REVENUE:'#52c41a', EXPENSE:'#fa8c16' };
 
   return (
     <div>

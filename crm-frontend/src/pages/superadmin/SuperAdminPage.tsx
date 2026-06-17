@@ -159,8 +159,8 @@ export default function SuperAdminPage() {
         <Col span={4}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #ff4d4f', textAlign: 'center' }}>
           <Statistic title="Suspended" value={dashboard.suspendedTenants || 0} valueStyle={{ color: '#ff4d4f', fontSize: 20 }} />
         </Card></Col>
-        <Col span={4}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #722ed1', textAlign: 'center' }}>
-          <Statistic title="Total Users" value={dashboard.totalUsers || 0} valueStyle={{ color: '#722ed1', fontSize: 20 }} />
+        <Col span={4}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #2E6DA4', textAlign: 'center' }}>
+          <Statistic title="Total Users" value={dashboard.totalUsers || 0} valueStyle={{ color: '#2E6DA4', fontSize: 20 }} />
         </Card></Col>
         <Col span={4}><Card size="small" style={{ borderRadius: 12, borderTop: '3px solid #fa8c16', textAlign: 'center' }}>
           <Statistic title="Active Users" value={dashboard.activeUsers || 0} valueStyle={{ color: '#fa8c16', fontSize: 20 }} />
@@ -269,7 +269,7 @@ export default function SuperAdminPage() {
           <Col span={8}><Card size="small" style={{ textAlign: 'center', borderTop: '3px solid #52c41a' }}>
             <Statistic title="Invoices" value={tenantStats.invoiceCount || 0} />
           </Card></Col>
-          <Col span={8}><Card size="small" style={{ textAlign: 'center', borderTop: '3px solid #722ed1' }}>
+          <Col span={8}><Card size="small" style={{ textAlign: 'center', borderTop: '3px solid #2E6DA4' }}>
             <Statistic title="Revenue (OMR)" value={Number(tenantStats.invoiceTotal || 0).toFixed(3)} />
           </Card></Col>
         </Row>

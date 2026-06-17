@@ -224,7 +224,7 @@ export default function CompanySettingsPage() {
                 </div>
               </Form.Item>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {['#1890ff','#52c41a','#722ed1','#fa8c16','#eb2f96','#13c2c2','#f5222d','#2f54eb'].map(c => (
+                {['#1890ff','#52c41a','#2E6DA4','#fa8c16','#eb2f96','#13c2c2','#f5222d','#2f54eb'].map(c => (
                   <div key={c} onClick={() => setPrimaryColor(c)} style={{ width: 28, height: 28, borderRadius: '50%', background: c, cursor: 'pointer', border: primaryColor === c ? '3px solid #333' : '2px solid transparent' }} />
                 ))}
               </div>

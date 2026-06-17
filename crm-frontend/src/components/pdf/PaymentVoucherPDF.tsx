@@ -47,30 +47,30 @@ export default function PaymentVoucherPDF({ data, companyInfo, config }: Props) 
         <Button type="primary" icon={<DownloadOutlined />} onClick={() => downloadPDF('pv-pdf-content', `${data.voucherNumber}.pdf`)}>Download PDF</Button>
       </Space>
       <div id="pv-pdf-content" style={{ width: '210mm', minHeight: '180mm', background: '#fff', padding: '15mm', fontFamily: 'Arial, sans-serif', fontSize: '10pt', color: '#333', margin: '0 auto', border: '1px solid #e0e0e0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, borderBottom: '3px solid #722ed1', paddingBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, borderBottom: '3px solid #2E6DA4', paddingBottom: 16 }}>
           <div>
             {company.logoUrl && <img src={company.logoUrl} alt="logo" style={{ height: 44, objectFit: 'contain', marginBottom: 6, display: 'block' }} />}
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#722ed1' }}>{company.name}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#2E6DA4' }}>{company.name}</div>
             <div style={{ fontSize: 10, color: '#666' }}>{company.address}{company.trn ? ` | TRN: ${company.trn}` : ''}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#722ed1' }}>PAYMENT VOUCHER</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#2E6DA4' }}>PAYMENT VOUCHER</div>
             <div style={{ fontSize: 11, color: '#666' }}><strong>{data.voucherNumber}</strong><br />Date: {data.voucherDate ? new Date(data.voucherDate).toLocaleDateString() : '—'}</div>
           </div>
         </div>
         {cfg.headerNote && <div style={{ fontSize: 10, color: '#555', marginBottom: 16, padding: '8px 12px', background: '#f9f0ff', borderRadius: 4 }}>{cfg.headerNote}</div>}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#722ed1', marginBottom: 6, textTransform: 'uppercase' }}>Pay To</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#2E6DA4', marginBottom: 6, textTransform: 'uppercase' }}>Pay To</div>
             <div style={{ fontWeight: 600, fontSize: 14 }}>{data.supplierName}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             {qrCode && <img src={qrCode} alt="QR" style={{ width: 80, height: 80 }} />}
           </div>
         </div>
-        <div style={{ background: '#f9f0ff', border: '2px solid #722ed1', borderRadius: 8, padding: 20, marginBottom: 20 }}>
+        <div style={{ background: '#f9f0ff', border: '2px solid #2E6DA4', borderRadius: 8, padding: 20, marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div><span style={{ fontSize: 11, color: '#666' }}>Amount: </span><span style={{ fontSize: 24, fontWeight: 700, color: '#722ed1' }}>OMR {Number(data.amount || 0).toFixed(3)}</span></div>
+            <div><span style={{ fontSize: 11, color: '#666' }}>Amount: </span><span style={{ fontSize: 24, fontWeight: 700, color: '#2E6DA4' }}>OMR {Number(data.amount || 0).toFixed(3)}</span></div>
             <div style={{ textAlign: 'right' }}>
               {show('paymentMethod') && <div style={{ fontSize: 11, color: '#666' }}>Payment Method: <strong>{data.paymentMethod?.replace('_', ' ')}</strong></div>}
               {show('bankName') && data.bankName && <div style={{ fontSize: 11, color: '#666' }}>Bank: {data.bankName}</div>}
@@ -83,11 +83,11 @@ export default function PaymentVoucherPDF({ data, companyInfo, config }: Props) 
         {show('notes') && data.notes && <div style={{ fontSize: 10, color: '#666', marginBottom: 12 }}><strong>Notes:</strong> {data.notes}</div>}
         {cfg.termsText && (
           <div style={{ fontSize: 9, color: '#666', marginBottom: 16, padding: '10px 12px', background: '#fafafa', borderRadius: 4, lineHeight: 1.5 }}>
-            <div style={{ fontWeight: 700, color: '#722ed1', marginBottom: 4, fontSize: 9, textTransform: 'uppercase', letterSpacing: 1 }}>Terms &amp; Conditions</div>
+            <div style={{ fontWeight: 700, color: '#2E6DA4', marginBottom: 4, fontSize: 9, textTransform: 'uppercase', letterSpacing: 1 }}>Terms &amp; Conditions</div>
             {cfg.termsText}
           </div>
         )}
-        <div style={{ borderTop: '2px solid #722ed1', paddingTop: 12, display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#999' }}>
+        <div style={{ borderTop: '2px solid #2E6DA4', paddingTop: 12, display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#999' }}>
           <div>{company.name}</div><div>{cfg.footerNote || 'This is a computer-generated Payment Voucher'}</div>
         </div>
         {cfg.showSignature && (

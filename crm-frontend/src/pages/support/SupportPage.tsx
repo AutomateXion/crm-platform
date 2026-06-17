@@ -170,7 +170,7 @@ export default function SupportPage() {
             { title: 'Open Tickets', value: summary.open, color: '#1890ff', bg: '#e6f7ff' },
             { title: 'SLA Breached', value: summary.breached, color: '#ff4d4f', bg: '#fff1f0' },
             { title: 'Resolved Today', value: summary.resolvedToday, color: '#52c41a', bg: '#f6ffed' },
-            { title: 'Avg Resolution', value: `${summary.avgResolutionHours}h`, color: '#722ed1', bg: '#f9f0ff' },
+            { title: 'Avg Resolution', value: `${summary.avgResolutionHours}h`, color: '#2E6DA4', bg: '#f9f0ff' },
           ].map(k => (
             <Col xs={12} lg={6} key={k.title}>
               <Card style={{ borderRadius: 12 }}>

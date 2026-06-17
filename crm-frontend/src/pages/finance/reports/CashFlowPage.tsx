@@ -80,7 +80,7 @@ export default function CashFlowPage() {
           </div>
           {renderSection('Operating Activities', data.operating?.items||[], '#52c41a', data.operating?.total||0)}
           {renderSection('Investing Activities', data.investing?.items||[], '#1890ff', data.investing?.total||0)}
-          {renderSection('Financing Activities', data.financing?.items||[], '#722ed1', data.financing?.total||0)}
+          {renderSection('Financing Activities', data.financing?.items||[], '#2E6DA4', data.financing?.total||0)}
           <Divider />
           <Row style={{ padding:'16px', background:'#f6ffed', borderRadius:8, border:'2px solid #52c41a' }}>
             <Col span={12}><Text strong style={{ fontSize:16 }}>Opening Balance</Text></Col>

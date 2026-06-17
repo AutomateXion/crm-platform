@@ -93,7 +93,7 @@ export default function PaymentVouchersPage() {
     { title: 'Voucher #', dataIndex: 'voucherNumber', render: (v: string) => <Tag color="purple">{v}</Tag> },
     { title: 'Date', dataIndex: 'voucherDate', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
     { title: 'Supplier', dataIndex: 'supplierName', render: (v: string) => <Text strong>{v||'—'}</Text> },
-    { title: 'Amount', dataIndex: 'amount', render: (v: number) => <Text strong style={{ color: '#722ed1' }}>OMR {Number(v||0).toFixed(3)}</Text> },
+    { title: 'Amount', dataIndex: 'amount', render: (v: number) => <Text strong style={{ color: '#2E6DA4' }}>OMR {Number(v||0).toFixed(3)}</Text> },
     { title: 'Method', dataIndex: 'paymentMethod', render: (v: string) => <Tag>{v?.replace('_',' ')}</Tag> },
     { title: 'Reference', dataIndex: 'paymentReference', render: (v: string) => v||'—' },
     { title: 'Bank', dataIndex: 'bankName', render: (v: string) => v||'—' },
@@ -130,7 +130,7 @@ export default function PaymentVouchersPage() {
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>New Payment</Button>
       </div>
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={8}><Card style={{ borderRadius: 12, borderLeft: '4px solid #722ed1' }} size="small"><Statistic title="Total Payments" value={`OMR ${totalPaid.toFixed(3)}`} valueStyle={{ color: '#722ed1', fontSize: 20 }} /></Card></Col>
+        <Col span={8}><Card style={{ borderRadius: 12, borderLeft: '4px solid #2E6DA4' }} size="small"><Statistic title="Total Payments" value={`OMR ${totalPaid.toFixed(3)}`} valueStyle={{ color: '#2E6DA4', fontSize: 20 }} /></Card></Col>
         <Col span={8}><Card style={{ borderRadius: 12, borderLeft: '4px solid #52c41a' }} size="small"><Statistic title="Total Vouchers" value={total} valueStyle={{ color: '#52c41a', fontSize: 20 }} /></Card></Col>
       </Row>
       <Card style={{ borderRadius: 12 }}>

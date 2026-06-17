@@ -11,7 +11,7 @@ const DEFAULT_CONFIG = {
   fields: {} as Record<string, boolean>, itemsPerPage: 16, showSignature: true,
 };
 
-const C = '#722ed1';
+const C = '#2E6DA4';
 
 export default function PurchaseInvoicePDF({ data, companyInfo, config }: Props) {
   const [qrCode, setQrCode] = useState('');

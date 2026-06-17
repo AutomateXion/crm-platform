@@ -93,7 +93,7 @@ export default function PurchaseReport() {
       </div>
 
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={12} sm={6}><Card size="small" style={{ borderRadius: 10, borderLeft: '4px solid #722ed1' }}><Statistic title="Total Invoices" value={s.totalInvoices || 0} valueStyle={{ color: '#722ed1', fontSize: 20 }} /></Card></Col>
+        <Col xs={12} sm={6}><Card size="small" style={{ borderRadius: 10, borderLeft: '4px solid #2E6DA4' }}><Statistic title="Total Invoices" value={s.totalInvoices || 0} valueStyle={{ color: '#2E6DA4', fontSize: 20 }} /></Card></Col>
         <Col xs={12} sm={6}><Card size="small" style={{ borderRadius: 10, borderLeft: '4px solid #fa8c16' }}><Statistic title="Total Purchases" value={omr(s.totalPurchases)} valueStyle={{ color: '#fa8c16', fontSize: 17 }} /></Card></Col>
         <Col xs={12} sm={6}><Card size="small" style={{ borderRadius: 10, borderLeft: '4px solid #52c41a' }}><Statistic title="Paid" value={omr(s.totalPaid)} valueStyle={{ color: '#52c41a', fontSize: 17 }} /></Card></Col>
         <Col xs={12} sm={6}><Card size="small" style={{ borderRadius: 10, borderLeft: '4px solid #ff4d4f' }}><Statistic title="Payable" value={omr(s.totalBalance)} valueStyle={{ color: '#ff4d4f', fontSize: 17 }} /></Card></Col>
@@ -107,15 +107,15 @@ export default function PurchaseReport() {
                 <AreaChart data={data.byMonth}>
                   <defs>
                     <linearGradient id="pur" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#722ed1" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#722ed1" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#2E6DA4" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#2E6DA4" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: any) => omr(v)} />
-                  <Area type="monotone" dataKey="totalAmount" stroke="#722ed1" fill="url(#pur)" strokeWidth={2} name="Purchases" />
+                  <Area type="monotone" dataKey="totalAmount" stroke="#2E6DA4" fill="url(#pur)" strokeWidth={2} name="Purchases" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : <Empty />}
@@ -129,7 +129,7 @@ export default function PurchaseReport() {
                   <XAxis type="number" tick={{ fontSize: 10 }} />
                   <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} />
                   <Tooltip formatter={(v: any) => omr(v)} />
-                  <Bar dataKey="totalAmount" fill="#722ed1" name="Purchases" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="totalAmount" fill="#2E6DA4" name="Purchases" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <Empty />}

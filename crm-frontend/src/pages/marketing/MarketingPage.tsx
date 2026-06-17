@@ -11,11 +11,11 @@ const { Option } = Select;
 const { TabPane } = Tabs;
 
 const STATUS_COLORS: Record<string, string> = {
-  DRAFT: '#8c8c8c', SCHEDULED: '#1890ff', ACTIVE: '#52c41a', PAUSED: '#fa8c16', COMPLETED: '#722ed1',
+  DRAFT: '#8c8c8c', SCHEDULED: '#1890ff', ACTIVE: '#52c41a', PAUSED: '#fa8c16', COMPLETED: '#2E6DA4',
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  EMAIL: '#1890ff', SMS: '#52c41a', SOCIAL: '#eb2f96', EVENT: '#fa8c16', WEBINAR: '#722ed1',
+  EMAIL: '#1890ff', SMS: '#52c41a', SOCIAL: '#eb2f96', EVENT: '#fa8c16', WEBINAR: '#2E6DA4',
 };
 
 export default function MarketingPage() {
@@ -120,7 +120,7 @@ export default function MarketingPage() {
 
   const engagementStats = stats ? [
     { label: 'Total', count: stats.total, color: '#1890ff' },
-    { label: 'Sent', count: stats.stats?.find((s: any) => s.status === 'SENT')?.count || 0, color: '#722ed1' },
+    { label: 'Sent', count: stats.stats?.find((s: any) => s.status === 'SENT')?.count || 0, color: '#2E6DA4' },
     { label: 'Opened', count: stats.stats?.find((s: any) => s.status === 'OPENED')?.count || 0, color: '#13c2c2' },
     { label: 'Clicked', count: stats.stats?.find((s: any) => s.status === 'CLICKED')?.count || 0, color: '#52c41a' },
     { label: 'Converted', count: stats.stats?.find((s: any) => s.status === 'CONVERTED')?.count || 0, color: '#fa8c16' },
