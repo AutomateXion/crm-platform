@@ -741,6 +741,20 @@ export class SalesService {
     const number = await this.generateNumber('INV', this.invoiceRepo, 'invoiceNumber');
     const { items, invoiceNumber: _in, dnNumber: _dn, quotationNumber: _qn, receiptNumber: _rn, ...header } = dto;
     const balanceDue = Number(header.totalAmount) || 0;
+    // Auto-set due date if not provided: invoice date + customer credit period (default 30 days)
+    if (!header.dueDate) {
+      let creditDays = 30;
+      try {
+        const accId = header.accountId || null;
+        const acc = accId
+          ? await this.invoiceRepo.query(`SELECT credit_period_days FROM accounts WHERE account_id::text = $1 AND tenant_id::text = $2`, [accId, tenantId])
+          : (header.customerName ? await this.invoiceRepo.query(`SELECT credit_period_days FROM accounts WHERE account_name ILIKE $1 AND tenant_id::text = $2 LIMIT 1`, [header.customerName, tenantId]) : []);
+        if (acc?.length && acc[0].credit_period_days != null) creditDays = Number(acc[0].credit_period_days);
+      } catch {}
+      const base = new Date((header.invoiceDate || new Date().toISOString()).slice(0,10));
+      base.setDate(base.getDate() + creditDays);
+      header.dueDate = base.toISOString().slice(0,10);
+    }
     const i = this.invoiceRepo.create({ ...header, tenantId, invoiceNumber: number, createdBy: userId, balanceDue, paidAmount: 0, status: header.status || 'DRAFT' });
     const saved = await this.invoiceRepo.save(i) as any;
     if (items?.length) {
@@ -1985,7 +1999,14 @@ export class SalesService {
       .where("i.tenantId = :tid AND i.status NOT IN (:...s) AND i.balanceDue > 0", { tid: tenantId, s: ["PAID","CANCELLED"] }).getMany();
     const summary = { current: 0, days1_30: 0, days31_60: 0, days61_90: 0, days91plus: 0 } as any;
     const result = invoices.map(inv => {
-      const dueDate = inv.dueDate ? new Date(inv.dueDate) : null;
+      // Bucket by due date. If no due date is set, derive it from invoice date + 30 days
+      // (standard net-30) so aging still computes instead of defaulting everything to Current.
+      let dueDate = inv.dueDate ? new Date(inv.dueDate) : null;
+      if (!dueDate && (inv as any).invoiceDate) {
+        const baseDate = new Date((inv as any).invoiceDate);
+        baseDate.setDate(baseDate.getDate() + 30);
+        dueDate = baseDate;
+      }
       const daysOverdue = dueDate ? Math.floor((date.getTime() - dueDate.getTime()) / 86400000) : 0;
       const balance = Number(inv.balanceDue || 0);
       if (daysOverdue <= 0) summary.current += balance;
@@ -2005,7 +2026,14 @@ export class SalesService {
       .where("i.tenantId = :tid AND i.status NOT IN (:...s) AND i.balanceDue > 0", { tid: tenantId, s: ["PAID","CANCELLED"] }).getMany();
     const summary = { current: 0, days1_30: 0, days31_60: 0, days61_90: 0, days91plus: 0 } as any;
     const result = invoices.map(inv => {
-      const dueDate = inv.dueDate ? new Date(inv.dueDate) : null;
+      // Bucket by due date. If no due date is set, derive it from invoice date + 30 days
+      // (standard net-30) so aging still computes instead of defaulting everything to Current.
+      let dueDate = inv.dueDate ? new Date(inv.dueDate) : null;
+      if (!dueDate && (inv as any).invoiceDate) {
+        const baseDate = new Date((inv as any).invoiceDate);
+        baseDate.setDate(baseDate.getDate() + 30);
+        dueDate = baseDate;
+      }
       const daysOverdue = dueDate ? Math.floor((date.getTime() - dueDate.getTime()) / 86400000) : 0;
       const balance = Number(inv.balanceDue || 0);
       if (daysOverdue <= 0) summary.current += balance;
