@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { login, clearError } from '../../store/slices/authSlice';
 import { RootState, AppDispatch } from '../../store';
 
-const { Title, Text, Link } = Typography;
+const { Text, Link } = Typography;
 
 export default function LoginPage() {
   const [form] = Form.useForm();
@@ -47,21 +47,16 @@ export default function LoginPage() {
 
       <div style={{ width: '100%', maxWidth: 440, position: 'relative' }}>
         {/* Logo / Brand */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{
-            width: 64, height: 64, borderRadius: 16,
-            background: 'linear-gradient(135deg, #1890ff, #722ed1)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 28, fontWeight: 800, color: '#fff',
-            margin: '0 auto 16px', boxShadow: '0 8px 32px rgba(24,144,255,0.4)',
-          }}>C</div>
-          <Title level={2} style={{ color: '#fff', margin: 0, fontWeight: 700 }}>CRM Platform</Title>
-          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>
-            Sign in to your workspace
-          </Text>
-        </div>
+          <div style={{ textAlign: 'center', marginBottom: 40 }}>
+            <img src="/envoiso_logo_full.png" alt="Envoiso"
+              style={{ height: 72, width: 'auto', margin: '0 auto 18px', display: 'block',
+                       filter: 'drop-shadow(0 8px 32px rgba(74,155,210,0.35))' }} />
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>
+              Sign in to your workspace
+            </Text>
+          </div>
 
-        {/* Card */}
+          {/* Card */}
         <div style={{
           background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(20px)',
           border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20,
@@ -153,7 +148,7 @@ export default function LoginPage() {
         </div>
 
         <Text style={{ display: 'block', textAlign: 'center', marginTop: 24, color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>
-          © 2024 CRM Platform. All rights reserved.
+          © 2026 Envoiso. All rights reserved.
         </Text>
       </div>
     </div>

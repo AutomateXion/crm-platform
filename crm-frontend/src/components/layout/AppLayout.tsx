@@ -215,18 +215,15 @@ export default function AppLayout() {
           height: 64, display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
           padding: collapsed ? 0 : '0 20px', borderBottom: '1px solid rgba(255,255,255,0.1)',
         }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #1890ff, #722ed1)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, fontWeight: 700, color: '#fff', flexShrink: 0,
-          }}>C</div>
+          <img src="/envoiso_icon_192.png" alt="Envoiso"
+            style={{ width: 34, height: 34, borderRadius: 8, flexShrink: 0, objectFit: 'contain' }} />
           {!collapsed && (
             <div style={{ marginLeft: 10 }}>
               <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>
-                {tenant?.companyName || 'CRM Platform'}
+                {tenant?.companyName || 'Envoiso'}
               </div>
               <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>
-                {tenant?.subscriptionPlan}
+                {tenant?.subscriptionPlan || 'Powered by Envoiso'}
               </div>
             </div>
           )}
