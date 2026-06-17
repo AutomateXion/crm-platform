@@ -1388,6 +1388,16 @@ export class SalesService {
   async createPurchaseInvoice(tenantId: string, dto: any, userId: string) {
     const number = await this.generateNumber('PINV', this.purchaseInvoiceRepo, 'invoiceNumber');
     const { items, invoiceNumber: _ignoreNum, grnNumber: _ignoreGrn, poNumber: _ignorePo, ...header } = dto;
+    // Auto-set due date if not provided: invoice date + payment terms (parse a number from
+    // payment_terms like "Net 30" / "30"; default 30 days).
+    if (!header.dueDate) {
+      let termDays = 30;
+      const tmatch = String(header.paymentTerms || '').match(/\d+/);
+      if (tmatch) termDays = Number(tmatch[0]);
+      const base = new Date((header.invoiceDate || new Date().toISOString()).slice(0,10));
+      base.setDate(base.getDate() + termDays);
+      header.dueDate = base.toISOString().slice(0,10);
+    }
     const i = this.purchaseInvoiceRepo.create({ ...header, tenantId, invoiceNumber: number, createdBy: userId, balanceDue: header.totalAmount });
     const saved = await this.purchaseInvoiceRepo.save(i) as any;
     if (items?.length) {
