@@ -47,14 +47,14 @@ export default function SalesmanReport() {
       <div style={{ width: 24, height: 24, borderRadius: '50%', background: i < 3 ? '#faad14' : '#f0f0f0',
         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>{i+1}</div>
     )},
-    { title: 'Salesman', dataIndex: 'salesmanName', render: (v: string, _: any, i: number) => (
-      <Space><Tag color={COLORS[i % COLORS.length]} style={{ border: 'none' }}><UserOutlined /></Tag><Text strong>{v || 'Unassigned'}</Text></Space>
+    { title: 'Salesman', dataIndex: 'salesmanName', width: 200, render: (v: string, _: any, i: number) => (
+      <Space style={{ whiteSpace: 'nowrap' }}><Tag color={COLORS[i % COLORS.length]} style={{ border: 'none' }}><UserOutlined /></Tag><Text strong>{v || 'Unassigned'}</Text></Space>
     )},
-    { title: 'Invoices', dataIndex: 'invoiceCount', align: 'center' as const, render: (v: number) => <Tag color="blue">{v}</Tag> },
-    { title: 'Total Sales', dataIndex: 'totalSales', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#52c41a' }}>OMR {Number(v).toFixed(3)}</Text> },
-    { title: 'Collected', dataIndex: 'totalCollected', align: 'right' as const, render: (v: number) => <Text style={{ color: '#1890ff' }}>OMR {Number(v).toFixed(3)}</Text> },
-    { title: 'Outstanding', dataIndex: 'totalOutstanding', align: 'right' as const, render: (v: number) => <Text style={{ color: '#ff4d4f' }}>OMR {Number(v).toFixed(3)}</Text> },
-    { title: 'Collection %', align: 'right' as const, render: (_: any, r: any) => {
+    { title: 'Invoices', dataIndex: 'invoiceCount', width: 90, align: 'center' as const, render: (v: number) => <Tag color="blue">{v}</Tag> },
+    { title: 'Total Sales', dataIndex: 'totalSales', width: 140, align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#52c41a', whiteSpace: 'nowrap' }}>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Collected', dataIndex: 'totalCollected', width: 140, align: 'right' as const, render: (v: number) => <Text style={{ color: '#1890ff', whiteSpace: 'nowrap' }}>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Outstanding', dataIndex: 'totalOutstanding', width: 140, align: 'right' as const, render: (v: number) => <Text style={{ color: '#ff4d4f', whiteSpace: 'nowrap' }}>OMR {Number(v).toFixed(3)}</Text> },
+    { title: 'Collection %', width: 130, align: 'right' as const, render: (_: any, r: any) => {
       const pct = r.totalSales > 0 ? Math.round((r.totalCollected / r.totalSales) * 100) : 0;
       return <Progress percent={pct} size="small" strokeColor="#52c41a" style={{ margin: 0, width: 100 }} />;
     }},
@@ -128,7 +128,7 @@ export default function SalesmanReport() {
       <Row gutter={12}>
         <Col span={14}>
           <Card title="💰 Sales by Salesman" size="small" style={{ borderRadius: 12, marginBottom: 12 }}>
-            <Table dataSource={data?.bySalesman} columns={salesCols} rowKey="salesmanId" size="small" loading={loading} pagination={false}
+            <Table dataSource={data?.bySalesman} columns={salesCols} rowKey="salesmanId" size="small" loading={loading} pagination={false} scroll={{ x: 940 }}
               summary={() => (
                 <Table.Summary.Row style={{ background: '#fafafa' }}>
                   <Table.Summary.Cell index={0} colSpan={2}><Text strong>Total</Text></Table.Summary.Cell>
