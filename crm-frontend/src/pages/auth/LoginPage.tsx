@@ -48,9 +48,9 @@ export default function LoginPage() {
       <div style={{ width: '100%', maxWidth: 440, position: 'relative' }}>
         {/* Logo / Brand */}
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
-            <div style={{ background: '#fff', borderRadius: 16, padding: '16px 26px', display: 'inline-block',
-                          margin: '0 auto 18px', boxShadow: '0 12px 40px rgba(0,0,0,0.35)' }}>
-              <img src="/envoiso_logo_full.png" alt="Envoiso" style={{ height: 58, width: 'auto', display: 'block' }} />
+            <div style={{ background: '#fff', borderRadius: 16, padding: '20px 32px', display: 'block',
+                          margin: '0 auto 20px', boxShadow: '0 12px 40px rgba(0,0,0,0.35)', maxWidth: 340 }}>
+              <img src="/envoiso_logo_full.png" alt="Envoiso" style={{ height: 'auto', width: '100%', display: 'block' }} />
             </div>
             <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>
               Sign in to your workspace
