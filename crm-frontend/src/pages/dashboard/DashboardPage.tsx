@@ -132,7 +132,8 @@ export default function DashboardPage() {
   // KPI values from existing /sales/dashboard
   const totalRevenue = n(kpi.totalRevenue);
   const totalPurchases = n(kpi.totalPurchases);
-  const grossProfit = totalRevenue - totalPurchases;
+  const totalCogs = n(kpi.totalCogs);
+  const grossProfit = totalRevenue - totalCogs;
   const stockValue = stockByType.filter((s: any) => s.name === 'STOCK').reduce((sum: number, s: any) => sum + s.value, 0);
   const assetValue = assetsByCategory.reduce((sum: number, s: any) => sum + s.value, 0);
   const receivables = n(kpi.outstandingReceivables);
@@ -223,7 +224,7 @@ export default function DashboardPage() {
           <ChartCard title="📦 Stock by product type" empty={!stockByType.length} to="/inventory/products">
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={stockByType} dataKey="value" nameKey="name" innerRadius={48} outerRadius={80} paddingAngle={2}>
+                <Pie data={stockByType} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={48} outerRadius={80} paddingAngle={2}>
                   {stockByType.map((_: any, i: number) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
                 </Pie>
                 <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => omr(v)} />

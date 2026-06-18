@@ -1133,12 +1133,26 @@ export class SalesService {
       .where('i.tenantId = :tid AND i.status NOT IN (:...paid)', { tid: tenantId, paid: ['PAID', 'CANCELLED'] })
       .getRawOne();
 
+    // Real COGS from the Cost of Goods Sold account (5001) — posted by delivery/costing journals.
+    // Gross profit = revenue - COGS (NOT revenue - purchases; purchases include unsold inventory).
+    let totalCogs = 0;
+    try {
+      const cogsRow = await this.invoiceRepo.query(
+        `SELECT COALESCE(SUM(jvl.debit_amount - jvl.credit_amount),0) as cogs
+         FROM journal_voucher_lines jvl
+         JOIN journal_vouchers jv ON jv.voucher_id = jvl.voucher_id
+         WHERE jv.tenant_id::text = $1 AND jvl.account_code = '5001'`,
+        [tenantId]
+      );
+      totalCogs = Number(cogsRow?.[0]?.cogs || 0);
+    } catch {}
     return {
       totalQuotations, totalInvoices, totalReceipts, totalReturns,
       totalPurchaseOrders, totalGRNs, totalPurchaseInvoices, totalSuppliers, lowStockProducts,
       revenueThisMonth: revenueThisMonth?.total || 0,
       revenueLastMonth: revenueLastMonth?.total || 0,
       totalRevenue: totalRevenueResult?.total || 0,
+      totalCogs,
       outstandingReceivables: outstandingResult?.total || 0,
       totalPurchases: totalPurchasesResult?.total || 0,
       outstandingPayables: outstandingPayablesResult?.total || 0,
