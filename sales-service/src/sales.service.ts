@@ -762,6 +762,32 @@ export class SalesService {
         this.invoiceItemRepo.create({ ...item, invoiceId: saved.invoiceId, lineNumber: idx + 1 })
       );
       await this.invoiceItemRepo.save(lineItems);
+
+      // COGS recognition: stock leaves (and COGS posts) ONCE, at whichever document
+      // reduces stock first. If this invoice is sourced from a Delivery Note (dnId set),
+      // the DN already reduced stock + posted COGS, so we skip here to avoid double-posting.
+      // For a DIRECT invoice (no DN), this is where the goods leave — reduce stock + post COGS.
+      if (!header.dnId && header.isInventory !== false) {
+        let totalCOGS = 0;
+        for (const item of items) {
+          if (item.productId) {
+            const res: any = await this.adjustStock(tenantId, item.productId, Number(item.quantity), 'OUT', number, userId, item.warehouseLocationId || item.locationId);
+            totalCOGS += Number(res?.issueCost || 0);
+          }
+        }
+        if (totalCOGS > 0) {
+          const cogsDate = (header.invoiceDate || new Date().toISOString()).slice(0, 10);
+          await this.createAutoJournalEntry(tenantId, userId, {
+            voucherNumber: number,
+            description: `COGS - Invoice ${number}${header.customerName ? ' - ' + header.customerName : ''}`,
+            voucherDate: cogsDate,
+            lines: [
+              { accountCode: '5001', description: `COGS - ${number}`, debitAmount: Number(totalCOGS.toFixed(3)), creditAmount: 0 },
+              { accountCode: '1140', description: `Inventory issue - ${number}`, debitAmount: 0, creditAmount: Number(totalCOGS.toFixed(3)) },
+            ],
+          });
+        }
+      }
     }
     // Mark linked DN as INVOICED
     if (header.dnId) await this.dnRepo.update({ dnId: header.dnId, tenantId }, { status: 'INVOICED' } as any);
