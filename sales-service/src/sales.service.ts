@@ -552,6 +552,49 @@ export class SalesService {
     return d;
   }
 
+  // ── Negative-stock guard ─────────────────────────────────────
+  // Returns true if the user may override the negative-stock block (super admin or TENANT_ADMIN).
+  async userCanOverrideStock(tenantId: string, userId: string): Promise<boolean> {
+    try {
+      const rows = await this.productRepo.query(
+        `SELECT u.is_super_admin, ug.group_code
+         FROM users u LEFT JOIN user_groups ug ON ug.user_group_id = u.user_group_id
+         WHERE u.user_id::text = $1 AND u.tenant_id::text = $2`,
+        [userId, tenantId]
+      );
+      const u = rows?.[0];
+      return !!(u && (u.is_super_admin === true || u.group_code === 'TENANT_ADMIN'));
+    } catch { return false; }
+  }
+
+  // Blocks a stock-reducing sale that would drive any tracked product below zero,
+  // naming each short product. An admin may override via allowNegativeStock.
+  async checkNegativeStock(tenantId: string, items: any[], allowNegativeStock: boolean, userId: string) {
+    if (!items?.length) return;
+    const shortfalls: string[] = [];
+    for (const item of items) {
+      if (!item.productId) continue;
+      const rows = await this.productRepo.query(
+        `SELECT product_name, stock_qty, track_stock FROM products WHERE product_id::text = $1 AND tenant_id::text = $2`,
+        [item.productId, tenantId]
+      );
+      const prod = rows?.[0];
+      if (prod && prod.track_stock === true) {
+        const available = Number(prod.stock_qty || 0);
+        const requested = Number(item.quantity || 0);
+        if (available - requested < 0) {
+          shortfalls.push(`"${prod.product_name}" (available ${available}, requested ${requested})`);
+        }
+      }
+    }
+    if (shortfalls.length) {
+      if (allowNegativeStock && await this.userCanOverrideStock(tenantId, userId)) return; // admin override honoured
+      throw new BadRequestException(
+        `Cannot proceed — insufficient stock for: ${shortfalls.join('; ')}. An administrator can override this rule.`
+      );
+    }
+  }
+
   // ── Backend Credit Guard ─────────────────────────────────────
   async enforceCreditLimit(tenantId: string, customerName: string, accountId?: string, newAmount: number = 0) {
     if (!customerName && !accountId) return;
@@ -625,6 +668,10 @@ export class SalesService {
 
   async createDeliveryNote(tenantId: string, dto: any, userId: string) {
     await this.enforceCreditLimit(tenantId, dto.customerName, dto.accountId, Number(dto.totalAmount || 0));
+    // Negative-stock guard (only when this DN actually reduces inventory).
+    if (dto.isInventory) {
+      await this.checkNegativeStock(tenantId, dto.items, dto.allowNegativeStock === true, userId);
+    }
     const number = await this.generateNumber('DN', this.dnRepo, 'dnNumber');
     const { items, dnNumber: _dn, invoiceNumber: _in, quotationNumber: _qn, ...header } = dto;
     const d = this.dnRepo.create({ ...header, tenantId, dnNumber: number, createdBy: userId });
@@ -738,6 +785,10 @@ export class SalesService {
 
   async createInvoice(tenantId: string, dto: any, userId: string) {
     await this.enforceCreditLimit(tenantId, dto.customerName, dto.accountId, Number(dto.totalAmount || 0));
+    // Negative-stock guard: only for direct invoices (DN-sourced already shipped the goods).
+    if (!dto.dnId && dto.isInventory !== false) {
+      await this.checkNegativeStock(tenantId, dto.items, dto.allowNegativeStock === true, userId);
+    }
     const number = await this.generateNumber('INV', this.invoiceRepo, 'invoiceNumber');
     const { items, invoiceNumber: _in, dnNumber: _dn, quotationNumber: _qn, receiptNumber: _rn, ...header } = dto;
     const balanceDue = Number(header.totalAmount) || 0;
