@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../store';
 import SalesmanSelect from '../../components/common/SalesmanSelect';
 import {
   AutoComplete, Table, Card, Button, Input, Select, Tag, Space, Modal, Form,
@@ -24,6 +26,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function InvoicesPage() {
+  const currentUser = useSelector((s: RootState) => s.auth.user);
   const [items, setItems] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -178,10 +181,40 @@ export default function InvoicesPage() {
       const vatAmount = subtotal * (vatRate / 100);
       const totalAmount = subtotal + vatAmount;
       const { invoiceNumber: _in, dnNumber: _dn, quotationNumber: _qn, ...cleanValues } = values;
-      const payload = { ...cleanValues, items: lineItems, subtotal, vatAmount, totalAmount };
-      if (editRecord) await invoicesApi.update(editRecord.invoiceId, payload);
-      else await invoicesApi.create(payload);
-      message.success('Saved'); setModalOpen(false); load();
+      const basePayload = { ...cleanValues, items: lineItems, subtotal, vatAmount, totalAmount };
+
+      const submit = async (allowNegativeStock: boolean) => {
+        const payload = allowNegativeStock ? { ...basePayload, allowNegativeStock: true } : basePayload;
+        if (editRecord) await invoicesApi.update(editRecord.invoiceId, payload);
+        else await invoicesApi.create(payload);
+      };
+
+      try {
+        await submit(false);
+        message.success('Saved'); setModalOpen(false); load();
+      } catch (err: any) {
+        const msg = err.response?.data?.message || '';
+        const isNegStock = /insufficient stock/i.test(msg);
+        const isAdmin = currentUser?.groupCode === 'TENANT_ADMIN' || currentUser?.isSuperAdmin === true;
+        if (isNegStock && isAdmin) {
+          Modal.confirm({
+            title: 'Insufficient stock',
+            content: msg,
+            okText: 'Allow anyway (Admin override)',
+            okButtonProps: { danger: true },
+            cancelText: 'Cancel',
+            width: 520,
+            onOk: async () => {
+              try {
+                await submit(true);
+                message.success('Saved with stock override'); setModalOpen(false); load();
+              } catch (e2: any) { message.error(e2.response?.data?.message || 'Failed'); }
+            },
+          });
+        } else {
+          message.error(msg || 'Failed');
+        }
+      }
     } catch (e: any) { message.error(e.response?.data?.message || 'Failed'); }
     finally { setSaving(false); }
   };
