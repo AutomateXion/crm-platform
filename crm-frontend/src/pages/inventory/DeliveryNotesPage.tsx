@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AutoComplete, Table, Card, Button, Input, Select, Tag, Space, Modal, Form, Typography, Row, Col, message, Popconfirm, Tooltip, InputNumber, Divider, Switch } from 'antd';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../store';
 import { FilePdfOutlined, PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { updateStatus, deliveryNotesApi, productsApi, quotationsApi, signaturesApi } from '../../services/salesApi';
@@ -12,6 +14,7 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const STATUS_COLORS: Record<string,string> = { DRAFT:'default', CONFIRMED:'blue', DELIVERED:'green', CANCELLED:'red' };
 export default function DeliveryNotesPage() {
+  const currentUser = useSelector((s: RootState) => s.auth.user);
   const [items, setItems] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -136,10 +139,38 @@ export default function DeliveryNotesPage() {
       const vatRate = Number(values.vatRate || 5);
       const vatAmount = subtotal * (vatRate / 100);
       const totalAmount = subtotal + vatAmount;
-      const payload = { ...values, items: lineItems, subtotal, vatAmount, totalAmount };
-      if (editRecord) await deliveryNotesApi.update(editRecord.dnId, payload);
-      else await deliveryNotesApi.create(payload);
-      message.success('Saved'); setModalOpen(false); load();
+      const basePayload = { ...values, items: lineItems, subtotal, vatAmount, totalAmount };
+      const submit = async (allowNegativeStock: boolean) => {
+        const payload = allowNegativeStock ? { ...basePayload, allowNegativeStock: true } : basePayload;
+        if (editRecord) await deliveryNotesApi.update(editRecord.dnId, payload);
+        else await deliveryNotesApi.create(payload);
+      };
+      try {
+        await submit(false);
+        message.success('Saved'); setModalOpen(false); load();
+      } catch (err: any) {
+        const msg = err.response?.data?.message || '';
+        const isNegStock = /insufficient stock/i.test(msg);
+        const isAdmin = currentUser?.groupCode === 'TENANT_ADMIN' || currentUser?.isSuperAdmin === true;
+        if (isNegStock && isAdmin) {
+          Modal.confirm({
+            title: 'Insufficient stock',
+            content: msg,
+            okText: 'Allow anyway (Admin override)',
+            okButtonProps: { danger: true },
+            cancelText: 'Cancel',
+            width: 520,
+            onOk: async () => {
+              try {
+                await submit(true);
+                message.success('Saved with stock override'); setModalOpen(false); load();
+              } catch (e2: any) { message.error(e2.response?.data?.message || 'Failed'); }
+            },
+          });
+        } else {
+          message.error(msg || 'Failed');
+        }
+      }
     } catch (e: any) { message.error(e.response?.data?.message || 'Failed'); }
     finally { setSaving(false); }
   };
