@@ -105,6 +105,16 @@ const CSS = `
 .evx .feat-list li{display:flex;gap:10px;font-size:14px;color:#33495d;line-height:1.4}
 .evx .feat-list li svg{width:17px;height:17px;flex-shrink:0;color:var(--blue);margin-top:1px}
 .evx .min-seat{font-size:12.5px;color:var(--muted);margin-top:16px;padding-top:14px;border-top:1px solid var(--paper-2)}
+.evx .seat-note{text-align:center;max-width:680px;margin:0 auto 34px;font-size:14.5px;color:var(--muted);line-height:1.55}
+.evx .seat-note strong{color:var(--navy);font-weight:600}
+.evx .seat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.evx .seat-tier{background:#fff;border:1px solid var(--line);border-radius:16px;padding:26px 24px;position:relative;transition:.18s;display:flex;flex-direction:column}
+.evx .seat-tier:hover{border-color:var(--blue-lt);box-shadow:0 14px 40px -22px rgba(46,109,164,.4);transform:translateY(-3px)}
+.evx .seat-tier.feat{border-color:var(--blue);box-shadow:0 18px 50px -22px rgba(46,109,164,.45)}
+.evx .seat-users{font-size:13.5px;font-weight:600;color:var(--blue);margin-top:3px}
+.evx .seat-tier-for{font-size:13px;color:var(--muted);margin-top:14px;line-height:1.45}
+.evx .seat-tier .btn{width:100%;margin-top:6px}
+.evx .seat-custom{background:var(--paper-2);border-style:dashed}
 .evx .pricing-foot{text-align:center;margin-top:38px;font-size:14.5px;color:var(--muted)}
 .evx .pricing-foot strong{color:var(--navy);font-weight:600}
 .evx .final{padding:0 0 96px}
@@ -128,6 +138,7 @@ const CSS = `
   .evx .prob-grid,.evx .comp-grid{grid-template-columns:1fr;gap:24px}
   .evx .mod-grid{grid-template-columns:1fr}
   .evx .tiers{grid-template-columns:1fr;gap:18px}
+  .evx .seat-grid{grid-template-columns:1fr;gap:14px}
   .evx .tier.feat{transform:none}
   .evx .foot-grid{grid-template-columns:1fr 1fr;gap:28px}
 }
@@ -136,15 +147,25 @@ const CSS = `
 
 const Check = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6}><path d="M20 6L9 17l-5-5" /></svg>);
 
+// Seat-bundle pricing — all modules included at every tier.
+// Each entry: [monthly, annual] where annual = 2 months free (monthly x 10 / 12 rounded to the charm ending).
+const SEAT_TIERS = [
+  { name: 'Solo',       users: '1 user',   sub: 'For founders & one-person businesses.' },
+  { name: 'Team',       users: '3 users',  sub: 'For small teams getting organised.' },
+  { name: 'Business',   users: '5 users',  sub: 'For growing trading & service teams.', popular: true },
+  { name: 'Growth',     users: '10 users', sub: 'For scaling operations across departments.' },
+  { name: 'Enterprise', users: '15 users', sub: 'For established multi-team businesses.' },
+];
 const PRICES: any = {
-  usd: { core: [12, 10], growth: [22, 18], adv: [29, 24], sym: '$' },
-  omr: { core: [4.6, 3.9], growth: [8.5, 6.9], adv: [11.2, 9.2], sym: '\uFDFC' },
+  usd: { sym: '$',   pre: true,  monthly: [15, 29, 49, 89, 119],            annual: [150, 290, 490, 890, 1190] },
+  omr: { sym: '\uFDFC ', pre: true, monthly: ['5.900','11.900','18.900','34.900','45.900'], annual: ['59.000','119.000','189.000','349.000','459.000'] },
+  lkr: { sym: 'Rs ', pre: true,  monthly: ['3,999','7,999','12,999','23,999','31,999'], annual: ['39,999','79,999','129,999','239,999','319,999'] },
 };
 
 export default function WelcomePage() {
   const navigate = useNavigate();
   const [annual, setAnnual] = useState(true);
-  const [cur, setCur] = useState<'usd' | 'omr'>('usd');
+  const [cur, setCur] = useState<'usd' | 'omr' | 'lkr'>('usd');
 
   // Load Fraunces (Inter already loaded by app)
   useEffect(() => {
@@ -158,7 +179,7 @@ export default function WelcomePage() {
   }, []);
 
   const p = PRICES[cur];
-  const i = annual ? 1 : 0;
+  const priceList = annual ? p.annual : p.monthly;
   const trial = () => navigate('/login');
 
   return (
@@ -289,56 +310,31 @@ export default function WelcomePage() {
           <div className="cur-toggle">
             <button className={'cur-btn' + (cur === 'usd' ? ' on' : '')} onClick={() => setCur('usd')}>USD $</button>
             <button className={'cur-btn' + (cur === 'omr' ? ' on' : '')} onClick={() => setCur('omr')}>OMR &#xFDFC;</button>
+            <button className={'cur-btn' + (cur === 'lkr' ? ' on' : '')} onClick={() => setCur('lkr')}>LKR Rs</button>
           </div>
-          <div className="tiers">
-            <div className="tier">
-              <div className="tier-name">Core</div>
-              <div className="tier-for">For micro-businesses &amp; startups getting their books in order.</div>
-              <div className="tier-price"><span className="amt">{p.sym}{p.core[i]}</span><span className="per">/user / mo</span></div>
-              <div className="tier-bill">{annual ? 'billed annually' : 'billed monthly'}</div>
-              <a className="btn btn-ghost" onClick={trial}>Start free trial</a>
-              <div className="tier-feat-label">Includes</div>
-              <ul className="feat-list">
-                <li><Check />Accounting &amp; General Ledger</li>
-                <li><Check />Invoicing &amp; e-invoicing ready</li>
-                <li><Check />Banking &amp; cash</li>
-                <li><Check />Document management</li>
-              </ul>
-              <div className="min-seat">From 1 user</div>
-            </div>
-            <div className="tier feat">
-              <span className="tier-badge">Most popular</span>
-              <div className="tier-name">Growth</div>
-              <div className="tier-for">For expanding trading &amp; service teams running real operations.</div>
-              <div className="tier-price"><span className="amt">{p.sym}{p.growth[i]}</span><span className="per">/user / mo</span></div>
-              <div className="tier-bill">{annual ? 'billed annually' : 'billed monthly'}</div>
-              <a className="btn btn-primary" onClick={trial}>Start free trial</a>
-              <div className="tier-feat-label">Everything in Core, plus</div>
-              <ul className="feat-list">
-                <li><Check />CRM &amp; contacts</li>
-                <li><Check />Sales &amp; purchase cycle</li>
-                <li><Check />Project management</li>
-                <li><Check />Standard reports</li>
-              </ul>
-              <div className="min-seat">From 1 user</div>
-            </div>
-            <div className="tier">
-              <div className="tier-name">Advanced</div>
-              <div className="tier-for">For mid-market teams with inventory, assets &amp; integrations.</div>
-              <div className="tier-price"><span className="amt">{p.sym}{p.adv[i]}</span><span className="per">/user / mo</span></div>
-              <div className="tier-bill">{annual ? 'billed annually' : 'billed monthly'}</div>
-              <a className="btn btn-ghost" onClick={trial}>Start free trial</a>
-              <div className="tier-feat-label">Everything in Growth, plus</div>
-              <ul className="feat-list">
-                <li><Check />Inventory &amp; warehouse</li>
-                <li><Check />Fixed assets &amp; depreciation</li>
-                <li><Check />Advanced reporting</li>
-                <li><Check />API access &amp; multi-currency</li>
-              </ul>
-              <div className="min-seat">From 3 users</div>
+          <div className="seat-note">Every plan includes <strong>all modules</strong> &mdash; accounting, sales, CRM, inventory, purchase, projects, assets and GCC e-invoicing. You only choose your team size.</div>
+          <div className="seat-grid">
+            {SEAT_TIERS.map((t: any, idx: number) => (
+              <div className={'seat-tier' + (t.popular ? ' feat' : '')} key={t.name}>
+                {t.popular && <span className="tier-badge">Most popular</span>}
+                <div className="tier-name">{t.name}</div>
+                <div className="seat-users">{t.users}</div>
+                <div className="tier-price"><span className="amt">{p.sym}{priceList[idx]}</span><span className="per">/ mo</span></div>
+                <div className="tier-bill">{annual ? 'billed annually' : 'billed monthly'}</div>
+                <a className={'btn ' + (t.popular ? 'btn-primary' : 'btn-ghost')} onClick={trial}>Start free trial</a>
+                <div className="seat-tier-for">{t.sub}</div>
+              </div>
+            ))}
+            <div className="seat-tier seat-custom">
+              <div className="tier-name">Custom</div>
+              <div className="seat-users">15+ users</div>
+              <div className="tier-price"><span className="amt" style={{ fontSize: 30 }}>Let&rsquo;s talk</span></div>
+              <div className="tier-bill">tailored to your team</div>
+              <a className="btn btn-ghost" onClick={trial}>Contact sales</a>
+              <div className="seat-tier-for">For larger teams &amp; multi-entity groups needing custom onboarding.</div>
             </div>
           </div>
-          <p className="pricing-foot">All plans include <strong>GCC e-invoicing compliance</strong>, IFRS-standard financials, and a <strong>14-day free trial</strong> &mdash; no credit card.</p>
+          <p className="pricing-foot">All plans include <strong>every module</strong>, <strong>GCC e-invoicing compliance</strong>, IFRS-standard financials, and a <strong>14-day free trial</strong> &mdash; no credit card. {cur === 'lkr' && <strong>Sri Lanka pricing includes a 10% regional discount.</strong>}</p>
         </div>
       </section>
 

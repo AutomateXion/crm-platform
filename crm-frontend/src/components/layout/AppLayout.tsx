@@ -166,49 +166,6 @@ const NAV_ITEMS = [
   },
 ];
 
-// ── Module entitlement gating ──────────────────────────────────
-// Maps each top-level nav group key to the module that gates it.
-const GROUP_MODULE: Record<string, string> = {
-  'crm': 'crm',
-  'pm': 'pm',
-  'sales-grp': 'sales',          // most Sales children are 'sales'; invoicing children handled below
-  'purchase-grp': 'purchase',
-  'banking-grp': 'banking',
-  'accounting-grp': 'accounting',
-  'inventory': 'inventory',
-  'assets-grp': 'assets',
-  'reports-grp': 'reports',
-  'docs-grp': 'documents',
-};
-// Within the Sales group, these routes belong to the 'invoicing' module (Core tier).
-const INVOICING_ROUTES = new Set<string>([
-  '/finance/dashboard', '/finance/invoices', '/finance/receipts', '/einvoice',
-]);
-// Always-visible groups regardless of plan (key prefix or exact).
-const ALWAYS_KEYS = new Set<string>(['/dashboard', 'admin']);
-
-function filterNavByModules(items: any[], active: string[] | undefined): any[] {
-  // If we have no module info, show everything (fail-open for safety).
-  if (!active || !active.length) return items;
-  const has = (m: string) => active.includes(m);
-  const out: any[] = [];
-  for (const item of items) {
-    if (ALWAYS_KEYS.has(item.key)) { out.push(item); continue; }
-    // Special handling for the Sales group: split invoicing vs sales children.
-    if (item.key === 'sales-grp') {
-      const kids = (item.children || []).filter((c: any) =>
-        INVOICING_ROUTES.has(c.key) ? has('invoicing') : has('sales')
-      );
-      if (kids.length) out.push({ ...item, children: kids });
-      continue;
-    }
-    const mod = GROUP_MODULE[item.key];
-    if (mod === undefined) { out.push(item); continue; } // untagged -> keep (e.g. core groups)
-    if (has(mod)) out.push(item);
-  }
-  return out;
-}
-
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 992);
@@ -241,8 +198,7 @@ export default function AppLayout() {
   // Determine active menu key — handle /projects/:id -> highlight /projects
   const activeKey = location.pathname.startsWith('/projects/') ? '/projects' : location.pathname;
 
-  const visibleNav = filterNavByModules(NAV_ITEMS as any[], tenant?.activeModules);
-  const allItems = (visibleNav as any[]).flatMap(i => (i as any).children || [i]);
+  const allItems = NAV_ITEMS.flatMap(i => (i as any).children || [i]);
   const pageLabel = allItems.find(i => i.key === activeKey)?.label || 'Dashboard';
 
   return (
@@ -276,7 +232,7 @@ export default function AppLayout() {
         <Menu
           theme="dark" mode="inline" selectedKeys={[activeKey]}
           defaultOpenKeys={[]}
-          items={visibleNav}
+          items={NAV_ITEMS}
           onClick={({ key }) => { if (key.startsWith('/')) { navigate(key); if (isMobile) setMobileOpen(false); } }}
           style={{ borderRight: 0, marginTop: 8 }}
         />
