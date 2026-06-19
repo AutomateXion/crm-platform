@@ -13,6 +13,7 @@ import PurchaseReport from './pages/reports/PurchaseReport';
 import ReorderManagementReport from './pages/reports/ReorderManagementReport';
 // Auth
 import LoginPage from './pages/auth/LoginPage';
+import WelcomePage from './pages/marketing/WelcomePage';
 // Core
 import DashboardPage    from './pages/dashboard/DashboardPage';
 import UsersPage        from './pages/users/UsersPage';
@@ -104,6 +105,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Routes>
+      <Route path="/welcome" element={<WelcomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
