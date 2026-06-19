@@ -157,10 +157,10 @@ const SEAT_TIERS = [
   { name: 'Enterprise', users: '15 users', sub: 'For established multi-team businesses.' },
 ];
 const PRICES: any = {
-  usd: { sym: '$',   pre: true,  monthly: [15, 29, 49, 89, 119],            annual: [150, 290, 490, 890, 1190] },
-  omr: { sym: '\uFDFC ', pre: true, monthly: ['5.900','11.900','18.900','34.900','45.900'], annual: ['59.000','119.000','189.000','349.000','459.000'] },
-  lkr: { sym: 'Rs ', pre: true,  monthly: ['3,999','7,999','12,999','23,999','31,999'], annual: ['39,999','79,999','129,999','239,999','319,999'] },
-};
+  usd: { sym: '$',   monthly: [18, 35, 59, 107, 143],            annual: [15, 29, 49, 89, 119] },
+  omr: { sym: '\uFDFC ', monthly: ['7.900','14.900','22.900','41.900','55.900'], annual: ['5.900','11.900','18.900','34.900','45.900'] },
+  lkr: { sym: 'Rs ', monthly: ['4,999','9,999','15,999','28,999','38,999'], annual: ['3,999','7,999','12,999','23,999','31,999'] },
+}
 
 export default function WelcomePage() {
   const navigate = useNavigate();
@@ -305,7 +305,7 @@ export default function WelcomePage() {
             <span className={'bill-opt' + (!annual ? ' on' : '')}>Monthly</span>
             <button className={'toggle' + (annual ? ' annual' : '')} onClick={() => setAnnual(!annual)} aria-label="Toggle billing period"><span className="knob" /></button>
             <span className={'bill-opt' + (annual ? ' on' : '')}>Annual</span>
-            <span className="save-pill">Save ~20%</span>
+            <span className="save-pill">14 months for 12</span>
           </div>
           <div className="cur-toggle">
             <button className={'cur-btn' + (cur === 'usd' ? ' on' : '')} onClick={() => setCur('usd')}>USD $</button>
@@ -320,7 +320,7 @@ export default function WelcomePage() {
                 <div className="tier-name">{t.name}</div>
                 <div className="seat-users">{t.users}</div>
                 <div className="tier-price"><span className="amt">{p.sym}{priceList[idx]}</span><span className="per">/ mo</span></div>
-                <div className="tier-bill">{annual ? 'billed annually' : 'billed monthly'}</div>
+                <div className="tier-bill">{annual ? 'billed annually · +2 bonus months' : 'billed monthly'}</div>
                 <a className={'btn ' + (t.popular ? 'btn-primary' : 'btn-ghost')} onClick={trial}>Start free trial</a>
                 <div className="seat-tier-for">{t.sub}</div>
               </div>
