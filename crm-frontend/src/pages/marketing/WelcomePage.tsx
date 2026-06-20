@@ -64,6 +64,17 @@ const CSS = `
 .evx .mod-ico svg{width:23px;height:23px;color:var(--blue);stroke-width:1.8}
 .evx .mod-card h3{font-family:'Fraunces',serif;font-size:19px;font-weight:600;color:var(--navy);margin-bottom:8px}
 .evx .mod-card p{font-size:14px;color:var(--muted);line-height:1.5}
+.evx .evx-const{max-width:620px;margin:0 auto}
+.evx .evx-const-svg{width:100%;height:auto;display:block}
+.evx .evx-link{stroke:var(--line);stroke-width:1;opacity:.55;transition:opacity .2s,stroke .2s,stroke-width .2s}
+.evx .evx-link.lit{stroke:var(--blue);opacity:.9;stroke-width:1.5}
+.evx .evx-node{cursor:pointer;transition:transform .18s;outline:none}
+.evx .evx-node:hover{transform:scale(1.06)}
+.evx .evx-node circle{transition:fill .18s}
+.evx .evx-node:focus-visible circle{stroke-width:2.5}
+.evx .evx-const-info{text-align:center;min-height:54px;margin-top:18px;max-width:440px;margin-left:auto;margin-right:auto}
+.evx .evx-const-info h4{font-family:'Fraunces',serif;font-size:19px;font-weight:600;color:var(--navy);margin-bottom:4px}
+.evx .evx-const-info p{font-size:14px;color:var(--muted);line-height:1.55}
 .evx .comp{background:var(--navy);color:#fff;padding:84px 0}
 .evx .comp-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center}
 .evx .comp h2{font-family:'Fraunces',serif;font-size:clamp(28px,3.6vw,40px);font-weight:600;line-height:1.1;letter-spacing:-.02em;margin-bottom:18px}
@@ -162,6 +173,72 @@ const PRICES: any = {
   lkr: { sym: 'Rs ', monthly: ['4,999','9,999','15,999','28,999','38,999'], annual: ['3,999','7,999','12,999','23,999','31,999'] },
 }
 
+const EVX_MODULES = [
+  { n: 'Accounting', d: 'General ledger, journals, trial balance — to three decimals.', c: '#2E6DA4', icon: 'M3 3v18h18 M7 14l4-4 3 3 5-6' },
+  { n: 'Invoicing', d: 'Sales invoices, receipts and GCC e-invoicing built in.', c: '#2E6DA4', icon: 'M9 7h6 M9 11h6 M9 15h4 M6 2h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z' },
+  { n: 'Banking', d: 'Bank accounts, PDC cheques and reconciliation.', c: '#4A9BD2', icon: 'M3 21h18 M5 21V10 M19 21V10 M3 10l9-6 9 6z' },
+  { n: 'CRM', d: 'Leads, contacts and pipeline from first touch to close.', c: '#13a89e', icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M22 21v-2a4 4 0 0 0-3-3.87' },
+  { n: 'Sales', d: 'Quotations and delivery notes through the full cycle.', c: '#13a89e', icon: 'M3 17l6-6 4 4 8-8 M21 7v6h-6' },
+  { n: 'Purchase', d: 'POs, goods receipt and supplier invoices, matched.', c: '#e08a1e', icon: 'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z M3 6h18 M16 10a4 4 0 0 1-8 0' },
+  { n: 'Inventory', d: 'Multi-location stock with FIFO / average costing.', c: '#13c2c2', icon: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12' },
+  { n: 'Assets', d: 'Fixed assets, depreciation and maintenance.', c: '#c2418a', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10' },
+  { n: 'Projects', d: 'Tasks, milestones and project costing.', c: '#7a5af0', icon: 'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11' },
+  { n: 'Reports', d: 'Financial, sales and stock analytics in real time.', c: '#e0a800', icon: 'M3 3v18h18 M7 16V9 M12 16V5 M17 16v-4' },
+  { n: 'Documents', d: 'Central document storage across the platform.', c: '#7a8694', icon: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
+];
+
+function ModuleConstellation() {
+  const [active, setActive] = useState<number | null>(null);
+  const cx = 320, cy = 230, R = 168, Ry = 150;
+  const def = { n: 'One platform, every function', d: 'Hover or tap a module to see what it does. They all share the same data, so your numbers, stock and customers stay in sync.' };
+  const info = active === null ? def : EVX_MODULES[active];
+
+  return (
+    <div className="evx-const">
+      <svg viewBox="0 0 640 460" className="evx-const-svg" role="img" aria-label="Envoiso modules connected to a central core">
+        {EVX_MODULES.map((m, i) => {
+          const ang = (-90 + i * (360 / EVX_MODULES.length)) * Math.PI / 180;
+          const x = cx + R * Math.cos(ang), y = cy + Ry * Math.sin(ang);
+          return <line key={'l' + i} x1={cx} y1={cy} x2={x} y2={y}
+            className={'evx-link' + (active === i ? ' lit' : '')} />;
+        })}
+        <g style={{ cursor: 'default' }}>
+          <circle cx={cx} cy={cy} r={44} fill="#0C2446" />
+          <circle cx={cx} cy={cy} r={44} fill="none" stroke="#2E6DA4" strokeWidth={1.5} />
+          <text x={cx} y={cy - 2} textAnchor="middle" dominantBaseline="central"
+            style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 30, fill: '#4A9BD2' }}>E</text>
+          <text x={cx} y={cy + 24} textAnchor="middle" dominantBaseline="central"
+            style={{ fontSize: 9, fill: '#9fc4e2', letterSpacing: '.5px' }}>ENVOISO</text>
+        </g>
+        {EVX_MODULES.map((m, i) => {
+          const ang = (-90 + i * (360 / EVX_MODULES.length)) * Math.PI / 180;
+          const x = cx + R * Math.cos(ang), y = cy + Ry * Math.sin(ang);
+          const on = active === i;
+          return (
+            <g key={'n' + i} className="evx-node" tabIndex={0} role="button" aria-label={m.n + ': ' + m.d}
+              onMouseEnter={() => setActive(i)} onMouseLeave={() => setActive(null)}
+              onFocus={() => setActive(i)} onBlur={() => setActive(null)} onClick={() => setActive(i)}>
+              <circle cx={x} cy={y} r={26} fill={on ? m.c + '1a' : '#ffffff'} stroke={m.c} strokeWidth={1.5} />
+              <g transform={`translate(${x - 9}, ${y - 16})`}>
+                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={m.c} strokeWidth={1.8}
+                  strokeLinecap="round" strokeLinejoin="round">
+                  {m.icon.split(' M').map((seg, k) => <path key={k} d={(k === 0 ? seg : 'M' + seg)} />)}
+                </svg>
+              </g>
+              <text x={x} y={y + 21} textAnchor="middle" dominantBaseline="central"
+                style={{ fontSize: 11, fontWeight: 500, fill: '#5B7186' }}>{m.n}</text>
+            </g>
+          );
+        })}
+      </svg>
+      <div className="evx-const-info">
+        <h4>{info.n}</h4>
+        <p>{info.d}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function WelcomePage() {
   const navigate = useNavigate();
   const [annual, setAnnual] = useState(true);
@@ -258,17 +335,10 @@ export default function WelcomePage() {
         <div className="wrap">
           <div className="sec-head">
             <div className="sec-eyebrow">One platform, every function</div>
-            <h2 className="sec-h">Everything your business runs on</h2>
-            <p className="sec-sub">Modular by design &mdash; start with the essentials and switch on more as you grow.</p>
+            <h2 className="sec-h">Everything connected, by design</h2>
+            <p className="sec-sub">Not a pile of separate apps &mdash; one platform where every module shares the same data, so your numbers, stock and customers always agree.</p>
           </div>
-          <div className="mod-grid">
-            <div className="mod-card"><div className="mod-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18" /><path d="M7 14l4-4 3 3 5-6" /></svg></div><h3>Accounting &amp; Finance</h3><p>IFRS-standard general ledger, chart of accounts, journals, trial balance and financial statements &mdash; accurate to three decimals.</p></div>
-            <div className="mod-card"><div className="mod-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /></svg></div><h3>CRM &amp; Sales</h3><p>Leads, contacts, pipeline and field sales &mdash; from first touch to closed deal, with quotations that convert to invoices in a click.</p></div>
-            <div className="mod-card"><div className="mod-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12" /></svg></div><h3>Inventory &amp; Warehouse</h3><p>Multi-location stock with FIFO/weighted-average costing, transfers, adjustments and real-time valuation that ties to the ledger.</p></div>
-            <div className="mod-card"><div className="mod-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><path d="M3 6h18M16 10a4 4 0 0 1-8 0" /></svg></div><h3>Purchase &amp; Procurement</h3><p>Purchase orders, goods receipts and supplier invoices with full three-way matching and automatic GL posting.</p></div>
-            <div className="mod-card"><div className="mod-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg></div><h3>Project Management</h3><p>Plan projects, track tasks and milestones, log meetings and tie project costs straight to your financials.</p></div>
-            <div className="mod-card"><div className="mod-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M9 22V12h6v10" /></svg></div><h3>Fixed Assets</h3><p>Register assets with GPS location, automated depreciation schedules, maintenance tracking and disposal &mdash; book value always current.</p></div>
-          </div>
+          <ModuleConstellation />
         </div>
       </section>
 
