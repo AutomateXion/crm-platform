@@ -717,6 +717,13 @@ export class SalesController {
     );
   }
 
+  @Post('opening-balance/stock')
+  postOpeningStock(@Request() req: any, @Body() dto: any) {
+    return this.svc.postOpeningStock(
+      req.user.tenantId, req.user.userId, dto.cutoffDate, dto.items, dto.narration,
+    );
+  }
+
   // ── Asset Brands ─────────────────────────────────────────────
   @Get('asset-brands')
   getBrands(@Request() req: any, @Query() q: any) {

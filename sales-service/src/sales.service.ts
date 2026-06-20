@@ -2763,6 +2763,77 @@ export class SalesService {
     }
   }
 
+
+  // ── Opening Stock (Phase 2) ────────────────────────────────────
+  // Loads opening stock for regular AND consumable products, creating cost
+  // layers (so COGS works) and posting one balanced opening journal
+  // (Dr Inventory / Cr OBE) via the Phase 1 engine. This is the correct
+  // migration path for stock on hand — no fake GRN required.
+  async postOpeningStock(
+    tenantId: string,
+    userId: string,
+    cutoffDate: string,
+    items: { productId?: string; productCode?: string; quantity: number; unitCost: number }[],
+    narration?: string,
+  ): Promise<{ voucherNumber: string | null; itemsLoaded: number; totalValue: number; skipped: string[] }> {
+    if (!items || items.length === 0) {
+      throw new Error('No opening stock items provided');
+    }
+
+    const INVENTORY_CODE = '1140';
+    let totalValue = 0;
+    let itemsLoaded = 0;
+    const skipped: string[] = [];
+    const ref = `OPENING-STOCK-${cutoffDate}`;
+
+    for (const it of items) {
+      const qty = Number(it.quantity);
+      const cost = Number(it.unitCost);
+      if (!Number.isFinite(qty) || qty <= 0) { skipped.push(`${it.productCode || it.productId}: invalid qty`); continue; }
+      if (!Number.isFinite(cost) || cost < 0) { skipped.push(`${it.productCode || it.productId}: invalid cost`); continue; }
+
+      // Resolve the product
+      let product: any = null;
+      if (it.productId) {
+        product = await this.productRepo.findOne({ where: { tenantId, productId: it.productId } } as any);
+      } else if (it.productCode) {
+        product = await this.productRepo.findOne({ where: { tenantId, productCode: it.productCode } } as any);
+      }
+      if (!product) { skipped.push(`${it.productCode || it.productId}: product not found`); continue; }
+
+      const lineValue = Math.round(qty * cost * 1000) / 1000;
+
+      try {
+        if (product.productType === 'CONSUMABLE') {
+          // Consumable opening stock -> consumable_stock (the correct consumables fix)
+          await this.receiveConsumable(tenantId, product.productId, qty, ref, userId);
+        } else if (product.productType === 'SERVICE') {
+          skipped.push(`${product.productCode}: service items have no stock`); continue;
+        } else {
+          // Regular stock -> adjustStock IN creates the cost layer + updates qty
+          await this.adjustStock(tenantId, product.productId, qty, 'IN', ref, userId, undefined, cost);
+        }
+        totalValue += lineValue;
+        itemsLoaded += 1;
+      } catch (e: any) {
+        skipped.push(`${product.productCode}: ${e?.message || 'load failed'}`);
+      }
+    }
+
+    // Post ONE opening journal for the total inventory value: Dr Inventory / Cr OBE
+    let voucherNumber: string | null = null;
+    if (totalValue > 0.0005) {
+      const jv = await this.postOpeningBalanceJournal(
+        tenantId, userId, cutoffDate,
+        [{ accountCode: INVENTORY_CODE, description: 'Opening stock on hand', debitAmount: totalValue }],
+        narration || `Opening stock as at ${cutoffDate}`,
+      );
+      voucherNumber = jv?.voucherNumber || null;
+    }
+
+    return { voucherNumber, itemsLoaded, totalValue, skipped };
+  }
+
   // ── Reports ───────────────────────────────────────────────────
 
   async getStockMovementReport(tenantId: string, productId?: string, from?: string, to?: string) {
