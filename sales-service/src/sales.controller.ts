@@ -709,6 +709,14 @@ export class SalesController {
     return this.svc.receiveConsumable(req.user.tenantId, dto.productId, dto.quantity, dto.referenceNo, req.user.userId);
   }
 
+  // ── Opening Balance Engine (Phase 1) ──
+  @Post('opening-balance/journal')
+  postOpeningBalanceJournal(@Request() req: any, @Body() dto: any) {
+    return this.svc.postOpeningBalanceJournal(
+      req.user.tenantId, req.user.userId, dto.cutoffDate, dto.lines, dto.narration,
+    );
+  }
+
   // ── Asset Brands ─────────────────────────────────────────────
   @Get('asset-brands')
   getBrands(@Request() req: any, @Query() q: any) {

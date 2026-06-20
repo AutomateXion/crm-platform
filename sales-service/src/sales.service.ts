@@ -2678,6 +2678,91 @@ export class SalesService {
     }
   }
 
+
+  // ── Opening Balance Engine (Phase 1) ──────────────────────────
+  // Posts a balanced opening-balance journal dated to the migration cut-off.
+  // Caller supplies the known opening lines; this method auto-inserts the
+  // Opening Balance Equity (3900) contra line so the entry always balances.
+  // Every opening-balance phase (stock, AR, AP, assets, bank) calls this.
+  async postOpeningBalanceJournal(
+    tenantId: string,
+    userId: string,
+    cutoffDate: string,
+    lines: { accountCode: string; description?: string; debitAmount?: number; creditAmount?: number }[],
+    narration?: string,
+  ): Promise<{ voucherId: string; voucherNumber: string; totalDebit: number; totalCredit: number } | null> {
+    const OBE_CODE = '3900';
+    try {
+      if (!lines || lines.length === 0) {
+        throw new Error('No opening balance lines provided');
+      }
+
+      // 1. Compute totals of the supplied lines
+      const sumDebit = lines.reduce((s, l) => s + Number(l.debitAmount || 0), 0);
+      const sumCredit = lines.reduce((s, l) => s + Number(l.creditAmount || 0), 0);
+
+      // 2. Determine the OBE balancing entry (rounded to 3 dp to match GL scale)
+      const diff = Math.round((sumDebit - sumCredit) * 1000) / 1000;
+      const allLines = [...lines];
+      if (Math.abs(diff) > 0.0005) {
+        // If supplied debits exceed credits, OBE takes the credit (and vice-versa)
+        allLines.push({
+          accountCode: OBE_CODE,
+          description: 'Opening Balance Equity (contra)',
+          debitAmount: diff < 0 ? Math.abs(diff) : 0,
+          creditAmount: diff > 0 ? diff : 0,
+        });
+      }
+
+      // 3. Resolve every account code up-front; fail loudly if any is missing
+      const resolved: { accountId: string; accountCode: string; accountName: string;
+                        description: string; debitAmount: number; creditAmount: number }[] = [];
+      for (const l of allLines) {
+        const acc = await this.coaRepo.findOne({ where: { tenantId, accountCode: l.accountCode } } as any);
+        if (!acc) throw new Error(`Account ${l.accountCode} not found for tenant`);
+        resolved.push({
+          accountId: acc.accountId, accountCode: acc.accountCode, accountName: acc.accountName,
+          description: l.description || narration || 'Opening balance',
+          debitAmount: Number(l.debitAmount || 0), creditAmount: Number(l.creditAmount || 0),
+        });
+      }
+
+      // 4. Final balance guard — must be balanced after OBE contra
+      const tDr = resolved.reduce((s, l) => s + l.debitAmount, 0);
+      const tCr = resolved.reduce((s, l) => s + l.creditAmount, 0);
+      if (Math.abs(tDr - tCr) > 0.0005) {
+        throw new Error(`Opening journal not balanced: Dr ${tDr} vs Cr ${tCr}`);
+      }
+
+      // 5. Create the posted voucher (type OPENING, dated to cut-off)
+      const jvNumber = await this.generateNumber('OB', this.jvRepo, 'voucherNumber');
+      const jv = this.jvRepo.create({
+        tenantId, voucherNumber: jvNumber, voucherType: 'OPENING',
+        description: narration || `Opening balance as at ${cutoffDate}`,
+        voucherDate: cutoffDate, status: 'POSTED', isPosted: true,
+        postedAt: new Date(), postedBy: userId, createdBy: userId,
+        totalDebit: tDr, totalCredit: tCr, reference: 'OPENING',
+      } as any);
+      const savedJV = await this.jvRepo.save(jv) as any;
+
+      // 6. Lines
+      for (let i = 0; i < resolved.length; i++) {
+        const l = resolved[i];
+        await this.jvLineRepo.save(this.jvLineRepo.create({
+          voucherId: savedJV.voucherId, lineNumber: i + 1,
+          accountId: l.accountId, accountCode: l.accountCode, accountName: l.accountName,
+          description: l.description, debitAmount: l.debitAmount, creditAmount: l.creditAmount,
+          reference: 'OPENING',
+        } as any));
+      }
+
+      return { voucherId: savedJV.voucherId, voucherNumber: jvNumber, totalDebit: tDr, totalCredit: tCr };
+    } catch (e: any) {
+      console.error('postOpeningBalanceJournal failed:', e?.message || e);
+      throw e; // opening balances must fail loudly, not silently
+    }
+  }
+
   // ── Reports ───────────────────────────────────────────────────
 
   async getStockMovementReport(tenantId: string, productId?: string, from?: string, to?: string) {
