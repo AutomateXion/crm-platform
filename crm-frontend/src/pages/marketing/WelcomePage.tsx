@@ -8,6 +8,14 @@ const CSS = `
 .evx .wrap{max-width:1180px;margin:0 auto;padding:0 28px}
 .evx .serif{font-family:'Fraunces',Georgia,serif}
 .evx section{position:relative}
+.evx .annbar{background:linear-gradient(90deg,#0C2446,#2E6DA4);color:#fff;font-size:13.5px;padding:9px 20px;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;text-align:center}
+.evx .annbar .ann-dot{display:inline-flex;align-items:center;gap:8px}
+.evx .annbar .ann-pulse{width:7px;height:7px;border-radius:50%;background:#7CFFB2;box-shadow:0 0 0 0 rgba(124,255,178,.7);animation:annpulse 2s infinite}
+@keyframes annpulse{0%{box-shadow:0 0 0 0 rgba(124,255,178,.6)}70%{box-shadow:0 0 0 7px rgba(124,255,178,0)}100%{box-shadow:0 0 0 0 rgba(124,255,178,0)}}
+.evx .annbar strong{font-weight:600}
+.evx .annbar a{color:#fff;font-weight:600;text-decoration:underline;text-underline-offset:2px;cursor:pointer;white-space:nowrap}
+.evx .annbar a:hover{opacity:.85}
+@media(prefers-reduced-motion:reduce){.evx .ann-pulse{animation:none}}
 .evx nav{position:sticky;top:0;z-index:50;background:rgba(247,249,251,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
 .evx .nav-in{display:flex;align-items:center;justify-content:space-between;height:68px}
 .evx .brand{display:flex;align-items:center;gap:11px;font-family:'Fraunces',serif;font-weight:600;font-size:22px;color:var(--navy);letter-spacing:-.01em}
@@ -33,6 +41,9 @@ const CSS = `
 .evx .hero-cta{display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:center}
 .evx .hero-note{font-size:13.5px;color:var(--muted);margin-top:18px;display:inline-flex;align-items:center;gap:7px}
 .evx .hero-note svg{width:15px;height:15px;color:var(--blue)}
+.evx .hero-fawtara{margin-top:14px;display:inline-flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);flex-wrap:wrap;justify-content:center}
+.evx .ff-badge{display:inline-flex;align-items:center;gap:6px;background:#E8F3EC;color:#1E7D4F;border:1px solid #BFE3CD;border-radius:100px;padding:4px 12px;font-weight:600;font-size:12.5px}
+.evx .ff-badge svg{width:13px;height:13px;color:#1E7D4F}
 .evx .hero-shot{margin-top:54px;position:relative}
 .evx .hero-shot::before{content:'';position:absolute;top:-40px;left:50%;transform:translateX(-50%);width:120%;height:340px;background:radial-gradient(ellipse at center,rgba(74,155,210,.16),transparent 65%);z-index:0}
 .evx .hero-shot img{width:100%;max-width:1080px;height:auto;display:block;margin:0 auto;position:relative;z-index:1}
@@ -189,13 +200,13 @@ const EVX_MODULES = [
 
 function ModuleConstellation() {
   const [active, setActive] = useState<number | null>(null);
-  const cx = 320, cy = 230, R = 168, Ry = 150;
+  const cx = 320, cy = 250, R = 190, Ry = 170;
   const def = { n: 'One platform, every function', d: 'Hover or tap a module to see what it does. They all share the same data, so your numbers, stock and customers stay in sync.' };
   const info = active === null ? def : EVX_MODULES[active];
 
   return (
     <div className="evx-const">
-      <svg viewBox="0 0 640 460" className="evx-const-svg" role="img" aria-label="Envoiso modules connected to a central core">
+      <svg viewBox="0 0 640 520" className="evx-const-svg" role="img" aria-label="Envoiso modules connected to a central core">
         {EVX_MODULES.map((m, i) => {
           const ang = (-90 + i * (360 / EVX_MODULES.length)) * Math.PI / 180;
           const x = cx + R * Math.cos(ang), y = cy + Ry * Math.sin(ang);
@@ -225,8 +236,8 @@ function ModuleConstellation() {
                   {m.icon.split(' M').map((seg, k) => <path key={k} d={(k === 0 ? seg : 'M' + seg)} />)}
                 </svg>
               </g>
-              <text x={x} y={y + 21} textAnchor="middle" dominantBaseline="central"
-                style={{ fontSize: 11, fontWeight: 500, fill: '#5B7186' }}>{m.n}</text>
+              <text x={x} y={y + 42} textAnchor="middle" dominantBaseline="central"
+                style={{ fontSize: 11.5, fontWeight: 500, fill: on ? m.c : '#5B7186' }}>{m.n}</text>
             </g>
           );
         })}
@@ -263,6 +274,10 @@ export default function WelcomePage() {
     <div className="evx">
       <style>{CSS}</style>
 
+      <div className="annbar">
+        <span className="ann-dot"><span className="ann-pulse" /><strong>Fawtara is here.</strong>&nbsp;Oman e-invoicing rolls out from August 2026 &mdash; get ahead of your phase.</span>
+        <a onClick={() => document.getElementById('compliance')?.scrollIntoView({ behavior: 'smooth' })}>Learn about Fawtara &rarr;</a>
+      </div>
       <nav>
         <div className="wrap nav-in">
           <div className="brand"><span className="mark">E</span>Envoiso</div>
@@ -286,6 +301,7 @@ export default function WelcomePage() {
             <a className="btn btn-ghost btn-lg" onClick={trial}>Watch 2-min tour</a>
           </div>
           <div className="hero-note"><Check />14-day free trial &middot; No credit card required</div>
+          <div className="hero-fawtara"><span className="ff-badge"><Check />Fawtara-ready</span> Built for Oman e-invoicing (UBL 2.1) ahead of the OTA rollout</div>
           <div className="hero-shot">
             <img src="/envoiso_hero_montage.png" alt="Envoiso dashboard, CRM and sales analytics" />
           </div>
