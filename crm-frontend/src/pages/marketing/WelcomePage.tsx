@@ -282,7 +282,7 @@ export default function WelcomePage() {
         <div className="wrap nav-in">
           <div className="brand"><span className="mark">E</span>Envoiso</div>
           <div className="nav-links">
-            <a onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>Product</a>
+            <a onClick={() => navigate('/features')}>Product</a>
             <a onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}>Pricing</a>
             <a onClick={() => document.getElementById('compliance')?.scrollIntoView({ behavior: 'smooth' })}>Compliance</a>
             <a onClick={trial} style={{ color: 'var(--navy)', fontWeight: 600 }}>Sign in</a>
@@ -355,6 +355,9 @@ export default function WelcomePage() {
             <p className="sec-sub">Not a pile of separate apps &mdash; one platform where every module shares the same data, so your numbers, stock and customers always agree.</p>
           </div>
           <ModuleConstellation />
+          <div style={{ textAlign: 'center', marginTop: 28 }}>
+            <a onClick={() => navigate('/features')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--blue)', fontWeight: 600, fontSize: 16, cursor: 'pointer' }}>Explore all features &rarr;</a>
+          </div>
         </div>
       </section>
 
@@ -442,7 +445,7 @@ export default function WelcomePage() {
               <div className="foot-brand"><span className="mark">E</span>Envoiso</div>
               <p className="foot-tag">The all-in-one business platform for growing companies. Intelligence &middot; Flow &middot; Trust.</p>
             </div>
-            <div className="foot-col"><h4>Product</h4><a onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>Modules</a><a onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}>Pricing</a><a onClick={() => document.getElementById('compliance')?.scrollIntoView({ behavior: 'smooth' })}>Compliance</a></div>
+            <div className="foot-col"><h4>Product</h4><a onClick={() => navigate('/features')}>Modules</a><a onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}>Pricing</a><a onClick={() => document.getElementById('compliance')?.scrollIntoView({ behavior: 'smooth' })}>Compliance</a></div>
             <div className="foot-col"><h4>Company</h4><a>About</a><a>Contact</a><a>Partners</a></div>
             <div className="foot-col"><h4>Resources</h4><a>Help center</a><a>Guides</a><a>API docs</a></div>
           </div>
