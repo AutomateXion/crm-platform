@@ -543,7 +543,7 @@ export default function FixedAssetsPage() {
           children: (
             <Card style={{ borderRadius:12 }} size="small"
               extra={<Button type="primary" size="small" icon={<PlusOutlined />} onClick={()=>setMaintModalOpen(true)}>Schedule</Button>}>
-              <Table dataSource={maintenance} columns={maintColumns} rowKey="maintenanceId" size="small" pagination={{ pageSize:10 }} />
+              <Table dataSource={maintenance} columns={maintColumns} rowKey="maintenanceId" size="small" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 10 }} />
             </Card>
           )
         },

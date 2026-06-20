@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Param, Body, Request, UseGuards, Query, UnauthorizedException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SuperAdminService } from './superadmin.service';
+import { SuperAdminCreateTenantDto } from './dto/create-tenant.dto';
 
 @Controller('superadmin')
 @UseGuards(JwtAuthGuard)
@@ -24,7 +25,7 @@ export class SuperAdminController {
   }
 
   @Post('tenants')
-  createTenant(@Request() req: any, @Body() dto: any) {
+  createTenant(@Request() req: any, @Body() dto: SuperAdminCreateTenantDto) {
     this.checkSuperAdmin(req);
     return this.svc.createTenant(dto);
   }

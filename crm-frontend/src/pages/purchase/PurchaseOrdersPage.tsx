@@ -122,7 +122,7 @@ export default function PurchaseOrdersPage() {
           </Select>
         </Space>
         <Table dataSource={items} columns={columns} rowKey="poId" loading={loading} size="middle"
-          pagination={{ current:page, total, pageSize:20, onChange:setPage }} />
+          pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current:page, total, pageSize:20, onChange:setPage }} />
       </Card>
       <Modal title={editRecord ? 'Edit Purchase Order' : 'New Purchase Order'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={900} style={{top:20}}>
         <Form form={form} layout="vertical" onFinish={handleSave} style={{marginTop:12}}>

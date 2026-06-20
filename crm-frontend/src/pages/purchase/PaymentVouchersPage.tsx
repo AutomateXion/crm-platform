@@ -136,7 +136,7 @@ export default function PaymentVouchersPage() {
       <Card style={{ borderRadius: 12 }}>
         <Input prefix={<SearchOutlined />} placeholder="Search vouchers..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} allowClear style={{ width: 260, marginBottom: 16 }} />
         <Table dataSource={items} columns={columns} rowKey="voucherId" loading={loading} size="middle"
-          pagination={{ current: page, total, pageSize: 20, onChange: setPage }} />
+          pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current: page, total, pageSize: 20, onChange: setPage }} />
       </Card>
 
       <Modal title={editRecord ? "Edit Payment Voucher" : "New Payment Voucher"} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={560}>

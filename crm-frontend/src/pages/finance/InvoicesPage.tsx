@@ -318,7 +318,7 @@ export default function InvoicesPage() {
           </Select>
         </Space>
         <Table dataSource={items} columns={columns} rowKey="invoiceId" loading={loading} size="middle" scroll={{ x: 'max-content' }} sticky={{ offsetHeader: 0 }}
-          pagination={{ current: page, total, pageSize: 20, onChange: setPage }} />
+          pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current: page, total, pageSize: 20, onChange: setPage }} />
       </Card>
 
       {/* Create/Edit Invoice Modal */}

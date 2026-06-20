@@ -230,11 +230,11 @@ export default function ContactsPage() {
         >
           <TabPane tab={<span><BankOutlined /> Accounts ({totalAccounts})</span>} key="accounts">
             <Table dataSource={accounts} columns={accountColumns} rowKey="accountId" loading={loading} size="middle"
-              pagination={{ current: page, total: totalAccounts, pageSize: 20, onChange: setPage }} />
+              pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current: page, total: totalAccounts, pageSize: 20, onChange: setPage }} />
           </TabPane>
           <TabPane tab={<span><UserOutlined /> Contacts ({totalContacts})</span>} key="contacts">
             <Table dataSource={contacts} columns={contactColumns} rowKey="contactId" loading={loading} size="middle"
-              pagination={{ current: page, total: totalContacts, pageSize: 20, onChange: setPage }} />
+              pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current: page, total: totalContacts, pageSize: 20, onChange: setPage }} />
           </TabPane>
         </Tabs>
       </Card>

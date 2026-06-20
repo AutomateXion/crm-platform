@@ -78,7 +78,7 @@ export default function LocationsPage() {
           </Select>
           <Text type="secondary">{locations.length} locations</Text>
         </Space>
-        <Table dataSource={locations} columns={columns} rowKey="locationId" loading={loading} size="middle" pagination={{ pageSize: 20 }} />
+        <Table dataSource={locations} columns={columns} rowKey="locationId" loading={loading} size="middle" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 20 }} />
       </Card>
       <Modal title={editRecord ? 'Edit Location' : 'New Location'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={560}>
         <Form form={form} layout="vertical" onFinish={handleSave} style={{ marginTop: 12 }}>

@@ -450,7 +450,7 @@ export default function FieldSalesPage() {
                 onCheckout={(visit:any) => { setCheckOutVisit(visit); setCheckOutOpen(true); }} />
             ))}</div>
           ) : (
-            <Table dataSource={visits} columns={visitCols} rowKey="visitId" size="small" pagination={{ pageSize: 10 }} loading={loading} />
+            <Table dataSource={visits} columns={visitCols} rowKey="visitId" size="small" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 10 }} loading={loading} />
           )
         },
         {

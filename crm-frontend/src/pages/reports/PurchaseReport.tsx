@@ -148,7 +148,7 @@ export default function PurchaseReport() {
                   <div style={{ textAlign: 'right', marginBottom: 8 }}>
                     <Button size="small" icon={<DownloadOutlined />} onClick={() => exportCsv(data.bySupplier || [], ['name', 'invoiceCount', 'totalAmount', 'paidAmount', 'balanceDue'], 'purchase-by-supplier')}>Export</Button>
                   </div>
-                  <Table dataSource={data.bySupplier || []} columns={supplierCols} rowKey="name" size="small" loading={loading} pagination={{ pageSize: 15 }} />
+                  <Table dataSource={data.bySupplier || []} columns={supplierCols} rowKey="name" size="small" loading={loading} pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 15 }} />
                 </>
               ),
             },
@@ -159,7 +159,7 @@ export default function PurchaseReport() {
                   <div style={{ textAlign: 'right', marginBottom: 8 }}>
                     <Button size="small" icon={<DownloadOutlined />} onClick={() => exportCsv(data.byProduct || [], ['name', 'qty', 'totalAmount'], 'purchase-by-product')}>Export</Button>
                   </div>
-                  <Table dataSource={data.byProduct || []} columns={productCols} rowKey="name" size="small" loading={loading} pagination={{ pageSize: 15 }} />
+                  <Table dataSource={data.byProduct || []} columns={productCols} rowKey="name" size="small" loading={loading} pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 15 }} />
                 </>
               ),
             },
@@ -170,7 +170,7 @@ export default function PurchaseReport() {
                   <div style={{ textAlign: 'right', marginBottom: 8 }}>
                     <Button size="small" icon={<DownloadOutlined />} onClick={() => exportCsv(data.byMonth || [], ['month', 'invoiceCount', 'totalAmount'], 'purchase-by-month')}>Export</Button>
                   </div>
-                  <Table dataSource={data.byMonth || []} columns={monthCols} rowKey="month" size="small" loading={loading} pagination={{ pageSize: 15 }} />
+                  <Table dataSource={data.byMonth || []} columns={monthCols} rowKey="month" size="small" loading={loading} pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 15 }} />
                 </>
               ),
             },

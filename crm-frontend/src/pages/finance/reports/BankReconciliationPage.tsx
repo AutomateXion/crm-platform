@@ -165,12 +165,12 @@ export default function BankReconciliationPage() {
           <Row gutter={12}>
             <Col span={12}>
               <Card title="💰 Receipts (Cash In)" style={{ borderRadius:12 }} size="small">
-                <Table dataSource={data.receipts||[]} columns={receiptCols} rowKey="receiptId" size="small" pagination={{ pageSize:10 }} />
+                <Table dataSource={data.receipts||[]} columns={receiptCols} rowKey="receiptId" size="small" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 10 }} />
               </Card>
             </Col>
             <Col span={12}>
               <Card title="💸 Payments (Cash Out)" style={{ borderRadius:12 }} size="small">
-                <Table dataSource={data.paymentVouchers||[]} columns={paymentCols} rowKey="voucherId" size="small" pagination={{ pageSize:10 }} />
+                <Table dataSource={data.paymentVouchers||[]} columns={paymentCols} rowKey="voucherId" size="small" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 10 }} />
               </Card>
             </Col>
           </Row>

@@ -130,7 +130,7 @@ export default function StockByLocationPage() {
                   These products have stock but no warehouse location assigned. Assign locations via Purchase Orders.
                 </Text>
                 <Table dataSource={data.unassigned} columns={unassignedColumns} rowKey="productId"
-                  size="small" pagination={{ pageSize: 20 }} scroll={{ x: 'max-content' }} />
+                  size="small" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 20 }} scroll={{ x: 'max-content' }} />
               </Card>
             )}
           </>

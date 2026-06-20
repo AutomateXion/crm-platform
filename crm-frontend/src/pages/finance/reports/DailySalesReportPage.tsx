@@ -130,7 +130,7 @@ export default function DailySalesReportPage() {
             ))}
           </Row>
           <Card style={{ borderRadius:12 }}>
-            <Table dataSource={data.invoices||[]} columns={invoiceCols} rowKey="invoiceId" size="small" pagination={{ pageSize:20 }} />
+            <Table dataSource={data.invoices||[]} columns={invoiceCols} rowKey="invoiceId" size="small" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 20 }} />
           </Card>
         </>
       )}

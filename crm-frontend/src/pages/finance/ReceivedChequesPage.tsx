@@ -120,7 +120,7 @@ export default function ReceivedChequesPage() {
             selectedRowKeys: selectedKeys,
             onChange: (keys) => setSelectedKeys(keys as string[]),
           }}
-          pagination={{ pageSize: 20 }}
+          pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 20 }}
           summary={(data) => {
             const total = data.reduce((s, r: any) => s + Number(r.amount || 0), 0);
             return (

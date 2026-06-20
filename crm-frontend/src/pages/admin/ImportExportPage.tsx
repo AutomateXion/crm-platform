@@ -307,7 +307,7 @@ function ImportCard({ config }: { config: typeof IMPORT_CONFIGS[0] }) {
                 description={invalidRows.slice(0, 3).map(r => `Row ${r.rowNum}: ${r.errors.join(', ')}`).join(' | ')} />
             )}
 
-            <Table size="small" pagination={{ pageSize: 5 }}
+            <Table size="small" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 5 }}
               dataSource={validationResults}
               rowKey="rowNum"
               columns={[

@@ -201,7 +201,7 @@ export default function SupportPage() {
           </Col>
         </Row>
         <Table dataSource={tickets} columns={columns} rowKey="ticketId" loading={loading}
-          pagination={{ current: page, total, pageSize: 20, onChange: setPage }} />
+          pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current: page, total, pageSize: 20, onChange: setPage }} />
       </Card>
 
       {/* Ticket Drawer */}

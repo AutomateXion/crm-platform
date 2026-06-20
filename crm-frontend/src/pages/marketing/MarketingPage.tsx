@@ -144,7 +144,7 @@ export default function MarketingPage() {
             value={search} onChange={e => setSearch(e.target.value)} allowClear style={{ width: 300, borderRadius: 8 }} />
         </div>
         <Table dataSource={campaigns} columns={columns} rowKey="campaignId" loading={loading}
-          pagination={{ current: page, total, pageSize: 20, onChange: setPage }} />
+          pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current: page, total, pageSize: 20, onChange: setPage }} />
       </Card>
 
       {/* Stats Modal */}

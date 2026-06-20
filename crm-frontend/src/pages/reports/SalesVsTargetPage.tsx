@@ -288,7 +288,7 @@ export default function SalesVsTargetPage() {
           children: (
             <Card style={{ borderRadius:12 }} size="small"
               extra={<Button type="primary" size="small" icon={<PlusOutlined />} onClick={openCreate}>Add Target</Button>}>
-              <Table dataSource={targets} columns={targetCols} rowKey="target_id" size="small" pagination={{ pageSize:10 }} loading={loading} />
+              <Table dataSource={targets} columns={targetCols} rowKey="target_id" size="small" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 10 }} loading={loading} />
             </Card>
           )
         },

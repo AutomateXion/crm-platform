@@ -211,7 +211,7 @@ export default function DeliveryNotesPage() {
           </Select>
         </Space>
         <Table dataSource={items} columns={columns} rowKey="dnId" loading={loading} size="middle" scroll={{ x: 'max-content' }} sticky={{ offsetHeader: 0 }}
-          pagination={{ current: page, total, pageSize: 20, onChange: setPage }} />
+          pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current: page, total, pageSize: 20, onChange: setPage }} />
       </Card>
       <Modal title={editRecord ? 'Edit Delivery Note' : 'New Delivery Note'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={900} style={{ top: 20 }}>
         <Form form={form} layout="vertical" onFinish={handleSave} style={{ marginTop: 12 }}>

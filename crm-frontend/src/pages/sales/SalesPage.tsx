@@ -442,7 +442,7 @@ export default function SalesPage() {
               allowClear style={{ width:300, borderRadius:8 }} />
           </div>
           <Table dataSource={opps} columns={columns} rowKey="opportunityId" loading={loading}
-            pagination={{ current:page, total, pageSize:50, onChange:setPage }} />
+            pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current:page, total, pageSize:50, onChange:setPage }} />
         </Card>
       )}
 

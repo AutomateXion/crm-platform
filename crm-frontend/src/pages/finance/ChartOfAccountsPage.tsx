@@ -169,7 +169,7 @@ export default function ChartOfAccountsPage() {
           </Select>
         </Space>
         <Table dataSource={filtered} columns={columns} rowKey="accountId" loading={loading} size="middle"
-          pagination={{ pageSize: 20, showTotal: t => `${t} accounts` }}
+          pagination={{ defaultPageSize: 20, showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], showTotal: t => `${t} accounts` }}
           rowClassName={(r) => r.accountSubtype === 'HEADER' ? 'table-row-header' : ''}
         />
       </Card>

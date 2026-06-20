@@ -187,7 +187,7 @@ export default function ConsumablesPage() {
           children: (
             <Card style={{ borderRadius: 12 }} size="small">
               <Table dataSource={transactions} columns={txColumns} rowKey="transaction_id" size="small"
-                pagination={{ pageSize: 20 }} />
+                pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 20 }} />
             </Card>
           )
         },
@@ -295,7 +295,7 @@ export default function ConsumablesPage() {
       <Modal title={`Transaction History — ${historyItem?.product_name || ''}`}
         open={historyModal} onCancel={() => setHistoryModal(false)} footer={null} width={800}>
         <Table dataSource={transactions} columns={txColumns.filter(c => c.dataIndex !== 'product_name')}
-          rowKey="transaction_id" size="small" pagination={{ pageSize: 10 }} />
+          rowKey="transaction_id" size="small" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 10 }} />
       </Modal>
     </div>
   );

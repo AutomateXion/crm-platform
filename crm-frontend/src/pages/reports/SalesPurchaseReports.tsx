@@ -122,7 +122,7 @@ function SalesReport() {
       <Row gutter={12}>
         <Col span={14}>
           <Card title="👥 By Customer" size="small" style={{ borderRadius: 12 }}>
-            <Table dataSource={data?.byCustomer} columns={customerCols} rowKey="name" size="small" loading={loading} pagination={{ pageSize: 10 }} />
+            <Table dataSource={data?.byCustomer} columns={customerCols} rowKey="name" size="small" loading={loading} pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 10 }} />
           </Card>
         </Col>
         <Col span={10}>
@@ -202,7 +202,7 @@ function PurchaseReport() {
       </Row>
 
       <Card title="🏪 By Supplier" size="small" style={{ borderRadius: 12 }}>
-        <Table dataSource={data?.bySupplier} columns={supplierCols} rowKey="name" size="small" loading={loading} pagination={{ pageSize: 10 }} />
+        <Table dataSource={data?.bySupplier} columns={supplierCols} rowKey="name" size="small" loading={loading} pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 10 }} />
       </Card>
     </div>
   );

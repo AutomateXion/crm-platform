@@ -75,7 +75,7 @@ export default function StockValuationPage() {
           <Card size="small">
             <Table
               dataSource={data.items} columns={columns} rowKey="productId" size="middle"
-              pagination={{ pageSize: 20 }}
+              pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 20 }}
               summary={() => (
                 <Table.Summary fixed>
                   <Table.Summary.Row>

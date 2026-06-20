@@ -154,7 +154,7 @@ function TasksTab({ projectId }: { projectId: string }) {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Add Task</Button>
       </div>
-      <Table dataSource={tasks} columns={columns} rowKey="taskId" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
+      <Table dataSource={tasks} columns={columns} rowKey="taskId" loading={loading} size="middle" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 10 }} />
       <Modal title={editRecord ? 'Edit Task' : 'New Task'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={560}>
         <Form form={form} layout="vertical" onFinish={handleSave} style={{ marginTop: 12 }}>
           <Form.Item name="taskName" label="Task Name" rules={[{ required: true }]}><Input /></Form.Item>
@@ -370,7 +370,7 @@ function BudgetTab({ projectId }: { projectId: string }) {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); form.setFieldsValue({ entryType:'PLANNED', category:'MATERIAL' }); setModalOpen(true); }}>Add Entry</Button>
       </div>
-      <Table dataSource={entries} columns={columns} rowKey="entryId" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
+      <Table dataSource={entries} columns={columns} rowKey="entryId" loading={loading} size="middle" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 10 }} />
       <Modal title="Add Budget Entry" open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={480}>
         <Form form={form} layout="vertical" onFinish={handleSave} style={{ marginTop: 12 }}>
           <Form.Item name="description" label="Description" rules={[{ required: true }]}><Input /></Form.Item>
@@ -444,7 +444,7 @@ function ChangeRequestsTab({ projectId }: { projectId: string }) {
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditRecord(null); form.resetFields(); form.setFieldsValue({ status:'Accepted' }); setModalOpen(true); }}>New CR</Button>
       </div>
       <Table dataSource={items} columns={columns} rowKey="crId" loading={loading} size="middle"
-        scroll={{ x: 1200 }} pagination={{ pageSize: 10 }} />
+        scroll={{ x: 1200 }} pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 10 }} />
       <Modal title={editRecord ? 'Edit Change Request' : 'New Change Request'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={720} style={{ top: 20 }}>
         <Form form={form} layout="vertical" onFinish={handleSave} style={{ marginTop: 12 }}>
           <Row gutter={12}>
@@ -671,7 +671,7 @@ function MeetingsTab({ projectId }: { projectId: string }) {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={openNew}>Log Meeting</Button>
       </div>
-      <Table dataSource={items} columns={columns} rowKey="meetingId" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
+      <Table dataSource={items} columns={columns} rowKey="meetingId" loading={loading} size="middle" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 10 }} />
 
       <Modal title={editRecord ? 'Edit Meeting Minutes' : 'New Meeting Minutes'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={820} style={{ top: 20 }}>
         <Form form={form} layout="vertical" onFinish={handleSave} style={{ marginTop: 12 }}>

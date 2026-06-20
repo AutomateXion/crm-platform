@@ -394,7 +394,7 @@ export default function ActivitiesPage() {
       {viewMode === "table" ? (
         <Card style={{ borderRadius: 12 }}>
           <Table dataSource={activities} columns={columns} rowKey="activityId" loading={loading} size="middle"
-            pagination={{ current: page, total, pageSize: 50, onChange: setPage, showTotal: t => t + " activities" }}
+            pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current: page, total, pageSize: 50, onChange: setPage, showTotal: t => t + " activities" }}
           />
         </Card>
       ) : (

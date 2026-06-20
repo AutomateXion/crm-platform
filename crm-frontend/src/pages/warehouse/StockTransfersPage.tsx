@@ -151,7 +151,7 @@ export default function StockTransfersPage() {
       </div>
       <Card style={{ borderRadius: 12 }}>
         <Input prefix={<SearchOutlined />} placeholder="Search transfers..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} allowClear style={{ width: 260, marginBottom: 16 }} />
-        <Table dataSource={items} columns={columns} rowKey="transferId" loading={loading} size="middle" pagination={{ current: page, total, pageSize: 20, onChange: setPage }} />
+        <Table dataSource={items} columns={columns} rowKey="transferId" loading={loading} size="middle" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current: page, total, pageSize: 20, onChange: setPage }} />
       </Card>
       <Modal title={editRecord ? 'Edit Transfer' : 'New Stock Transfer'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={860} style={{ top: 20 }}>
         <Form form={form} layout="vertical" onFinish={handleSave} style={{ marginTop: 12 }}>

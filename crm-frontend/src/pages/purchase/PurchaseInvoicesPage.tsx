@@ -165,7 +165,7 @@ export default function PurchaseInvoicesPage() {
             {Object.keys(STATUS_COLORS).map(s => <Option key={s} value={s}><Tag color={STATUS_COLORS[s]}>{s.replace('_',' ')}</Tag></Option>)}
           </Select>
         </Space>
-        <Table dataSource={items} columns={columns} rowKey="invoiceId" loading={loading} size="middle" scroll={{ x: 'max-content' }} sticky={{ offsetHeader: 0 }} pagination={{ current:page, total, pageSize:20, onChange:setPage }} />
+        <Table dataSource={items} columns={columns} rowKey="invoiceId" loading={loading} size="middle" scroll={{ x: 'max-content' }} sticky={{ offsetHeader: 0 }} pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current:page, total, pageSize:20, onChange:setPage }} />
       </Card>
       <Modal title={editRecord ? 'Edit Purchase Invoice' : 'New Purchase Invoice'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={900} style={{top:20}}>
         <Form form={form} layout="vertical" onFinish={handleSave} style={{marginTop:12}}>

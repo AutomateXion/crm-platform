@@ -156,7 +156,7 @@ export default function SalesReturnsPage() {
       </div>
       <Card style={{ borderRadius: 12 }}>
         <Table dataSource={items} columns={columns} rowKey="returnId" loading={loading} size="middle"
-          pagination={{ current: page, total, pageSize: 20, onChange: setPage }} />
+          pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current: page, total, pageSize: 20, onChange: setPage }} />
       </Card>
 
       <Modal title={editRecord ? 'Edit Return' : 'New Sales Return'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={900} style={{ top: 20 }}>

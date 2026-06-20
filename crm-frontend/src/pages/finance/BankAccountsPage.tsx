@@ -405,7 +405,7 @@ export default function BankAccountsPage() {
       <Drawer title={activeBook ? `Cheque Leaves – ${activeBook.bookNumber}` : 'Cheque Leaves'}
         open={leavesOpen} onClose={() => setLeavesOpen(false)} width={520}>
         <Table dataSource={leaves} columns={leafColumns} rowKey="leafId" loading={leavesLoading}
-          size="small" pagination={{ pageSize: 25 }} />
+          size="small" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], defaultPageSize: 25 }} />
       </Drawer>
     </div>
   );

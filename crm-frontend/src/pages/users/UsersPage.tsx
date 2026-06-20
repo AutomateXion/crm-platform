@@ -261,7 +261,7 @@ export default function UsersPage() {
         <Table
           dataSource={users} columns={columns} rowKey="userId"
           loading={loading} size="middle"
-          pagination={{ current: page, total, pageSize: 20, onChange: setPage, showTotal: t => t + " users" }}
+          pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current: page, total, pageSize: 20, onChange: setPage, showTotal: t => t + " users" }}
           rowClassName={r => !r.isActive ? "opacity-50" : ""}
         />
       </Card>

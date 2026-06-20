@@ -101,7 +101,7 @@ export default function GRNPage() {
       </div>
       <Card style={{borderRadius:12}}>
         <Input prefix={<SearchOutlined />} placeholder="Search GRNs..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} allowClear style={{width:260, marginBottom:16}} />
-        <Table dataSource={items} columns={columns} rowKey="grnId" loading={loading} size="middle" pagination={{ current:page, total, pageSize:20, onChange:setPage }} />
+        <Table dataSource={items} columns={columns} rowKey="grnId" loading={loading} size="middle" pagination={{ showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], current:page, total, pageSize:20, onChange:setPage }} />
       </Card>
       <Modal title={editRecord ? 'Edit GRN' : 'New Goods Receipt Note'} open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={900} style={{top:20}}>
         <Form form={form} layout="vertical" onFinish={handleSave} style={{marginTop:12}}>
