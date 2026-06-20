@@ -1,7 +1,7 @@
 // ─── tenants.service.ts ───────────────────────────────────────────────────────
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Tenant } from './entities/tenant.entity';
 import { DocumentConfig } from './entities/document-config.entity';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
@@ -17,6 +17,7 @@ export class TenantsService {
     @InjectRepository(DocumentConfig) private documentConfigRepo: Repository<DocumentConfig>,
     @InjectRepository(UserGroup) private readonly groupRepo: Repository<UserGroup>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async getTenant(tenantId: string): Promise<Tenant> {
@@ -56,7 +57,7 @@ export class TenantsService {
         currencyCode: dto.currencyCode || 'OMR',
         language: dto.language || 'en',
         maxUsers: dto.maxUsers || 10,
-        activeModules: ['core', 'contacts', 'leads', 'sales', 'activities'],
+        activeModules: ['core', 'accounting', 'invoicing', 'banking', 'documents', 'crm', 'sales', 'purchase', 'pm', 'inventory', 'assets', 'reports'],
         isActive: true,
       }),
     );
@@ -86,6 +87,11 @@ export class TenantsService {
       }),
     );
 
+    try {
+      await this.dataSource.query('SELECT clone_coa_to_tenant($1)', [tenant.tenantId]);
+    } catch (e) {
+      console.error('clone_coa_to_tenant failed for tenant', tenant.tenantId, e);
+    }
     return { tenant, adminUser };
   }
 

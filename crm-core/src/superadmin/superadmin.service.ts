@@ -65,7 +65,7 @@ export class SuperAdminService {
       country: dto.country || 'Oman',
       timezone: 'Asia/Muscat',
       currencyCode: 'OMR',
-      activeModules: ['core','contacts','leads','sales','activities'],
+      activeModules: ['core','accounting','invoicing','banking','documents','crm','sales','purchase','pm','inventory','assets','reports'],
     } as any);
     const savedTenant = await this.tenantRepo.save(tenant) as any;
     if (dto.adminEmail) {
@@ -74,6 +74,11 @@ export class SuperAdminService {
         tenantId: savedTenant.tenantId, email: dto.adminEmail,
         passwordHash: hashedPassword, fullName: dto.adminName || 'Administrator', isActive: true,
       } as any));
+    }
+    try {
+      await this.tenantRepo.query('SELECT clone_coa_to_tenant($1)', [savedTenant.tenantId]);
+    } catch (e) {
+      console.error('clone_coa_to_tenant failed for tenant', savedTenant.tenantId, e);
     }
     return { tenant: savedTenant, message: 'Tenant created successfully' };
   }
