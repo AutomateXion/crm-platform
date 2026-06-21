@@ -2834,6 +2834,153 @@ export class SalesService {
     return { voucherNumber, itemsLoaded, totalValue, skipped };
   }
 
+
+  // ── Opening AR (Phase 3) ───────────────────────────────────────
+  // Loads unpaid customer invoices as INDIVIDUAL open items (real
+  // sales_invoices rows) so aging, statements, credit checks and receipt
+  // allocation all work. Posts the grand total to AR control / OBE.
+  async postOpeningAR(
+    tenantId: string,
+    userId: string,
+    cutoffDate: string,
+    items: { invoiceNumber: string; invoiceDate: string; dueDate?: string;
+             accountId?: string; customerName: string; totalAmount: number;
+             outstandingAmount: number }[],
+    narration?: string,
+    partyTotals?: { customerName: string; total: number }[],
+  ): Promise<any> {
+    if (!items || items.length === 0) throw new Error('No open AR items provided');
+    const AR_CODE = '1130';
+    const loaded: any[] = []; const skipped: string[] = [];
+    let grandOutstanding = 0;
+    const perParty: Record<string, number> = {};
+
+    for (const it of items) {
+      const total = Number(it.totalAmount);
+      const out = Number(it.outstandingAmount);
+      if (!it.invoiceNumber) { skipped.push('(missing invoice number)'); continue; }
+      if (!Number.isFinite(total) || total <= 0) { skipped.push(`${it.invoiceNumber}: invalid total`); continue; }
+      if (!Number.isFinite(out) || out < 0 || out > total + 0.0005) { skipped.push(`${it.invoiceNumber}: invalid outstanding`); continue; }
+
+      const paid = Math.round((total - out) * 1000) / 1000;
+      const status = out <= 0.0005 ? 'PAID' : (paid > 0.0005 ? 'PARTIALLY_PAID' : 'SENT');
+      try {
+        await this.invoiceRepo.query(
+          `INSERT INTO sales_invoices
+             (tenant_id, invoice_number, invoice_date, due_date, account_id, customer_name,
+              subtotal, vat_amount, total_amount, paid_amount, balance_due,
+              status, currency_code, is_inventory, notes, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,0,$7,$8,$9,$10,'OMR',false,$11,$12)`,
+          [tenantId, it.invoiceNumber, it.invoiceDate, it.dueDate || it.invoiceDate,
+           it.accountId || null, it.customerName, total, paid, out, status,
+           `Opening balance (migrated) as at ${cutoffDate}`, userId]
+        );
+        if (out > 0.0005) grandOutstanding += out;
+        perParty[it.customerName] = (perParty[it.customerName] || 0) + out;
+        loaded.push({ invoiceNumber: it.invoiceNumber, outstanding: out, status });
+      } catch (e: any) {
+        skipped.push(`${it.invoiceNumber}: ${e?.message || 'insert failed'}`);
+      }
+    }
+
+    // Per-party tally validation (if expected totals supplied)
+    const tallyMismatches: any[] = [];
+    if (partyTotals) {
+      for (const pt of partyTotals) {
+        const actual = Math.round((perParty[pt.customerName] || 0) * 1000) / 1000;
+        const expected = Math.round(Number(pt.total) * 1000) / 1000;
+        if (Math.abs(actual - expected) > 0.0005) {
+          tallyMismatches.push({ customer: pt.customerName, expected, actual });
+        }
+      }
+    }
+
+    // Post grand total to AR control / OBE
+    let voucherNumber: string | null = null;
+    if (grandOutstanding > 0.0005) {
+      const jv = await this.postOpeningBalanceJournal(
+        tenantId, userId, cutoffDate,
+        [{ accountCode: AR_CODE, description: 'Opening accounts receivable', debitAmount: grandOutstanding }],
+        narration || `Opening AR as at ${cutoffDate}`,
+      );
+      voucherNumber = jv?.voucherNumber || null;
+    }
+
+    return { itemsLoaded: loaded.length, grandOutstanding, voucherNumber,
+             perParty, tallyMismatches, skipped };
+  }
+
+  // ── Opening AP (Phase 3) ───────────────────────────────────────
+  // Loads unpaid supplier bills as INDIVIDUAL open items (real
+  // purchase_invoices rows). Posts the grand total to OBE / AP control.
+  async postOpeningAP(
+    tenantId: string,
+    userId: string,
+    cutoffDate: string,
+    items: { invoiceNumber: string; invoiceDate: string; dueDate?: string;
+             supplierId?: string; supplierName: string; totalAmount: number;
+             outstandingAmount: number }[],
+    narration?: string,
+    partyTotals?: { supplierName: string; total: number }[],
+  ): Promise<any> {
+    if (!items || items.length === 0) throw new Error('No open AP items provided');
+    const AP_CODE = '2110';
+    const loaded: any[] = []; const skipped: string[] = [];
+    let grandOutstanding = 0;
+    const perParty: Record<string, number> = {};
+
+    for (const it of items) {
+      const total = Number(it.totalAmount);
+      const out = Number(it.outstandingAmount);
+      if (!it.invoiceNumber) { skipped.push('(missing bill number)'); continue; }
+      if (!Number.isFinite(total) || total <= 0) { skipped.push(`${it.invoiceNumber}: invalid total`); continue; }
+      if (!Number.isFinite(out) || out < 0 || out > total + 0.0005) { skipped.push(`${it.invoiceNumber}: invalid outstanding`); continue; }
+
+      const paid = Math.round((total - out) * 1000) / 1000;
+      const status = out <= 0.0005 ? 'PAID' : 'RECEIVED';
+      try {
+        await this.purchaseInvoiceRepo.query(
+          `INSERT INTO purchase_invoices
+             (tenant_id, invoice_number, invoice_date, due_date, supplier_id, supplier_name,
+              total_amount, paid_amount, balance_due, status, currency_code, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'OMR',$11)`,
+          [tenantId, it.invoiceNumber, it.invoiceDate, it.dueDate || it.invoiceDate,
+           it.supplierId || null, it.supplierName, total, paid, out, status,
+           `Opening balance (migrated) as at ${cutoffDate}`]
+        );
+        if (out > 0.0005) grandOutstanding += out;
+        perParty[it.supplierName] = (perParty[it.supplierName] || 0) + out;
+        loaded.push({ invoiceNumber: it.invoiceNumber, outstanding: out, status });
+      } catch (e: any) {
+        skipped.push(`${it.invoiceNumber}: ${e?.message || 'insert failed'}`);
+      }
+    }
+
+    const tallyMismatches: any[] = [];
+    if (partyTotals) {
+      for (const pt of partyTotals) {
+        const actual = Math.round((perParty[pt.supplierName] || 0) * 1000) / 1000;
+        const expected = Math.round(Number(pt.total) * 1000) / 1000;
+        if (Math.abs(actual - expected) > 0.0005) {
+          tallyMismatches.push({ supplier: pt.supplierName, expected, actual });
+        }
+      }
+    }
+
+    let voucherNumber: string | null = null;
+    if (grandOutstanding > 0.0005) {
+      const jv = await this.postOpeningBalanceJournal(
+        tenantId, userId, cutoffDate,
+        [{ accountCode: AP_CODE, description: 'Opening accounts payable', creditAmount: grandOutstanding }],
+        narration || `Opening AP as at ${cutoffDate}`,
+      );
+      voucherNumber = jv?.voucherNumber || null;
+    }
+
+    return { itemsLoaded: loaded.length, grandOutstanding, voucherNumber,
+             perParty, tallyMismatches, skipped };
+  }
+
   // ── Reports ───────────────────────────────────────────────────
 
   async getStockMovementReport(tenantId: string, productId?: string, from?: string, to?: string) {
