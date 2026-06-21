@@ -3038,16 +3038,22 @@ export class SalesService {
       try {
         await this.fixedAssetRepo.query(
           `INSERT INTO fixed_assets
-             (tenant_id, asset_code, asset_name, category, purchase_date, purchase_cost,
+             (tenant_id, asset_code, asset_name, category, sub_category, brand, model, serial_number,
+              purchase_date, purchase_cost, supplier_name,
               useful_life_years, salvage_value, depreciation_method,
               accumulated_depreciation, current_book_value, status,
+              location_name, department, assigned_to_name, warranty_expiry, insurance_expiry,
               coa_asset_account, coa_accum_depr_account, notes, is_active)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'ACTIVE',$12,$13,$14,true)`,
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'ACTIVE',$17,$18,$19,$20,$21,$22,$23,$24,true)`,
           [tenantId, assetCode, a.assetName, a.category || 'General',
-           a.purchaseDate || cutoffDate, cost,
+           (a as any).subCategory || null, (a as any).brand || null, (a as any).model || null, (a as any).serialNumber || null,
+           a.purchaseDate || cutoffDate, cost, (a as any).supplierName || null,
            a.usefulLifeYears || null, a.salvageValue || 0,
            a.depreciationMethod || 'STRAIGHT_LINE',
-           accum, bookValue, ASSET_CODE, ACCUM_CODE,
+           accum, bookValue,
+           (a as any).locationName || null, (a as any).department || null, (a as any).assignedToName || null,
+           (a as any).warrantyExpiry || null, (a as any).insuranceExpiry || null,
+           ASSET_CODE, ACCUM_CODE,
            `Opening balance (migrated) as at ${cutoffDate}`]
         );
         totalCost += cost; totalAccum += accum;
