@@ -2919,7 +2919,7 @@ export class SalesService {
     }
 
     return { itemsLoaded: loaded.length, grandOutstanding, voucherNumber,
-             perParty, tallyMismatches, skipped };
+             perParty, tallyMismatches, skipped, customersCreated };
   }
 
   // ── Opening AP (Phase 3) ───────────────────────────────────────
@@ -2939,6 +2939,7 @@ export class SalesService {
     const AP_CODE = '2110';
     const loaded: any[] = []; const skipped: string[] = [];
     let grandOutstanding = 0;
+    let suppliersCreated = 0;
     const perParty: Record<string, number> = {};
 
     for (const it of items) {
@@ -2950,6 +2951,9 @@ export class SalesService {
 
       const paid = Math.round((total - out) * 1000) / 1000;
       const status = out <= 0.0005 ? 'PAID' : 'RECEIVED';
+      const _supp = await this.findOrCreateSupplier(tenantId, it.supplierName, it);
+      if (_supp.created) suppliersCreated++;
+      const _apSupplierId = (it as any).supplierId || _supp.id || null;
       try {
         await this.purchaseInvoiceRepo.query(
           `INSERT INTO purchase_invoices
@@ -2960,7 +2964,7 @@ export class SalesService {
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,false,$21)`,
           [tenantId, it.invoiceNumber, (it as any).supplierInvoiceNo || it.invoiceNumber,
            it.invoiceDate, it.dueDate || it.invoiceDate,
-           it.supplierId || null, it.supplierName,
+           _apSupplierId, it.supplierName,
            (it as any).supplierAddress || null, (it as any).supplierTrn || null,
            Number((it as any).subtotal ?? total), Number((it as any).discountAmount || 0),
            Number((it as any).vatRate ?? 0), Number((it as any).vatAmount || 0),
@@ -2999,7 +3003,7 @@ export class SalesService {
     }
 
     return { itemsLoaded: loaded.length, grandOutstanding, voucherNumber,
-             perParty, tallyMismatches, skipped };
+             perParty, tallyMismatches, skipped, suppliersCreated };
   }
 
 
