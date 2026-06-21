@@ -2949,12 +2949,21 @@ export class SalesService {
       try {
         await this.purchaseInvoiceRepo.query(
           `INSERT INTO purchase_invoices
-             (tenant_id, invoice_number, invoice_date, due_date, supplier_id, supplier_name,
-              total_amount, paid_amount, balance_due, status, currency_code, notes)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'OMR',$11)`,
-          [tenantId, it.invoiceNumber, it.invoiceDate, it.dueDate || it.invoiceDate,
-           it.supplierId || null, it.supplierName, total, paid, out, status,
-           `Opening balance (migrated) as at ${cutoffDate}`]
+             (tenant_id, invoice_number, supplier_invoice_no, invoice_date, due_date, supplier_id, supplier_name,
+              supplier_address, supplier_trn,
+              subtotal, discount_amount, vat_rate, vat_amount, total_amount, paid_amount, balance_due,
+              currency_code, exchange_rate, payment_terms, status, is_inventory, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,false,$21)`,
+          [tenantId, it.invoiceNumber, (it as any).supplierInvoiceNo || it.invoiceNumber,
+           it.invoiceDate, it.dueDate || it.invoiceDate,
+           it.supplierId || null, it.supplierName,
+           (it as any).supplierAddress || null, (it as any).supplierTrn || null,
+           Number((it as any).subtotal ?? total), Number((it as any).discountAmount || 0),
+           Number((it as any).vatRate ?? 0), Number((it as any).vatAmount || 0),
+           total, paid, out,
+           (it as any).currencyCode || 'OMR', Number((it as any).exchangeRate || 1),
+           (it as any).paymentTerms || null, status,
+           `${(it as any).notes ? (it as any).notes + ' | ' : ''}Opening balance (migrated) as at ${cutoffDate}`]
         );
         if (out > 0.0005) grandOutstanding += out;
         perParty[it.supplierName] = (perParty[it.supplierName] || 0) + out;
