@@ -752,6 +752,11 @@ export class SalesController {
     );
   }
 
+  @Get('opening-balance/trial-balance')
+  getOpeningTrialBalance(@Request() req: any) {
+    return this.svc.getOpeningTrialBalance(req.user.tenantId);
+  }
+
   // ── Asset Brands ─────────────────────────────────────────────
   @Get('asset-brands')
   getBrands(@Request() req: any, @Query() q: any) {

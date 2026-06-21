@@ -3081,6 +3081,46 @@ export class SalesService {
              totalDebit: jv?.totalDebit, totalCredit: jv?.totalCredit };
   }
 
+
+  // ── Opening Trial Balance (Phase 5 verification) ───────────────
+  // Returns the opening position: every account touched by OPENING journals
+  // with its net debit/credit, plus totals and a balanced flag. Drives the
+  // verification screen the customer confirms before going live.
+  async getOpeningTrialBalance(tenantId: string): Promise<any> {
+    const rows = await this.jvRepo.query(
+      `SELECT jvl.account_code, jvl.account_name,
+              SUM(jvl.debit_amount)  AS debit,
+              SUM(jvl.credit_amount) AS credit
+       FROM journal_voucher_lines jvl
+       JOIN journal_vouchers jv ON jv.voucher_id = jvl.voucher_id
+       WHERE jv.tenant_id = $1 AND jv.voucher_type = 'OPENING'
+       GROUP BY jvl.account_code, jvl.account_name
+       ORDER BY jvl.account_code`,
+      [tenantId]
+    );
+
+    const lines = rows.map((r: any) => ({
+      accountCode: r.account_code,
+      accountName: r.account_name,
+      debit: Number(r.debit || 0),
+      credit: Number(r.credit || 0),
+    }));
+    const totalDebit  = Math.round(lines.reduce((s: number, l: any) => s + l.debit, 0) * 1000) / 1000;
+    const totalCredit = Math.round(lines.reduce((s: number, l: any) => s + l.credit, 0) * 1000) / 1000;
+    const difference  = Math.round((totalDebit - totalCredit) * 1000) / 1000;
+
+    // OBE residual: a non-zero OBE balance means migration is partial / not yet reclassified
+    const obe = lines.find((l: any) => l.accountCode === '3900');
+    const obeBalance = obe ? Math.round((obe.credit - obe.debit) * 1000) / 1000 : 0;
+
+    return {
+      lines, totalDebit, totalCredit, difference,
+      balanced: Math.abs(difference) < 0.0005,
+      obeBalance,
+      hasOpeningData: lines.length > 0,
+    };
+  }
+
   // ── Reports ───────────────────────────────────────────────────
 
   async getStockMovementReport(tenantId: string, productId?: string, from?: string, to?: string) {
