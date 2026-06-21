@@ -2855,6 +2855,7 @@ export class SalesService {
     let grandOutstanding = 0;
     const perParty: Record<string, number> = {};
 
+    let customersCreated = 0;
     for (const it of items) {
       const total = Number(it.totalAmount);
       const out = Number(it.outstandingAmount);
@@ -2864,6 +2865,9 @@ export class SalesService {
 
       const paid = Math.round((total - out) * 1000) / 1000;
       const status = out <= 0.0005 ? 'PAID' : (paid > 0.0005 ? 'PARTIALLY_PAID' : 'SENT');
+      const _cust = await this.findOrCreateCustomer(tenantId, it.customerName, it);
+      if (_cust.created) customersCreated++;
+      const _arAccountId = (it as any).accountId || _cust.id || null;
       try {
         await this.invoiceRepo.query(
           `INSERT INTO sales_invoices
@@ -2874,7 +2878,7 @@ export class SalesService {
               status, is_inventory, notes, created_by)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,false,$23,$24)`,
           [tenantId, it.invoiceNumber, it.invoiceDate, it.dueDate || it.invoiceDate,
-           (it as any).accountId || null, (it as any).contactId || null, it.customerName,
+           _arAccountId, (it as any).contactId || null, it.customerName,
            (it as any).customerAddress || null, (it as any).customerEmail || null, (it as any).customerTrn || null,
            Number((it as any).subtotal ?? total), Number((it as any).discountAmount || 0),
            Number((it as any).vatRate ?? 0), Number((it as any).vatAmount || 0),
@@ -3142,6 +3146,67 @@ export class SalesService {
       obeBalance,
       hasOpeningData: lines.length > 0,
     };
+  }
+
+
+  // ── Find-or-create master records for opening AR/AP (sub-ledger linkage) ──
+  // The opening loaders store party names as text; these ensure a real
+  // customer/supplier master exists and return its id to link on the invoice.
+  // Accounting is unaffected (fixed control accounts 1130/2110); this only
+  // populates the sub-ledger master so parties appear in pickers/statements.
+
+  private _ocCustomerCache: Record<string, string> = {};
+  async findOrCreateCustomer(tenantId: string, name: string, rich: any = {}): Promise<{ id: string | null; created: boolean }> {
+    if (!name || !name.trim()) return { id: null, created: false };
+    const key = `${tenantId}::${name.trim().toLowerCase()}`;
+    if (this._ocCustomerCache[key]) return { id: this._ocCustomerCache[key], created: false };
+    // match existing (case-insensitive) customer
+    const found = await this.invoiceRepo.query(
+      `SELECT account_id::text AS id FROM accounts
+       WHERE tenant_id::text = $1 AND account_name ILIKE $2 AND is_customer = true LIMIT 1`,
+      [tenantId, name.trim()]
+    );
+    if (found?.[0]?.id) { this._ocCustomerCache[key] = found[0].id; return { id: found[0].id, created: false }; }
+    // create new customer with rich fields
+    const ins = await this.invoiceRepo.query(
+      `INSERT INTO accounts
+         (tenant_id, account_name, is_customer, is_supplier, is_active, email, phone, address_line1, city, country_id)
+       VALUES ($1::uuid, $2, true, false, true, $3, $4, $5, $6, null)
+       RETURNING account_id::text AS id`,
+      [tenantId, name.trim(), rich.customerEmail || null, rich.phone || null,
+       rich.customerAddress || null, rich.city || null]
+    );
+    const id = ins?.[0]?.id || null;
+    if (id) this._ocCustomerCache[key] = id;
+    return { id, created: true };
+  }
+
+  private _ocSupplierCache: Record<string, string> = {};
+  async findOrCreateSupplier(tenantId: string, name: string, rich: any = {}): Promise<{ id: string | null; created: boolean }> {
+    if (!name || !name.trim()) return { id: null, created: false };
+    const key = `${tenantId}::${name.trim().toLowerCase()}`;
+    if (this._ocSupplierCache[key]) return { id: this._ocSupplierCache[key], created: false };
+    const found = await this.purchaseInvoiceRepo.query(
+      `SELECT supplier_id::text AS id FROM suppliers
+       WHERE tenant_id::text = $1 AND supplier_name ILIKE $2 LIMIT 1`,
+      [tenantId, name.trim()]
+    );
+    if (found?.[0]?.id) { this._ocSupplierCache[key] = found[0].id; return { id: found[0].id, created: false }; }
+    // generate next supplier code
+    const cnt = await this.purchaseInvoiceRepo.query(
+      `SELECT COUNT(*)::int AS c FROM suppliers WHERE tenant_id::text = $1`, [tenantId]);
+    const code = `SUP-${String(Number(cnt?.[0]?.c || 0) + 1).padStart(4, '0')}`;
+    const ins = await this.purchaseInvoiceRepo.query(
+      `INSERT INTO suppliers
+         (tenant_id, supplier_code, supplier_name, is_supplier, is_active, trn, email, phone, address, city, country, payment_terms)
+       VALUES ($1::uuid, $2, $3, true, true, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING supplier_id::text AS id`,
+      [tenantId, code, name.trim(), rich.supplierTrn || null, rich.email || null, rich.phone || null,
+       rich.supplierAddress || null, rich.city || null, rich.country || null, rich.paymentTerms || null]
+    );
+    const id = ins?.[0]?.id || null;
+    if (id) this._ocSupplierCache[key] = id;
+    return { id, created: true };
   }
 
   // ── Reports ───────────────────────────────────────────────────
