@@ -92,6 +92,7 @@ import PurchaseInvoicesPage  from './pages/purchase/PurchaseInvoicesPage';
 import PurchaseReturnsPage    from './pages/purchase/PurchaseReturnsPage';
 import PaymentVouchersPage   from './pages/purchase/PaymentVouchersPage';
 import ImportExportPage      from './pages/admin/ImportExportPage';
+import OnboardingPage       from './pages/admin/OnboardingPage';
 import CompanySettingsPage    from './pages/admin/CompanySettingsPage';
 import AccountingConfigPage   from './pages/admin/AccountingConfigPage';
 import DocumentConfigPage     from './pages/admin/DocumentConfigPage';
@@ -117,6 +118,7 @@ export default function App() {
         <Route path="user-groups" element={<UserGroupsPage />} />
         <Route path="permissions" element={<PermissionMatrixPage />} />
         <Route path="masters"     element={<MasterDataPage />} />
+        <Route path="onboarding"  element={<OnboardingPage />} />
         <Route path="settings"    element={<TenantSettingsPage />} />
         <Route path="audit"       element={<AuditTrailPage />} />
         {/* Phase 1 */}
