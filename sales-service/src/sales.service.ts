@@ -2867,13 +2867,21 @@ export class SalesService {
       try {
         await this.invoiceRepo.query(
           `INSERT INTO sales_invoices
-             (tenant_id, invoice_number, invoice_date, due_date, account_id, customer_name,
-              subtotal, vat_amount, total_amount, paid_amount, balance_due,
-              status, currency_code, is_inventory, notes, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,0,$7,$8,$9,$10,'OMR',false,$11,$12)`,
+             (tenant_id, invoice_number, invoice_date, due_date, account_id, contact_id, customer_name,
+              customer_address, customer_email, customer_trn,
+              subtotal, discount_amount, vat_rate, vat_amount, total_amount, paid_amount, balance_due,
+              currency_code, exchange_rate, payment_terms, salesman_name,
+              status, is_inventory, notes, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,false,$23,$24)`,
           [tenantId, it.invoiceNumber, it.invoiceDate, it.dueDate || it.invoiceDate,
-           it.accountId || null, it.customerName, total, paid, out, status,
-           `Opening balance (migrated) as at ${cutoffDate}`, userId]
+           (it as any).accountId || null, (it as any).contactId || null, it.customerName,
+           (it as any).customerAddress || null, (it as any).customerEmail || null, (it as any).customerTrn || null,
+           Number((it as any).subtotal ?? total), Number((it as any).discountAmount || 0),
+           Number((it as any).vatRate ?? 0), Number((it as any).vatAmount || 0),
+           total, paid, out,
+           (it as any).currencyCode || 'OMR', Number((it as any).exchangeRate || 1),
+           (it as any).paymentTerms || null, (it as any).salesmanName || null, status,
+           `${(it as any).notes ? (it as any).notes + ' | ' : ''}Opening balance (migrated) as at ${cutoffDate}`, userId]
         );
         if (out > 0.0005) grandOutstanding += out;
         perParty[it.customerName] = (perParty[it.customerName] || 0) + out;
