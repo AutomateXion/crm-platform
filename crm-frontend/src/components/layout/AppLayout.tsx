@@ -11,7 +11,7 @@ import {
   ProjectOutlined, ApartmentOutlined, DollarOutlined,
   CheckCircleOutlined, RollbackOutlined, SwapOutlined, InboxOutlined, CalculatorOutlined,
   ShoppingOutlined, CarOutlined, BankOutlined, ShoppingCartOutlined, ShopOutlined,
-  EditOutlined, UnorderedListOutlined, ClockCircleOutlined, FundOutlined, WarningOutlined, UploadOutlined, EnvironmentOutlined,
+  EditOutlined, UnorderedListOutlined, ClockCircleOutlined, FundOutlined, WarningOutlined, UploadOutlined, RocketOutlined, EnvironmentOutlined,
 } from '@ant-design/icons';
 import { logout } from '../../store/slices/authSlice';
 import { RootState, AppDispatch } from '../../store';
@@ -153,6 +153,7 @@ const NAV_ITEMS = [
       { key: '/users',             icon: <UserOutlined />,    label: 'Users' },
       { key: '/user-groups',       icon: <TeamOutlined />,    label: 'User Groups' },
       { key: '/admin/import-export', icon: <UploadOutlined />, label: 'Import / Export' },
+      { key: '/onboarding', icon: <RocketOutlined />, label: 'Onboarding' },
       { key: '/superadmin', icon: <SafetyCertificateOutlined />, label: '🛡️ Super Admin' },
       { key: '/admin/company-settings', icon: <ShopOutlined />, label: 'Company Settings' },
       { key: '/admin/accounting-config', icon: <SettingOutlined />, label: 'Accounting Configuration' },
