@@ -738,6 +738,20 @@ export class SalesController {
     );
   }
 
+  @Post('opening-balance/assets')
+  postOpeningFixedAssets(@Request() req: any, @Body() dto: any) {
+    return this.svc.postOpeningFixedAssets(
+      req.user.tenantId, req.user.userId, dto.cutoffDate, dto.assets, dto.narration,
+    );
+  }
+
+  @Post('opening-balance/gl')
+  postOpeningGL(@Request() req: any, @Body() dto: any) {
+    return this.svc.postOpeningGL(
+      req.user.tenantId, req.user.userId, dto.cutoffDate, dto.lines, dto.narration,
+    );
+  }
+
   // ── Asset Brands ─────────────────────────────────────────────
   @Get('asset-brands')
   getBrands(@Request() req: any, @Query() q: any) {

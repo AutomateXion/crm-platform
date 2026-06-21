@@ -2981,6 +2981,106 @@ export class SalesService {
              perParty, tallyMismatches, skipped };
   }
 
+
+  // ── Opening Fixed Assets (Phase 4) ─────────────────────────────
+  // Loads the existing fixed-asset register at migration. Each asset becomes
+  // a real fixed_assets row (so depreciation continues correctly), carrying
+  // its cost and accumulated depreciation to date. Posts the aggregate:
+  // Dr Asset cost (1210) / Cr Accum Depreciation (1220) / net to OBE.
+  async postOpeningFixedAssets(
+    tenantId: string,
+    userId: string,
+    cutoffDate: string,
+    assets: { assetName: string; category?: string; purchaseDate?: string;
+              cost: number; accumulatedDepreciation?: number;
+              usefulLifeYears?: number; salvageValue?: number;
+              depreciationMethod?: string }[],
+    narration?: string,
+  ): Promise<any> {
+    if (!assets || assets.length === 0) throw new Error('No opening assets provided');
+    const ASSET_CODE = '1210';   // Property, Plant & Equipment
+    const ACCUM_CODE = '1220';   // Accumulated Depreciation
+    const loaded: any[] = []; const skipped: string[] = [];
+    let totalCost = 0, totalAccum = 0;
+
+    // Continue asset code numbering from the current max
+    const cntRows = await this.fixedAssetRepo.query(
+      `SELECT COUNT(*)::int AS c FROM fixed_assets WHERE tenant_id=$1`, [tenantId]);
+    let seq = Number(cntRows[0]?.c || 0);
+
+    for (const a of assets) {
+      const cost = Number(a.cost);
+      const accum = Number(a.accumulatedDepreciation || 0);
+      if (!a.assetName) { skipped.push('(missing asset name)'); continue; }
+      if (!Number.isFinite(cost) || cost <= 0) { skipped.push(`${a.assetName}: invalid cost`); continue; }
+      if (!Number.isFinite(accum) || accum < 0 || accum > cost + 0.0005) { skipped.push(`${a.assetName}: invalid accumulated depreciation`); continue; }
+
+      seq += 1;
+      const assetCode = `AST-${String(seq).padStart(4, '0')}`;
+      const bookValue = Math.round((cost - accum) * 1000) / 1000;
+      try {
+        await this.fixedAssetRepo.query(
+          `INSERT INTO fixed_assets
+             (tenant_id, asset_code, asset_name, category, purchase_date, purchase_cost,
+              useful_life_years, salvage_value, depreciation_method,
+              accumulated_depreciation, current_book_value, status,
+              coa_asset_account, coa_accum_depr_account, notes, is_active)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'ACTIVE',$12,$13,$14,true)`,
+          [tenantId, assetCode, a.assetName, a.category || 'General',
+           a.purchaseDate || cutoffDate, cost,
+           a.usefulLifeYears || null, a.salvageValue || 0,
+           a.depreciationMethod || 'STRAIGHT_LINE',
+           accum, bookValue, ASSET_CODE, ACCUM_CODE,
+           `Opening balance (migrated) as at ${cutoffDate}`]
+        );
+        totalCost += cost; totalAccum += accum;
+        loaded.push({ assetCode, assetName: a.assetName, cost, accumulatedDepreciation: accum, bookValue });
+      } catch (e: any) {
+        skipped.push(`${a.assetName}: ${e?.message || 'insert failed'}`);
+      }
+    }
+
+    // Post aggregate: Dr Asset cost, Cr Accum Dep; engine adds OBE for the net book value
+    let voucherNumber: string | null = null;
+    if (totalCost > 0.0005) {
+      const lines: any[] = [
+        { accountCode: ASSET_CODE, description: 'Opening fixed assets at cost', debitAmount: totalCost },
+      ];
+      if (totalAccum > 0.0005) {
+        lines.push({ accountCode: ACCUM_CODE, description: 'Opening accumulated depreciation', creditAmount: totalAccum });
+      }
+      const jv = await this.postOpeningBalanceJournal(
+        tenantId, userId, cutoffDate, lines,
+        narration || `Opening fixed assets as at ${cutoffDate}`,
+      );
+      voucherNumber = jv?.voucherNumber || null;
+    }
+
+    return { assetsLoaded: loaded.length, totalCost, totalAccumulatedDepreciation: totalAccum,
+             netBookValue: Math.round((totalCost - totalAccum) * 1000) / 1000,
+             voucherNumber, loaded, skipped };
+  }
+
+  // ── Opening Direct GL (Phase 4) ────────────────────────────────
+  // Catch-all for any remaining trial-balance accounts not covered by the
+  // other phases — bank, cash, loans, prepayments, capital, retained
+  // earnings, etc. Lines pass straight to the OBE engine, which balances them.
+  async postOpeningGL(
+    tenantId: string,
+    userId: string,
+    cutoffDate: string,
+    lines: { accountCode: string; description?: string; debitAmount?: number; creditAmount?: number }[],
+    narration?: string,
+  ): Promise<any> {
+    if (!lines || lines.length === 0) throw new Error('No opening GL lines provided');
+    const jv = await this.postOpeningBalanceJournal(
+      tenantId, userId, cutoffDate, lines,
+      narration || `Opening GL balances as at ${cutoffDate}`,
+    );
+    return { voucherNumber: jv?.voucherNumber || null,
+             totalDebit: jv?.totalDebit, totalCredit: jv?.totalCredit };
+  }
+
   // ── Reports ───────────────────────────────────────────────────
 
   async getStockMovementReport(tenantId: string, productId?: string, from?: string, to?: string) {
