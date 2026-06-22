@@ -26,9 +26,9 @@ export default function ReorderManagementReport() {
   const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([]);
   const [poModalOpen, setPoModalOpen] = useState(false);
   const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
   const [supplierId, setSupplierId] = useState<string | undefined>();
-  const [warehouseId, setWarehouseId] = useState<string | undefined>();
+  const [applyAllLoc, setApplyAllLoc] = useState<string | undefined>();
   const [poItems, setPoItems] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
 
@@ -50,11 +50,17 @@ export default function ReorderManagementReport() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Load suppliers + warehouses once (for the PO dialog)
+  // Load suppliers + warehouse locations once (for the PO dialog)
   useEffect(() => {
     Lt.get('/sales/suppliers', { params: { limit: 100 } }).then(r => setSuppliers(r.data?.data || [])).catch(() => {});
-    Lt.get('/sales/warehouses').then(r => setWarehouses(r.data?.data || r.data || [])).catch(() => {});
+    Lt.get('/sales/warehouse-locations', { params: { limit: 500 } }).then(r => setLocations(r.data?.data || r.data || [])).catch(() => {});
   }, []);
+
+  const locName = (l: any) => {
+    const wh = l.warehouseName || l.warehouse_name || '';
+    const ln = l.locationName || l.location_name || l.locationCode || l.location_code || '';
+    return wh ? `${wh} — ${ln}` : ln;
+  };
 
   const exportCsv = () => {
     const headers = ['Code', 'Product', 'Category', 'UOM', 'Current Stock', 'Trigger Level', 'Suggested Qty', 'Est. Cost'];
@@ -70,7 +76,7 @@ export default function ReorderManagementReport() {
     a.click(); URL.revokeObjectURL(url);
   };
 
-  // Open the convert-to-PO dialog, seeding editable line items from the selection
+  // Open the convert-to-PO dialog, seeding editable line items (incl. per-line warehouse location)
   const openPoModal = () => {
     const chosen = rows.filter((r) => selectedKeys.includes(r.productId));
     if (!chosen.length) return;
@@ -81,9 +87,10 @@ export default function ReorderManagementReport() {
       unitOfMeasure: r.unitOfMeasure,
       quantity: Number(r.suggestedQty || 0),
       unitPrice: Number(r.costPrice || 0),
+      warehouseLocationId: r.locationId || undefined,  // pre-fill from product default
     })));
     setSupplierId(undefined);
-    setWarehouseId(undefined);
+    setApplyAllLoc(undefined);
     setPoModalOpen(true);
   };
 
@@ -91,22 +98,34 @@ export default function ReorderManagementReport() {
     setPoItems((prev) => prev.map((it) => it.productId === productId ? { ...it, [field]: value } : it));
   };
 
-  const poTotal = poItems.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.unitPrice || 0), 0);
+  // "Set all to" convenience — apply one location to every line
+  const applyLocationToAll = (locId: string) => {
+    setApplyAllLoc(locId);
+    setPoItems((prev) => prev.map((it) => ({ ...it, warehouseLocationId: locId })));
+  };
+
+  const poSubtotal = poItems.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.unitPrice || 0), 0);
 
   const createPO = async () => {
     if (!supplierId) { message.warning('Please select a supplier'); return; }
-    if (!warehouseId) { message.warning('Please select a warehouse'); return; }
     const validItems = poItems.filter((it) => Number(it.quantity) > 0);
     if (!validItems.length) { message.warning('No items with a quantity greater than zero'); return; }
     setCreating(true);
     try {
       const supplier = suppliers.find((s) => (s.supplierId || s.supplier_id) === supplierId);
+      const subtotal = validItems.reduce((s, it) => s + Number(it.quantity) * Number(it.unitPrice), 0);
+      const vatAmount = 0; // reorder POs default to no VAT; user can adjust on the PO screen
+      const totalAmount = subtotal + vatAmount;
       const payload: any = {
         supplierId,
         supplierName: supplier?.supplierName || supplier?.supplier_name || '',
-        warehouseId,
         orderDate: new Date().toISOString().slice(0, 10),
         status: 'DRAFT',
+        subtotal,
+        taxableAmount: subtotal,
+        vatRate: 0,
+        vatAmount,
+        totalAmount,
         items: validItems.map((it) => ({
           productId: it.productId,
           itemCode: it.itemCode,
@@ -115,11 +134,12 @@ export default function ReorderManagementReport() {
           quantity: Number(it.quantity),
           unitPrice: Number(it.unitPrice),
           lineTotal: Number(it.quantity) * Number(it.unitPrice),
+          warehouseLocationId: it.warehouseLocationId || null,
         })),
       };
       const r = await Lt.post('/sales/purchase-orders', payload);
       const poNum = r.data?.poNumber || r.data?.po_number || '';
-      message.success(`Draft Purchase Order ${poNum} created with ${validItems.length} item(s)`);
+      message.success(`Draft Purchase Order ${poNum} created — ${omr(totalAmount)}, ${validItems.length} item(s)`);
       setPoModalOpen(false);
       setSelectedKeys([]);
     } catch (e: any) {
@@ -193,7 +213,7 @@ export default function ReorderManagementReport() {
         onOk={createPO}
         confirmLoading={creating}
         okText="Create draft PO"
-        width={760}
+        width={860}
       >
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col span={12}>
@@ -210,15 +230,15 @@ export default function ReorderManagementReport() {
             </Select>
           </Col>
           <Col span={12}>
-            <Text strong>Deliver to warehouse <Text type="danger">*</Text></Text>
+            <Text strong>Deliver all to <Text type="secondary">(optional — sets every line)</Text></Text>
             <Select
-              showSearch optionFilterProp="children" placeholder="Select warehouse"
-              style={{ width: '100%', marginTop: 4 }} value={warehouseId} onChange={setWarehouseId}
+              showSearch optionFilterProp="children" placeholder="Set all lines to one location"
+              allowClear style={{ width: '100%', marginTop: 4 }} value={applyAllLoc}
+              onChange={(v) => v ? applyLocationToAll(v) : setApplyAllLoc(undefined)}
             >
-              {warehouses.map((w) => {
-                const id = w.warehouseId || w.warehouse_id;
-                const nm = w.warehouseName || w.warehouse_name;
-                return <Option key={id} value={id}>{nm}</Option>;
+              {locations.map((l) => {
+                const id = l.locationId || l.location_id;
+                return <Option key={id} value={id}>{locName(l)}</Option>;
               })}
             </Select>
           </Col>
@@ -236,23 +256,35 @@ export default function ReorderManagementReport() {
                 <Text type="secondary" style={{ fontSize: 12 }}>{r.itemCode}</Text>
               </Space>
             ) },
-            { title: 'Qty', dataIndex: 'quantity', width: 120, render: (v: number, r: any) => (
+            { title: 'Qty', dataIndex: 'quantity', width: 100, render: (v: number, r: any) => (
               <InputNumber min={0} step={1} value={v} style={{ width: '100%' }}
                 onChange={(val) => updatePoItem(r.productId, 'quantity', val)} />
             ) },
-            { title: 'Unit Price', dataIndex: 'unitPrice', width: 130, render: (v: number, r: any) => (
+            { title: 'Unit Price', dataIndex: 'unitPrice', width: 120, render: (v: number, r: any) => (
               <InputNumber min={0} step={0.001} value={v} style={{ width: '100%' }}
                 onChange={(val) => updatePoItem(r.productId, 'unitPrice', val)} />
+            ) },
+            { title: 'Deliver to', dataIndex: 'warehouseLocationId', width: 200, render: (v: string, r: any) => (
+              <Select showSearch optionFilterProp="children" placeholder="Warehouse / location"
+                allowClear style={{ width: '100%' }} value={v}
+                onChange={(val) => updatePoItem(r.productId, 'warehouseLocationId', val)}>
+                {locations.map((l) => {
+                  const id = l.locationId || l.location_id;
+                  return <Option key={id} value={id}>{locName(l)}</Option>;
+                })}
+              </Select>
             ) },
             { title: 'Line Total', key: 'lt', align: 'right' as const,
               render: (_: any, r: any) => omr(Number(r.quantity || 0) * Number(r.unitPrice || 0)) },
           ] as any}
         />
         <div style={{ textAlign: 'right', marginTop: 12 }}>
-          <Text strong>Total: {omr(poTotal)}</Text>
+          <Text strong style={{ fontSize: 15 }}>Total: {omr(poSubtotal)}</Text>
         </div>
         <div style={{ marginTop: 8 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>The PO is created as a draft — review and send it from the Purchase Orders screen.</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Each line can go to a different warehouse (pre-filled from the product's default). The PO is created as a draft — review and send it from the Purchase Orders screen.
+          </Text>
         </div>
       </Modal>
     </div>
