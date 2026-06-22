@@ -3159,19 +3159,14 @@ export class SalesService {
   // Accounting is unaffected (fixed control accounts 1130/2110); this only
   // populates the sub-ledger master so parties appear in pickers/statements.
 
-  private _ocCustomerCache: Record<string, string> = {};
   async findOrCreateCustomer(tenantId: string, name: string, rich: any = {}): Promise<{ id: string | null; created: boolean }> {
     if (!name || !name.trim()) return { id: null, created: false };
-    const key = `${tenantId}::${name.trim().toLowerCase()}`;
-    if (this._ocCustomerCache[key]) return { id: this._ocCustomerCache[key], created: false };
-    // match existing (case-insensitive) customer
     const found = await this.invoiceRepo.query(
       `SELECT account_id::text AS id FROM accounts
        WHERE tenant_id::text = $1 AND account_name ILIKE $2 AND is_customer = true LIMIT 1`,
       [tenantId, name.trim()]
     );
-    if (found?.[0]?.id) { this._ocCustomerCache[key] = found[0].id; return { id: found[0].id, created: false }; }
-    // create new customer with rich fields
+    if (found?.[0]?.id) return { id: found[0].id, created: false };
     const ins = await this.invoiceRepo.query(
       `INSERT INTO accounts
          (tenant_id, account_name, is_customer, is_supplier, is_active, email, phone, address_line1, city, country_id)
@@ -3181,22 +3176,17 @@ export class SalesService {
        rich.customerAddress || null, rich.city || null]
     );
     const id = ins?.[0]?.id || null;
-    if (id) this._ocCustomerCache[key] = id;
     return { id, created: true };
   }
 
-  private _ocSupplierCache: Record<string, string> = {};
   async findOrCreateSupplier(tenantId: string, name: string, rich: any = {}): Promise<{ id: string | null; created: boolean }> {
     if (!name || !name.trim()) return { id: null, created: false };
-    const key = `${tenantId}::${name.trim().toLowerCase()}`;
-    if (this._ocSupplierCache[key]) return { id: this._ocSupplierCache[key], created: false };
     const found = await this.purchaseInvoiceRepo.query(
       `SELECT supplier_id::text AS id FROM suppliers
        WHERE tenant_id::text = $1 AND supplier_name ILIKE $2 LIMIT 1`,
       [tenantId, name.trim()]
     );
-    if (found?.[0]?.id) { this._ocSupplierCache[key] = found[0].id; return { id: found[0].id, created: false }; }
-    // generate next supplier code
+    if (found?.[0]?.id) return { id: found[0].id, created: false };
     const cnt = await this.purchaseInvoiceRepo.query(
       `SELECT COUNT(*)::int AS c FROM suppliers WHERE tenant_id::text = $1`, [tenantId]);
     const code = `SUP-${String(Number(cnt?.[0]?.c || 0) + 1).padStart(4, '0')}`;
@@ -3209,7 +3199,6 @@ export class SalesService {
        rich.supplierAddress || null, rich.city || null, rich.country || null, rich.paymentTerms || null]
     );
     const id = ins?.[0]?.id || null;
-    if (id) this._ocSupplierCache[key] = id;
     return { id, created: true };
   }
 
