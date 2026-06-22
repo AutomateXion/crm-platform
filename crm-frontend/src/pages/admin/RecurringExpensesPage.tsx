@@ -8,7 +8,7 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined,
   HistoryOutlined, ReloadOutlined,
 } from '@ant-design/icons';
-import { recurringApi } from '../../services/salesApi';
+import salesApi, { recurringApi } from '../../services/salesApi';
 import api from '../../services/api';
 import dayjs from 'dayjs';
 
@@ -50,11 +50,11 @@ export default function RecurringExpensesPage() {
 
   const loadAccounts = async () => {
     try {
-      const r = await api.get('/accounts/coa', { params: { limit: 500 } });
-      setAccounts(r.data?.data || r.data || []);
+      const r = await salesApi.get('/sales/chart-of-accounts');
+      const list = Array.isArray(r.data) ? r.data : (r.data?.data || []);
+      setAccounts(list);
     } catch {
-      // fallback to a generic accounts endpoint
-      try { const r2 = await api.get('/accounts', { params: { limit: 500 } }); setAccounts(r2.data?.data || []); } catch {}
+      setAccounts([]);
     }
   };
 
