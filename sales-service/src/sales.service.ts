@@ -3213,6 +3213,133 @@ export class SalesService {
     return { id, created: true };
   }
 
+
+  // ── AI Invoice Extraction (supplier invoice -> structured data) ──
+  // Sends an uploaded supplier invoice (PDF/image, base64) to the Claude API
+  // and returns structured purchase-invoice data for the user to review and
+  // post. Never posts automatically. Matches/suggests a supplier via the
+  // existing findOrCreateSupplier logic (match only here; creation happens
+  // when the user saves the invoice).
+  async extractInvoice(
+    tenantId: string,
+    fileBase64: string,
+    mediaType: string,
+  ): Promise<any> {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) throw new Error('AI extraction is not configured (missing API key). Contact your administrator.');
+    if (!fileBase64) throw new Error('No document provided.');
+
+    const isPdf = (mediaType || '').includes('pdf');
+    const docBlock = isPdf
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
+      : { type: 'image',    source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: fileBase64 } };
+
+    const instruction = `You are an accounts-payable data extraction engine. Extract the supplier invoice in this document into STRICT JSON matching exactly this schema, and output ONLY the JSON (no prose, no markdown fences):
+
+{
+  "supplierName": string|null,
+  "supplierTrn": string|null,
+  "supplierAddress": string|null,
+  "invoiceNumber": string|null,
+  "invoiceDate": "YYYY-MM-DD"|null,
+  "dueDate": "YYYY-MM-DD"|null,
+  "currency": string|null,
+  "paymentTerms": string|null,
+  "lineItems": [
+    { "description": string, "quantity": number|null, "unitPrice": number|null, "amount": number|null }
+  ],
+  "subtotal": number|null,
+  "vatAmount": number|null,
+  "vatRate": number|null,
+  "total": number|null,
+  "notes": string|null,
+  "confidence": "high"|"medium"|"low"
+}
+
+Rules:
+- Use null for any field you cannot find. NEVER guess or fabricate values.
+- Dates must be ISO YYYY-MM-DD. If only a partial date is visible, use null.
+- Numbers must be plain numbers (no currency symbols, no thousands separators).
+- lineItems: one object per line on the invoice. If none are itemised, return [].
+- currency: the ISO code if determinable (e.g. OMR, AED, USD), else the symbol/text seen, else null.
+- confidence: "high" if the document is clearly a clean invoice and totals reconcile; "medium" if some fields are unclear; "low" if the image is poor or this may not be an invoice.
+- Output the JSON object and nothing else.`;
+
+    let raw: string;
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5',
+          max_tokens: 2000,
+          messages: [
+            { role: 'user', content: [ docBlock as any, { type: 'text', text: instruction } ] },
+          ],
+        }),
+      });
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`Extraction service error (${resp.status}): ${errText.slice(0, 300)}`);
+      }
+      const data: any = await resp.json();
+      raw = (data?.content || []).map((b: any) => (b?.type === 'text' ? b.text : '')).join('').trim();
+    } catch (e: any) {
+      throw new Error(`Could not reach the extraction service: ${e?.message || e}`);
+    }
+
+    // Parse the JSON (strip any stray fences just in case)
+    let parsed: any;
+    try {
+      const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+      parsed = JSON.parse(clean);
+    } catch {
+      throw new Error('The document was read but could not be parsed into invoice fields. Try a clearer scan.');
+    }
+
+    // Try to match an existing supplier by name (suggestion only; no creation here)
+    let supplierMatch: any = null;
+    if (parsed.supplierName) {
+      const rows = await this.purchaseInvoiceRepo.query(
+        `SELECT supplier_id::text AS id, supplier_name FROM suppliers
+         WHERE tenant_id::text = $1 AND supplier_name ILIKE $2 LIMIT 1`,
+        [tenantId, parsed.supplierName.trim()]
+      );
+      if (rows?.[0]) supplierMatch = { id: rows[0].id, name: rows[0].supplier_name, existing: true };
+    }
+
+    // Map to the purchase-invoice form shape the UI expects
+    const prefill = {
+      supplierName: parsed.supplierName || null,
+      supplierTrn: parsed.supplierTrn || null,
+      supplierAddress: parsed.supplierAddress || null,
+      supplierId: supplierMatch?.id || null,
+      invoiceNumber: parsed.invoiceNumber || null,
+      supplierInvoiceNo: parsed.invoiceNumber || null,
+      invoiceDate: parsed.invoiceDate || null,
+      dueDate: parsed.dueDate || null,
+      currencyCode: parsed.currency || 'OMR',
+      paymentTerms: parsed.paymentTerms || null,
+      subtotal: parsed.subtotal ?? null,
+      vatAmount: parsed.vatAmount ?? null,
+      vatRate: parsed.vatRate ?? null,
+      totalAmount: parsed.total ?? null,
+      notes: parsed.notes || null,
+      items: Array.isArray(parsed.lineItems) ? parsed.lineItems.map((li: any) => ({
+        description: li.description || '',
+        quantity: li.quantity ?? null,
+        unitPrice: li.unitPrice ?? null,
+        amount: li.amount ?? null,
+      })) : [],
+    };
+
+    return { prefill, supplierMatch, confidence: parsed.confidence || 'medium', rawExtracted: parsed };
+  }
+
   // ── Reports ───────────────────────────────────────────────────
 
   async getStockMovementReport(tenantId: string, productId?: string, from?: string, to?: string) {

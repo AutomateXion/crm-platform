@@ -381,6 +381,11 @@ export class SalesController {
   createPurchaseInvoice(@Request() req: any, @Body() dto: any) {
     return this.svc.createPurchaseInvoice(req.user.tenantId, dto, req.user.userId);
   }
+
+  @Post('extract-invoice')
+  extractInvoice(@Request() req: any, @Body() dto: any) {
+    return this.svc.extractInvoice(req.user.tenantId, dto.fileBase64, dto.mediaType);
+  }
   @Put('purchase-invoices/:id')
   updatePurchaseInvoice(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
     return this.svc.updatePurchaseInvoice(req.user.tenantId, id, dto);
