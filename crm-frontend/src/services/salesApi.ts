@@ -220,3 +220,14 @@ export const pdcChequesApi = {
   getDueCount: () => salesApi.get('/sales/pdc-cheques/due-count'),
   deposit: (receiptIds: string[], bankAccountId?: string) => salesApi.post('/sales/pdc-cheques/deposit', { receiptIds, bankAccountId }),
 };
+
+export const recurringApi = {
+  getAll: () => salesApi.get('/sales/recurring-expenses'),
+  getOne: (id) => salesApi.get(`/sales/recurring-expenses/${id}`),
+  create: (data) => salesApi.post('/sales/recurring-expenses', data),
+  update: (id, data) => salesApi.put(`/sales/recurring-expenses/${id}`, data),
+  remove: (id) => salesApi.delete(`/sales/recurring-expenses/${id}`),
+  generateDue: () => salesApi.post('/sales/recurring-expenses/generate-due'),
+  dueCount: () => salesApi.get('/sales/recurring-expenses/due-count'),
+  log: (id) => salesApi.get(`/sales/recurring-expenses/${id}/log`),
+};

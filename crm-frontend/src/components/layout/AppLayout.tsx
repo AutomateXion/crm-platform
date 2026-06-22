@@ -12,6 +12,7 @@ import {
   CheckCircleOutlined, RollbackOutlined, SwapOutlined, InboxOutlined, CalculatorOutlined,
   ShoppingOutlined, CarOutlined, BankOutlined, ShoppingCartOutlined, ShopOutlined,
   EditOutlined, UnorderedListOutlined, ClockCircleOutlined, FundOutlined, WarningOutlined, UploadOutlined, RocketOutlined, EnvironmentOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import { logout } from '../../store/slices/authSlice';
 import { RootState, AppDispatch } from '../../store';
@@ -154,6 +155,7 @@ const NAV_ITEMS = [
       { key: '/user-groups',       icon: <TeamOutlined />,    label: 'User Groups' },
       { key: '/admin/import-export', icon: <UploadOutlined />, label: 'Import / Export' },
       { key: '/onboarding', icon: <RocketOutlined />, label: 'Onboarding' },
+      { key: '/recurring-expenses', icon: <SyncOutlined />, label: 'Recurring Expenses' },
       { key: '/superadmin', icon: <SafetyCertificateOutlined />, label: '🛡️ Super Admin' },
       { key: '/admin/company-settings', icon: <ShopOutlined />, label: 'Company Settings' },
       { key: '/admin/accounting-config', icon: <SettingOutlined />, label: 'Accounting Configuration' },
