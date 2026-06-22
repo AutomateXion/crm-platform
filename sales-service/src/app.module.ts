@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { Module, Injectable } from '@nestjs/common';
+import { ScheduleModule, Cron } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -27,6 +28,26 @@ import { SalesService } from './sales.service';
 import { EInvoiceService } from './einvoice.service';
 import { EInvoiceController } from './einvoice.controller';
 import { JwtStrategy } from './auth.guard';
+
+@Injectable()
+export class RecurringScheduler {
+  constructor(private readonly sales: SalesService) {}
+
+  // Daily at 02:00 server time: generate all due recurring items across tenants.
+  // Idempotent (recurring_expense_log unique guard) so safe even if it overlaps
+  // a manual trigger or runs after the service was asleep.
+  @Cron('0 2 * * *')
+  async handleDailyRecurring() {
+    try {
+      const res = await this.sales.generateDueRecurringItems();
+      // eslint-disable-next-line no-console
+      console.log('[RECURRING CRON] generated:', res?.generated, 'skipped:', res?.skipped, 'failed:', res?.failed);
+    } catch (e: any) {
+      // eslint-disable-next-line no-console
+      console.error('[RECURRING CRON] error:', e?.message || e);
+    }
+  }
+}
 
 @Module({
   imports: [
@@ -80,12 +101,13 @@ import { JwtStrategy } from './auth.guard';
       FixedAssetEntity, AssetDepreciationEntity, AssetMaintenanceEntity, AssetTransferEntity, DocumentSignatureEntity,
       BankAccountEntity, ChequeBookEntity, ChequeLeafEntity,
     ]),
+    ScheduleModule.forRoot(),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'crm_jwt_super_secret_2024_change_in_production',
     }),
   ],
   controllers: [SalesController, EInvoiceController],
-  providers: [SalesService, EInvoiceService, JwtStrategy],
+  providers: [SalesService, EInvoiceService, JwtStrategy, RecurringScheduler],
 })
 export class AppModule {}

@@ -386,6 +386,46 @@ export class SalesController {
   extractInvoice(@Request() req: any, @Body() dto: any) {
     return this.svc.extractInvoice(req.user.tenantId, dto.fileBase64, dto.mediaType);
   }
+
+  @Post('recurring-expenses/generate-due')
+  generateDueRecurring(@Request() req: any) {
+    return this.svc.generateDueRecurringItems(req.user.tenantId);
+  }
+
+  @Get('recurring-expenses/due-count')
+  recurringDueCount(@Request() req: any) {
+    return this.svc.getRecurringDueCount(req.user.tenantId);
+  }
+
+  @Post('recurring-expenses')
+  createRecurringExpense(@Request() req: any, @Body() dto: any) {
+    return this.svc.createRecurringExpense(req.user.tenantId, dto, req.user.userId);
+  }
+
+  @Get('recurring-expenses')
+  getRecurringExpenses(@Request() req: any) {
+    return this.svc.getRecurringExpenses(req.user.tenantId);
+  }
+
+  @Get('recurring-expenses/:id')
+  getRecurringExpense(@Request() req: any, @Param('id') id: string) {
+    return this.svc.getRecurringExpense(req.user.tenantId, id);
+  }
+
+  @Put('recurring-expenses/:id')
+  updateRecurringExpense(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateRecurringExpense(req.user.tenantId, id, dto);
+  }
+
+  @Delete('recurring-expenses/:id')
+  deleteRecurringExpense(@Request() req: any, @Param('id') id: string) {
+    return this.svc.deleteRecurringExpense(req.user.tenantId, id);
+  }
+
+  @Get('recurring-expenses/:id/log')
+  getRecurringExpenseLog(@Request() req: any, @Param('id') id: string) {
+    return this.svc.getRecurringExpenseLog(req.user.tenantId, id);
+  }
   @Put('purchase-invoices/:id')
   updatePurchaseInvoice(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
     return this.svc.updatePurchaseInvoice(req.user.tenantId, id, dto);

@@ -3340,6 +3340,266 @@ Rules:
     return { prefill, supplierMatch, confidence: parsed.confidence || 'medium', rawExtracted: parsed };
   }
 
+
+  // ── Recurring Expenses Engine ──────────────────────────────────
+  // Generates due recurring entries (journals or bills) as DRAFT (or POSTED
+  // per the schedule), idempotently. Safe to call from the daily cron AND the
+  // manual trigger — the recurring_expense_log UNIQUE(recurring_id, period_date)
+  // guarantees no period is ever generated twice. Catches up multiple overdue
+  // periods in one run.
+
+  private advanceDate(d: Date, frequency: string, interval: number, dayOfMonth?: number | null): Date {
+    const n = new Date(d);
+    const iv = Math.max(1, Number(interval) || 1);
+    switch ((frequency || 'MONTHLY').toUpperCase()) {
+      case 'WEEKLY':    n.setDate(n.getDate() + 7 * iv); break;
+      case 'QUARTERLY': n.setMonth(n.getMonth() + 3 * iv); break;
+      case 'YEARLY':    n.setFullYear(n.getFullYear() + iv); break;
+      case 'MONTHLY':
+      default:          n.setMonth(n.getMonth() + iv); break;
+    }
+    // Clamp to preferred day-of-month where applicable (handles short months)
+    if (dayOfMonth && ['MONTHLY', 'QUARTERLY', 'YEARLY'].includes((frequency || 'MONTHLY').toUpperCase())) {
+      const lastDay = new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate();
+      n.setDate(Math.min(Number(dayOfMonth), lastDay));
+    }
+    return n;
+  }
+
+  async generateDueRecurringItems(tenantId?: string): Promise<any> {
+    const today = new Date().toISOString().slice(0, 10);
+    // Pull active, due schedules (optionally scoped to a tenant)
+    const params: any[] = [today];
+    let where = `is_active = true AND next_due_date <= $1
+                 AND (end_date IS NULL OR next_due_date <= end_date)
+                 AND (max_occurrences IS NULL OR occurrences_generated < max_occurrences)`;
+    if (tenantId) { where += ` AND tenant_id::text = $2`; params.push(tenantId); }
+    const schedules = await this.jvRepo.query(
+      `SELECT * FROM recurring_expenses WHERE ${where} ORDER BY next_due_date`, params);
+
+    let generated = 0, skipped = 0, failed = 0;
+    const details: any[] = [];
+
+    for (const sc of schedules) {
+      // Catch-up loop: generate every period due up to today (cap iterations defensively)
+      let guard = 0;
+      while (sc.next_due_date && sc.next_due_date <= today && guard < 60) {
+        guard++;
+        if (sc.max_occurrences && sc.occurrences_generated >= sc.max_occurrences) break;
+        if (sc.end_date && sc.next_due_date > sc.end_date) break;
+
+        const period = sc.next_due_date;
+        const tid = sc.tenant_id;
+
+        // Idempotency guard: claim the (recurring_id, period) slot FIRST.
+        let logId: string | null = null;
+        try {
+          const ins = await this.jvRepo.query(
+            `INSERT INTO recurring_expense_log
+               (recurring_id, tenant_id, period_date, gen_type, status, amount)
+             VALUES ($1,$2,$3,$4,'PENDING',$5)
+             ON CONFLICT (recurring_id, period_date) DO NOTHING
+             RETURNING log_id::text AS id`,
+            [sc.recurring_id, tid, period, sc.gen_type, sc.amount]);
+          logId = ins?.[0]?.id || null;
+        } catch (e: any) {
+          // unexpected — record and stop this schedule
+          failed++; details.push({ name: sc.name, period, error: e?.message }); break;
+        }
+
+        if (!logId) {
+          // Already generated for this period — skip, but still advance the schedule
+          skipped++;
+          const nd = this.advanceDate(new Date(period), sc.frequency, sc.interval_count, sc.day_of_month);
+          sc.next_due_date = nd.toISOString().slice(0, 10);
+          await this.jvRepo.query(
+            `UPDATE recurring_expenses SET next_due_date = $1, updated_at = now() WHERE recurring_id = $2`,
+            [sc.next_due_date, sc.recurring_id]);
+          continue;
+        }
+
+        // Create the actual entry
+        const status = (sc.post_mode === 'POSTED') ? 'POSTED' : 'DRAFT';
+        const vat = Number(sc.vat_amount || 0);
+        const amount = Number(sc.amount || 0);
+        let resultType = sc.gen_type, resultId: string | null = null, resultNumber: string | null = null, errMsg: string | null = null;
+
+        try {
+          if (sc.gen_type === 'BILL') {
+            // Draft (or posted) supplier bill
+            let supplierId = sc.supplier_id || null;
+            if (!supplierId && sc.supplier_name) {
+              const oc = await this.findOrCreateSupplier(tid, sc.supplier_name, {});
+              supplierId = oc.id;
+            }
+            const billNo = await this.generateNumber('PINV', this.purchaseInvoiceRepo, 'invoiceNumber');
+            const total = amount + vat;
+            const ins = await this.purchaseInvoiceRepo.query(
+              `INSERT INTO purchase_invoices
+                 (tenant_id, invoice_number, invoice_date, due_date, supplier_id, supplier_name,
+                  subtotal, vat_rate, vat_amount, total_amount, paid_amount, balance_due,
+                  currency_code, status, is_inventory, notes)
+               VALUES ($1,$2,$3,$3,$4,$5,$6,$7,$8,$9,0,$9,$10,$11,false,$12)
+               RETURNING invoice_id::text AS id, invoice_number`,
+              [tid, billNo, period, supplierId, sc.supplier_name || 'Recurring Supplier',
+               amount, sc.vat_rate || 0, vat, total, sc.currency_code || 'OMR', status,
+               `Recurring: ${sc.name} (${period})`]);
+            resultId = ins?.[0]?.id || null; resultNumber = ins?.[0]?.invoice_number || billNo;
+          } else {
+            // JOURNAL: Dr expense / Cr credit account (+ VAT input if any)
+            const lines: any[] = [];
+            lines.push({ accountCode: sc.expense_account_code, description: sc.name, debitAmount: amount, creditAmount: 0 });
+            if (vat > 0) lines.push({ accountCode: '1160', description: `${sc.name} VAT`, debitAmount: vat, creditAmount: 0 });
+            lines.push({ accountCode: sc.credit_account_code, description: sc.name, debitAmount: 0, creditAmount: amount + vat });
+
+            const jvNumber = await this.generateNumber('JV', this.jvRepo, 'voucherNumber');
+            const totalDebit = amount + vat, totalCredit = amount + vat;
+            const jv = await this.jvRepo.save(this.jvRepo.create({
+              tenantId: tid, voucherNumber: jvNumber, voucherType: 'RECURRING',
+              description: `Recurring: ${sc.name} (${period})`, voucherDate: period,
+              status, isPosted: status === 'POSTED', createdBy: sc.created_by,
+              totalDebit, totalCredit, reference: `REC-${sc.name}`,
+            } as any)) as any;
+            for (let i = 0; i < lines.length; i++) {
+              const acc = await this.coaRepo.findOne({ where: { tenantId: tid, accountCode: lines[i].accountCode } } as any);
+              if (!acc) throw new Error(`Account ${lines[i].accountCode} not found`);
+              await this.jvLineRepo.save(this.jvLineRepo.create({
+                voucherId: jv.voucherId, lineNumber: i + 1, accountId: acc.accountId,
+                accountCode: acc.accountCode, accountName: acc.accountName,
+                description: lines[i].description, debitAmount: lines[i].debitAmount, creditAmount: lines[i].creditAmount,
+              } as any));
+            }
+            resultId = jv.voucherId; resultNumber = jvNumber;
+          }
+          generated++;
+        } catch (e: any) {
+          errMsg = e?.message || 'generation failed'; failed++;
+        }
+
+        // Update the log with the outcome
+        await this.jvRepo.query(
+          `UPDATE recurring_expense_log
+             SET result_type=$1, result_id=$2, result_number=$3, status=$4, error=$5, amount=$6
+           WHERE log_id=$7`,
+          [resultType, resultId, resultNumber, errMsg ? 'FAILED' : status, errMsg, amount + vat, logId]);
+
+        details.push({ name: sc.name, period, type: sc.gen_type, number: resultNumber, status: errMsg ? 'FAILED' : status, error: errMsg });
+
+        // Advance the schedule state (only if not failed; failed leaves due so it retries)
+        if (!errMsg) {
+          const nd = this.advanceDate(new Date(period), sc.frequency, sc.interval_count, sc.day_of_month);
+          sc.next_due_date = nd.toISOString().slice(0, 10);
+          sc.occurrences_generated = Number(sc.occurrences_generated || 0) + 1;
+          await this.jvRepo.query(
+            `UPDATE recurring_expenses
+               SET next_due_date=$1, last_generated_date=$2, occurrences_generated=$3, updated_at=now()
+             WHERE recurring_id=$4`,
+            [sc.next_due_date, period, sc.occurrences_generated, sc.recurring_id]);
+        } else {
+          break; // stop catching up this schedule on failure; will retry next run
+        }
+      }
+    }
+
+    return { generated, skipped, failed, details, ranAt: new Date().toISOString() };
+  }
+
+  async getRecurringDueCount(tenantId: string): Promise<any> {
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = await this.jvRepo.query(
+      `SELECT COUNT(*)::int AS due FROM recurring_expenses
+       WHERE tenant_id::text = $1 AND is_active = true AND next_due_date <= $2
+         AND (end_date IS NULL OR next_due_date <= end_date)
+         AND (max_occurrences IS NULL OR occurrences_generated < max_occurrences)`,
+      [tenantId, today]);
+    return { due: rows?.[0]?.due || 0 };
+  }
+
+
+  // ── Recurring Expenses CRUD ────────────────────────────────────
+  async createRecurringExpense(tenantId: string, dto: any, userId: string): Promise<any> {
+    const start = dto.startDate || new Date().toISOString().slice(0, 10);
+    const nextDue = dto.nextDueDate || start;  // first run defaults to start date
+    const rows = await this.jvRepo.query(
+      `INSERT INTO recurring_expenses
+         (tenant_id, name, description, gen_type, amount, vat_rate, vat_amount, currency_code,
+          expense_account_code, credit_account_code, supplier_id, supplier_name,
+          frequency, interval_count, day_of_month, start_date, end_date, next_due_date,
+          max_occurrences, post_mode, is_active, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+       RETURNING recurring_id::text AS id`,
+      [tenantId, dto.name, dto.description || null, dto.genType || 'JOURNAL',
+       Number(dto.amount || 0), Number(dto.vatRate || 0), Number(dto.vatAmount || 0), dto.currencyCode || 'OMR',
+       dto.expenseAccountCode || null, dto.creditAccountCode || null,
+       dto.supplierId || null, dto.supplierName || null,
+       dto.frequency || 'MONTHLY', Number(dto.intervalCount || 1), dto.dayOfMonth || null,
+       start, dto.endDate || null, nextDue,
+       dto.maxOccurrences || null, dto.postMode || 'DRAFT',
+       dto.isActive !== false, dto.notes || null, userId]);
+    return { id: rows?.[0]?.id, success: true };
+  }
+
+  async getRecurringExpenses(tenantId: string): Promise<any> {
+    const rows = await this.jvRepo.query(
+      `SELECT recurring_id::text AS id, name, description, gen_type, amount, vat_rate, vat_amount,
+              currency_code, expense_account_code, credit_account_code, supplier_id::text AS supplier_id,
+              supplier_name, frequency, interval_count, day_of_month, start_date, end_date,
+              next_due_date, last_generated_date, occurrences_generated, max_occurrences,
+              post_mode, is_active, notes, created_at
+       FROM recurring_expenses WHERE tenant_id::text = $1 ORDER BY is_active DESC, next_due_date`,
+      [tenantId]);
+    return rows;
+  }
+
+  async getRecurringExpense(tenantId: string, id: string): Promise<any> {
+    const rows = await this.jvRepo.query(
+      `SELECT * FROM recurring_expenses WHERE tenant_id::text = $1 AND recurring_id::text = $2`,
+      [tenantId, id]);
+    if (!rows?.[0]) throw new NotFoundException('Recurring expense not found');
+    return rows[0];
+  }
+
+  async updateRecurringExpense(tenantId: string, id: string, dto: any): Promise<any> {
+    // Whitelist updatable columns (snake_case) <- (camelCase dto keys)
+    const map: Record<string, string> = {
+      name: 'name', description: 'description', genType: 'gen_type', amount: 'amount',
+      vatRate: 'vat_rate', vatAmount: 'vat_amount', currencyCode: 'currency_code',
+      expenseAccountCode: 'expense_account_code', creditAccountCode: 'credit_account_code',
+      supplierId: 'supplier_id', supplierName: 'supplier_name',
+      frequency: 'frequency', intervalCount: 'interval_count', dayOfMonth: 'day_of_month',
+      startDate: 'start_date', endDate: 'end_date', nextDueDate: 'next_due_date',
+      maxOccurrences: 'max_occurrences', postMode: 'post_mode', isActive: 'is_active', notes: 'notes',
+    };
+    const sets: string[] = []; const vals: any[] = []; let i = 1;
+    for (const [k, col] of Object.entries(map)) {
+      if (dto[k] !== undefined) { sets.push(`${col} = $${i++}`); vals.push(dto[k]); }
+    }
+    if (!sets.length) return { success: true, unchanged: true };
+    sets.push(`updated_at = now()`);
+    vals.push(tenantId); vals.push(id);
+    await this.jvRepo.query(
+      `UPDATE recurring_expenses SET ${sets.join(', ')} WHERE tenant_id::text = $${i++} AND recurring_id::text = $${i}`,
+      vals);
+    return { success: true };
+  }
+
+  async deleteRecurringExpense(tenantId: string, id: string): Promise<any> {
+    // Soft-deactivate (keep history/log); hard delete only if never generated
+    await this.jvRepo.query(
+      `UPDATE recurring_expenses SET is_active = false, updated_at = now()
+       WHERE tenant_id::text = $1 AND recurring_id::text = $2`, [tenantId, id]);
+    return { success: true, deactivated: true };
+  }
+
+  async getRecurringExpenseLog(tenantId: string, id: string): Promise<any> {
+    const rows = await this.jvRepo.query(
+      `SELECT log_id::text AS id, period_date, generated_at, gen_type, result_type,
+              result_id::text AS result_id, result_number, amount, status, error
+       FROM recurring_expense_log WHERE tenant_id::text = $1 AND recurring_id::text = $2
+       ORDER BY period_date DESC`, [tenantId, id]);
+    return rows;
+  }
+
   // ── Reports ───────────────────────────────────────────────────
 
   async getStockMovementReport(tenantId: string, productId?: string, from?: string, to?: string) {
