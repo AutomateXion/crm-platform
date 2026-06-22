@@ -4729,6 +4729,7 @@ Rules:
         category: p.category || '', unitOfMeasure: p.unitOfMeasure,
         stockQty: qty, reorderPoint, minStockQty: minQty, reorderQty,
         triggerLevel: trigger, suggestedQty, costPrice: cost,
+        warehouseId: p.warehouseId || null, locationId: p.locationId || null,
         estimatedCost: suggestedQty * cost,
         needsReorder, isOut: qty <= 0,
       };
