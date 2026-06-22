@@ -3380,7 +3380,15 @@ Rules:
     let generated = 0, skipped = 0, failed = 0;
     const details: any[] = [];
 
+    // PG 'date' columns may hydrate as Date objects; normalize to YYYY-MM-DD strings
+    const toDateStr = (v: any): string | null => {
+      if (!v) return null;
+      if (typeof v === 'string') return v.slice(0, 10);
+      try { return new Date(v).toISOString().slice(0, 10); } catch { return null; }
+    };
     for (const sc of schedules) {
+      sc.next_due_date = toDateStr(sc.next_due_date);
+      sc.end_date = toDateStr(sc.end_date);
       // Catch-up loop: generate every period due up to today (cap iterations defensively)
       let guard = 0;
       while (sc.next_due_date && sc.next_due_date <= today && guard < 60) {
