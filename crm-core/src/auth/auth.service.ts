@@ -336,7 +336,104 @@ export class AuthService {
     });
   }
 
-  private async handleFailedLogin(user: User) {
+  // ── Self-service password reset ────────────────────────────────
+  // forgotPassword: validate tenant+email, issue a one-time token, email a
+  // reset link. Always returns a generic success (never reveals whether the
+  // email exists) to avoid account enumeration.
+  async forgotPassword(tenantCode: string, email: string, resetBaseUrl: string): Promise<{ message: string }> {
+    const generic = { message: 'If an account exists for that email, a password reset link has been sent.' };
+    try {
+      const tenant = await this.tenantRepo.findOne({ where: { tenantCode } as any });
+      if (!tenant) return generic;
+      const user = await this.userRepo.findOne({
+        where: { email: (email || '').toLowerCase(), tenantId: tenant.tenantId } as any,
+      });
+      if (!user) return generic;
+
+      // Generate a cryptographically-strong token
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const crypto = require('crypto');
+      const token = crypto.randomBytes(48).toString('hex'); // 96 chars
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      // Invalidate any prior unused tokens for this user, then store the new one
+      await this.userRepo.query(
+        `UPDATE password_reset_tokens SET used_at = now() WHERE user_id = $1 AND used_at IS NULL`,
+        [user.userId]);
+      await this.userRepo.query(
+        `INSERT INTO password_reset_tokens (tenant_id, user_id, token, expires_at)
+         VALUES ($1, $2, $3, $4)`,
+        [tenant.tenantId, user.userId, token, expiresAt]);
+
+      // Build the reset link and email it via the tenant's configured SMTP
+      const link = `${resetBaseUrl}?token=${token}`;
+      await this.sendResetEmail(tenant, user, link);
+
+      return generic;
+    } catch (e) {
+      // Never leak internal errors on this public endpoint
+      return generic;
+    }
+  }
+
+  private async sendResetEmail(tenant: any, user: any, link: string): Promise<void> {
+    const settings = (tenant as any).settings || {};
+    const cfg = settings.emailConfig;
+    if (!cfg?.host || !cfg?.username || !cfg?.password) {
+      // Email not configured — silently skip (admin reset is the fallback).
+      // eslint-disable-next-line no-console
+      console.warn('[forgot-password] email not configured for tenant', tenant.tenantCode);
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: cfg.host, port: cfg.port || 587, secure: cfg.secure || false,
+      auth: { user: cfg.username, pass: cfg.password },
+    });
+    await transporter.sendMail({
+      from: `"${cfg.fromName || 'Envoiso'}" <${cfg.fromEmail || cfg.username}>`,
+      to: user.email,
+      subject: 'Password Reset Request',
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto">
+          <h2 style="color:#0B2547">Password Reset</h2>
+          <p>Hello ${user.fullName || ''},</p>
+          <p>We received a request to reset your password. Click the button below to set a new one. This link expires in 1 hour.</p>
+          <p style="text-align:center;margin:28px 0">
+            <a href="${link}" style="background:#1A4D8F;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;display:inline-block">Reset Password</a>
+          </p>
+          <p style="color:#666;font-size:13px">If you didn't request this, you can safely ignore this email — your password won't change.</p>
+          <p style="color:#999;font-size:12px">${cfg.signature || ''}</p>
+        </div>`,
+    });
+  }
+
+  // resetPassword (self-service via token): validate token, set new password,
+  // clear any lockout, mark token used.
+  async resetPasswordWithToken(token: string, newPassword: string): Promise<{ message: string }> {
+    if (!token || !newPassword || newPassword.length < 6) {
+      throw new BadRequestException('A valid token and a password of at least 6 characters are required.');
+    }
+    const rows = await this.userRepo.query(
+      `SELECT token_id::text AS id, user_id::text AS "userId", expires_at AS "expiresAt", used_at AS "usedAt"
+       FROM password_reset_tokens WHERE token = $1 LIMIT 1`,
+      [token]);
+    const rec = rows?.[0];
+    if (!rec) throw new BadRequestException('This reset link is invalid.');
+    if (rec.usedAt) throw new BadRequestException('This reset link has already been used.');
+    if (new Date(rec.expiresAt) < new Date()) throw new BadRequestException('This reset link has expired. Please request a new one.');
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.userRepo.update(rec.userId, { passwordHash, failedLoginCount: 0, lockedUntil: null } as any);
+    await this.userRepo.query(
+      `UPDATE password_reset_tokens SET used_at = now() WHERE token_id = $1`, [rec.id]);
+
+    return { message: 'Your password has been reset. You can now sign in with your new password.' };
+  }
+
+
+    private async handleFailedLogin(user: User) {
     const failedCount = user.failedLoginCount + 1;
     const updates: Partial<User> = { failedLoginCount: failedCount };
 

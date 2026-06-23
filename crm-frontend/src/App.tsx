@@ -15,6 +15,7 @@ import ReorderManagementReport from './pages/reports/ReorderManagementReport';
 import LoginPage from './pages/auth/LoginPage';
 import WelcomePage from './pages/marketing/WelcomePage';
 import FeaturesPage from './pages/marketing/FeaturesPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 // Core
 import DashboardPage    from './pages/dashboard/DashboardPage';
 import UsersPage        from './pages/users/UsersPage';
@@ -111,6 +112,7 @@ export default function App() {
       <Route path="/welcome" element={<WelcomePage />} />
       <Route path="/features" element={<FeaturesPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         {/* Core */}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Alert, Typography, Space, Divider } from 'antd';
+import { Form, Input, Button, Alert, Typography, Space, Divider, Modal, message } from 'antd';
+import { authApi } from '../../services/api';
 import { UserOutlined, LockOutlined, BankOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -26,6 +27,31 @@ export default function LoginPage() {
   const handleSubmit = async (values: any) => {
     dispatch(clearError());
     dispatch(login(values));
+  };
+
+  const [fpOpen, setFpOpen] = useState(false);
+  const [fpLoading, setFpLoading] = useState(false);
+  const [fpSent, setFpSent] = useState(false);
+  const [fpForm] = Form.useForm();
+
+  const openForgot = () => {
+    setFpSent(false);
+    fpForm.resetFields();
+    // pre-fill the company code if already typed on the login form
+    const tc = form.getFieldValue('tenantCode');
+    if (tc) fpForm.setFieldsValue({ tenantCode: tc });
+    setFpOpen(true);
+  };
+
+  const handleForgot = async (values: any) => {
+    setFpLoading(true);
+    try {
+      await authApi.forgotPassword({ tenantCode: values.tenantCode, email: values.email });
+      setFpSent(true);
+    } catch {
+      // Same generic outcome regardless — never reveal whether the email exists
+      setFpSent(true);
+    } finally { setFpLoading(false); }
   };
 
   return (
@@ -142,7 +168,7 @@ export default function LoginPage() {
 
           <Divider style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '16px 0' }} />
           <div style={{ textAlign: 'center' }}>
-            <Link style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>
+            <Link style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }} onClick={openForgot}>
               Forgot your password?
             </Link>
           </div>
@@ -151,6 +177,40 @@ export default function LoginPage() {
         <Text style={{ display: 'block', textAlign: 'center', marginTop: 24, color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>
           © 2026 Envoiso. All rights reserved.
         </Text>
+
+      <Modal
+        title="Reset your password"
+        open={fpOpen}
+        onCancel={() => setFpOpen(false)}
+        footer={null}
+        destroyOnClose
+      >
+        {fpSent ? (
+          <div style={{ padding: '8px 0' }}>
+            <Alert type="success" showIcon
+              message="Check your email"
+              description="If an account exists for that company code and email, we've sent a password reset link. It expires in 1 hour." />
+            <div style={{ textAlign: 'right', marginTop: 16 }}>
+              <Button type="primary" onClick={() => setFpOpen(false)}>Done</Button>
+            </div>
+          </div>
+        ) : (
+          <Form form={fpForm} layout="vertical" onFinish={handleForgot}>
+            <Form.Item name="tenantCode" label="Company code"
+              rules={[{ required: true, message: 'Enter your company code' }]}>
+              <Input prefix={<BankOutlined />} placeholder="e.g. ACME_CORP" />
+            </Form.Item>
+            <Form.Item name="email" label="Email"
+              rules={[{ required: true, type: 'email', message: 'Enter a valid email' }]}>
+              <Input prefix={<UserOutlined />} placeholder="you@company.com" />
+            </Form.Item>
+            <div style={{ textAlign: 'right' }}>
+              <Button onClick={() => setFpOpen(false)} style={{ marginRight: 8 }}>Cancel</Button>
+              <Button type="primary" htmlType="submit" loading={fpLoading}>Send reset link</Button>
+            </div>
+          </Form>
+        )}
+      </Modal>
       </div>
     </div>
   );

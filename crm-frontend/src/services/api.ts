@@ -47,6 +47,8 @@ export default api;
 
 export const authApi = {
   login: (data: any) => api.post('/auth/login', data),
+  forgotPassword: (data: any) => api.post('/auth/forgot-password', data),
+  resetPassword: (data: any) => api.post('/auth/reset-password', data),
   logout: (refreshToken?: string) => api.post('/auth/logout', { refreshToken }),
   me: () => api.get('/auth/me'),
   refresh: (refreshToken: string) => api.post('/auth/refresh', { refreshToken }),

@@ -20,7 +20,20 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   // POST /api/v1/auth/login
-  @Post('login')
+  @Post('forgot-password')
+  @UseGuards(ThrottlerGuard)
+  async forgotPassword(@Body() body: { tenantCode: string; email: string; resetBaseUrl?: string }) {
+    const base = body.resetBaseUrl || 'https://automatexion-crm-frontend.onrender.com/reset-password';
+    return this.authService.forgotPassword(body.tenantCode, body.email, base);
+  }
+
+  @Post('reset-password')
+  @UseGuards(ThrottlerGuard)
+  async resetPasswordWithToken(@Body() body: { token: string; newPassword: string }) {
+    return this.authService.resetPasswordWithToken(body.token, body.newPassword);
+  }
+
+    @Post('login')
   @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email, password, and tenant code' })
