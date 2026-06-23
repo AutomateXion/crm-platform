@@ -189,6 +189,7 @@ export class UsersService {
         'u.userId', 'u.email', 'u.fullName', 'u.fullNameAr',
         'u.phone', 'u.avatarUrl', 'u.isActive', 'u.userGroupId',
         'u.lastLogin', 'u.createdAt', 'u.language', 'u.timezone',
+        'u.lockedUntil', 'u.failedLoginCount',
         'ug.userGroupId', 'ug.groupName', 'ug.groupCode',
       ]);
 
@@ -260,6 +261,19 @@ export class UsersService {
     });
 
     return saved;
+  }
+
+  async unlockUser(
+    tenantId: string, userId: string, unlockedBy: string,
+  ): Promise<void> {
+    await this.getUser(tenantId, userId);
+    await this.userRepo.update(userId, { failedLoginCount: 0, lockedUntil: null });
+
+    await this.auditService.log({
+      tenantId, userId: unlockedBy, userName: '',
+      module: 'core', action: 'UPDATE',
+      entityType: 'user', entityId: userId,
+    });
   }
 
   async resetPassword(

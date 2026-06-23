@@ -5,7 +5,7 @@ import {
   Avatar, Tabs, Divider, Alert, Badge, Statistic,
 } from "antd";
 import {
-  PlusOutlined, SearchOutlined, EditOutlined, LockOutlined,
+  PlusOutlined, SearchOutlined, EditOutlined, LockOutlined, UnlockOutlined,
   UserOutlined, MailOutlined, PhoneOutlined, ReloadOutlined,
   TeamOutlined, SafetyOutlined, CheckCircleOutlined,
   CloseCircleOutlined, CrownOutlined,
@@ -99,6 +99,14 @@ export default function UsersPage() {
     } catch { message.error("Failed to reset password"); }
   };
 
+  const handleUnlock = async (r: any) => {
+    try {
+      await usersApi.unlock(r.userId);
+      message.success(`${r.fullName || "Account"} unlocked`);
+      loadUsers();
+    } catch { message.error("Failed to unlock account"); }
+  };
+
   const handleToggle = async (userId: string, isActive: boolean) => {
     try {
       await usersApi.toggleStatus(userId, isActive);
@@ -159,12 +167,17 @@ export default function UsersPage() {
     {
       title: "Status", key: "status",
       render: (_: any, r: any) => (
-        <Switch
-          checked={r.isActive} size="small"
-          checkedChildren="Active" unCheckedChildren="Inactive"
-          onChange={val => handleToggle(r.userId, val)}
-          style={{ background: r.isActive ? "#52c41a" : undefined }}
-        />
+        <Space size={4}>
+          <Switch
+            checked={r.isActive} size="small"
+            checkedChildren="Active" unCheckedChildren="Inactive"
+            onChange={val => handleToggle(r.userId, val)}
+            style={{ background: r.isActive ? "#52c41a" : undefined }}
+          />
+          {r.lockedUntil && new Date(r.lockedUntil) > new Date() && (
+            <Tag color="red" icon={<LockOutlined />}>Locked</Tag>
+          )}
+        </Space>
       ),
     },
     {
@@ -184,6 +197,13 @@ export default function UsersPage() {
             <Button size="small" icon={<LockOutlined />}
               onClick={() => { setResetPwdUser(r); pwdForm.resetFields(); }} />
           </Tooltip>
+          {r.lockedUntil && new Date(r.lockedUntil) > new Date() && (
+            <Popconfirm title="Unlock this account?" onConfirm={() => handleUnlock(r)}>
+              <Tooltip title="Unlock Account">
+                <Button size="small" danger icon={<UnlockOutlined />} />
+              </Tooltip>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },

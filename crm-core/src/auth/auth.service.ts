@@ -99,7 +99,7 @@ export class AuthService {
     // Check account lockout
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       const minutes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
-      throw new ForbiddenException(`Account locked. Try again in ${minutes} minutes.`);
+      throw new ForbiddenException(`Account locked after multiple failed attempts. Try again in ${minutes} minute(s), reset your password using "Forgot password", or contact your administrator.`);
     }
 
     // Verify password

@@ -121,6 +121,16 @@ export class UsersController {
     return { message: 'Password reset successfully' };
   }
 
+  @Patch(':id/unlock')
+  @ApiOperation({ summary: 'Admin unlock a locked user account' })
+  async unlockUser(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+  ) {
+    await this.usersService.unlockUser(user.tenantId, id, user.userId);
+    return { message: 'Account unlocked successfully' };
+  }
+
   @Patch('me/change-password')
   @ApiOperation({ summary: 'Change own password' })
   async changePassword(

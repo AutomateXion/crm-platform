@@ -62,6 +62,7 @@ export const usersApi = {
   updateUser: (id: string, data: any) => api.put(`/users/${id}`, data),
   toggleStatus: (id: string, isActive: boolean) => api.patch(`/users/${id}/status`, { isActive }),
   resetPassword: (id: string, newPassword: string) => api.patch(`/users/${id}/reset-password`, { newPassword }),
+  unlock: (id: string) => api.patch(`/users/${id}/unlock`),
   changePassword: (data: any) => api.patch('/users/me/change-password', data),
   getGroups: () => api.get('/users/groups'),
   createGroup: (data: any) => api.post('/users/groups', data),
