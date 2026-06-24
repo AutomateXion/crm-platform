@@ -3,7 +3,7 @@ import { Card, Table, Button, Typography, Tag, Space, Modal, Form, Input, DatePi
          Select, InputNumber, message, Popconfirm, Tooltip, Row, Col, Divider, Radio, Alert } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, StopOutlined,
          EyeOutlined, FileSearchOutlined, DeleteRowOutlined, SendOutlined, LinkOutlined, CopyOutlined, BarChartOutlined, TrophyOutlined } from '@ant-design/icons';
-import { rfqApi, suppliersApi, productsApi } from '../../services/salesApi';
+import salesApi, { rfqApi, suppliersApi, productsApi } from '../../services/salesApi';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -37,6 +37,8 @@ export default function RFQListPage() {
   const [wholeVendor, setWholeVendor] = useState<string | undefined>();
   const [lineAward, setLineAward] = useState<Record<string, string>>({});
   const [awarding, setAwarding] = useState(false);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [lineLoc, setLineLoc] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,6 +52,7 @@ export default function RFQListPage() {
   useEffect(() => {
     suppliersApi.getAll({ limit: 200 }).then(r => setSuppliers(r.data?.data || [])).catch(() => {});
     productsApi.getAll({ limit: 500 }).then(r => setProducts(r.data?.data || [])).catch(() => {});
+    salesApi.get('/sales/warehouse-locations', { params: { limit: 500 } }).then((r: any) => setLocations(r.data?.data || r.data || [])).catch(() => {});
   }, []);
 
   const openCreate = () => {
@@ -165,6 +168,7 @@ export default function RFQListPage() {
   const doAward = async () => {
     if (!cmp) return;
     const payload: any = { mode: awardMode };
+    payload.lineLocations = lineLoc;
     if (awardMode === 'WHOLE') {
       if (!wholeVendor) { message.warning('Select a winning vendor'); return; }
       payload.rfqVendorId = wholeVendor;
@@ -209,6 +213,10 @@ export default function RFQListPage() {
         if (best) la[it.rfqItemId] = best.rfqVendorId;
       });
       setLineAward(la);
+      // seed line locations from product defaults
+      const ll: Record<string, string> = {};
+      (d.items || []).forEach((it: any) => { if (it.defaultLocationId) ll[it.rfqItemId] = it.defaultLocationId; });
+      setLineLoc(ll);
     } catch (e: any) {
       message.error(e.response?.data?.message || 'Could not load comparison');
     } finally { setCmpLoading(false); }
@@ -413,6 +421,13 @@ export default function RFQListPage() {
                       <Select style={{ width: 320 }} value={wholeVendor} onChange={setWholeVendor}>
                         {cmp.vendors.map((v: any) => <Option key={v.rfqVendorId} value={v.rfqVendorId}>{v.vendorName} — {cmp.currencyCode} {Number(v.totalAmount).toFixed(3)}{v.isLowestTotal ? ' 🏆' : ''}</Option>)}
                       </Select>
+                      <div style={{ marginTop: 10 }}>
+                        <Text>Deliver all to: </Text>
+                        <Select showSearch optionFilterProp="children" allowClear style={{ width: 320 }} placeholder="Warehouse / location"
+                          onChange={(val) => { const ll: Record<string,string> = {}; cmp.items.forEach((it: any) => { ll[it.rfqItemId] = val; }); setLineLoc(ll); }}>
+                          {locations.map((l: any) => { const id = l.locationId || l.location_id; const wh = l.warehouseName || l.warehouse_name || ''; const ln = l.locationName || l.location_name || ''; return <Option key={id} value={id}>{wh ? wh + ' — ' + ln : ln}</Option>; })}
+                        </Select>
+                      </div>
                     </div>
                   ) : (
                     <div>
@@ -430,6 +445,11 @@ export default function RFQListPage() {
                                 const isLow = r.lowestPrice != null && cell.unitPrice === r.lowestPrice;
                                 return <Option key={v.rfqVendorId} value={v.rfqVendorId}>{v.vendorName} — {cmp.currencyCode} {Number(cell.unitPrice).toFixed(3)}{isLow ? ' ✓' : ''}</Option>;
                               })}
+                            </Select>) },
+                          { title: 'Deliver to', width: 200, render: (_: any, r: any) => (
+                            <Select showSearch optionFilterProp="children" allowClear style={{ width: '100%' }} placeholder="Location"
+                              value={lineLoc[r.rfqItemId]} onChange={val => setLineLoc(prev => ({ ...prev, [r.rfqItemId]: val }))}>
+                              {locations.map((l: any) => { const id = l.locationId || l.location_id; const wh = l.warehouseName || l.warehouse_name || ''; const ln = l.locationName || l.location_name || ''; return <Option key={id} value={id}>{wh ? wh + ' — ' + ln : ln}</Option>; })}
                             </Select>) },
                         ] as any} />
                     </div>
