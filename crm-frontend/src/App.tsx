@@ -89,6 +89,7 @@ import StockAdjustmentsPage from './pages/warehouse/StockAdjustmentsPage';
 import SuppliersPage         from './pages/purchase/SuppliersPage';
 import PurchaseOrdersPage    from './pages/purchase/PurchaseOrdersPage';
 import RFQListPage          from './pages/purchase/RFQListPage';
+import VendorQuotePage      from './pages/purchase/VendorQuotePage';
 import GRNPage               from './pages/purchase/GRNPage';
 import PurchaseInvoicesPage  from './pages/purchase/PurchaseInvoicesPage';
 import PurchaseReturnsPage    from './pages/purchase/PurchaseReturnsPage';
@@ -113,6 +114,7 @@ export default function App() {
       <Route path="/welcome" element={<WelcomePage />} />
       <Route path="/features" element={<FeaturesPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/vendor-quote" element={<VendorQuotePage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
