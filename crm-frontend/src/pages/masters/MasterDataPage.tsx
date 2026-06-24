@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import {
   Row, Col, Card, List, Tag, Button, Modal, Form, Input,
-  Typography, Space, Popconfirm, message, Tabs, Badge, Empty, Spin, Select,
+  Typography, Space, Popconfirm, message, Tabs, Badge, Empty, Spin, Select, Collapse,
 } from "antd";
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, DatabaseOutlined,
   ReloadOutlined, CheckCircleOutlined,
 } from "@ant-design/icons";
 import { mastersApi } from "../../services/api";
+import ProductSearchSettings from "./ProductSearchSettings";
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;

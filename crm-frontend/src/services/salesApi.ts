@@ -244,3 +244,9 @@ export const recurringApi = {
   dueCount: () => salesApi.get('/sales/recurring-expenses/due-count'),
   log: (id) => salesApi.get(`/sales/recurring-expenses/${id}/log`),
 };
+
+
+export const productSearchSettingsApi = {
+  get: () => salesApi.get('/sales/settings/product-search'),
+  update: (fields: string[]) => salesApi.put('/sales/settings/product-search', { fields }),
+};
