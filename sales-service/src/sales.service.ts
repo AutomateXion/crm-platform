@@ -4912,13 +4912,21 @@ Rules:
     let sent = 0, skipped = 0;
     const emailReady = cfg?.host && cfg?.username && cfg?.password;
     let transporter: any = null;
+    let emailModuleOk = false;
     if (emailReady) {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const nodemailer = require('nodemailer');
-      transporter = nodemailer.createTransport({
-        host: cfg.host, port: cfg.port || 587, secure: cfg.secure || false,
-        auth: { user: cfg.username, pass: cfg.password },
-      });
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const nodemailer = require('nodemailer');
+        transporter = nodemailer.createTransport({
+          host: cfg.host, port: cfg.port || 587, secure: cfg.secure || false,
+          auth: { user: cfg.username, pass: cfg.password },
+        });
+        emailModuleOk = true;
+      } catch (e) {
+        // nodemailer not available or transport init failed — fall back to copyable links
+        transporter = null;
+        emailModuleOk = false;
+      }
     }
 
     const deadlineStr = rfq.responseDeadline
@@ -4963,13 +4971,14 @@ Rules:
       `UPDATE rfqs SET status='SENT', updated_at=now() WHERE rfq_id=$1 AND tenant_id=$2`,
       [rfqId, tenantId]);
 
+    const couldEmail = emailReady && emailModuleOk;
     return {
       success: true,
       sent, skipped,
-      emailConfigured: !!emailReady,
-      message: emailReady
-        ? `Invitations sent to ${sent} vendor(s)${skipped ? `, ${skipped} failed` : ''}.`
-        : `Email is not configured for this tenant. The RFQ is marked Sent and tokens are active — you can copy each vendor's link from the RFQ. Configure SMTP in Email Configuration to send automatically.`,
+      emailConfigured: !!couldEmail,
+      message: couldEmail
+        ? `Invitations sent to ${sent} vendor(s)${skipped ? `, ${skipped} failed` : ''}. The RFQ is now marked Sent.`
+        : `The RFQ is marked Sent and each vendor's link is active. Email could not be sent automatically — open "Vendor links" to copy and share each link directly.`,
     };
   }
 
