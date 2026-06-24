@@ -24,6 +24,7 @@ import {
   BankAccountEntity, ChequeBookEntity, ChequeLeafEntity,
 } from './sales.entities';
 import { SalesController } from './sales.controller';
+import { PublicController } from './public.controller';
 import { SalesService } from './sales.service';
 import { EInvoiceService } from './einvoice.service';
 import { EInvoiceController } from './einvoice.controller';
@@ -107,7 +108,7 @@ export class RecurringScheduler {
       secret: process.env.JWT_SECRET || 'crm_jwt_super_secret_2024_change_in_production',
     }),
   ],
-  controllers: [SalesController, EInvoiceController],
+  controllers: [SalesController, EInvoiceController, PublicController],
   providers: [SalesService, EInvoiceService, JwtStrategy, RecurringScheduler],
 })
 export class AppModule {}

@@ -4996,6 +4996,150 @@ Rules:
     }));
   }
 
+    // ═══════════════════════════════════════════════════════════
+  // RFQ PUBLIC (vendor-facing, no auth — resolved entirely by token)
+  // ═══════════════════════════════════════════════════════════
+
+  // Resolve a vendor token to its RFQ context; throws generic error if invalid.
+  private async resolveRfqToken(token: string): Promise<any> {
+    if (!token || token.length < 20) throw new BadRequestException('This link is not valid.');
+    const rows = await this.poRepo.query(
+      `SELECT v.rfq_vendor_id AS "rfqVendorId", v.rfq_id AS "rfqId", v.tenant_id AS "tenantId",
+              v.vendor_name AS "vendorName", v.vendor_email AS "vendorEmail", v.status AS "vendorStatus",
+              v.token_expires_at AS "tokenExpiresAt",
+              r.rfq_number AS "rfqNumber", r.title, r.description, r.status AS "rfqStatus",
+              r.response_deadline AS "responseDeadline", r.currency_code AS "currencyCode",
+              r.terms_text AS "termsText"
+       FROM rfq_vendors v JOIN rfqs r ON r.rfq_id = v.rfq_id
+       WHERE v.access_token = $1 LIMIT 1`,
+      [token]);
+    if (!rows.length) throw new BadRequestException('This link is not valid.');
+    return rows[0];
+  }
+
+  private rfqIsOpen(ctx: any): boolean {
+    if (['CANCELLED', 'AWARDED'].includes(ctx.rfqStatus)) return false;
+    if (ctx.responseDeadline && new Date(ctx.responseDeadline) < new Date()) return false;
+    return true;
+  }
+
+  // GET — vendor opens their link: RFQ details + their own draft/submitted quote (never others')
+  async publicGetRfq(token: string): Promise<any> {
+    const ctx = await this.resolveRfqToken(token);
+    // mark VIEWED (first open) without clobbering later statuses
+    if (ctx.vendorStatus === 'INVITED') {
+      await this.poRepo.query(
+        `UPDATE rfq_vendors SET status='VIEWED', viewed_at=COALESCE(viewed_at, now()) WHERE rfq_vendor_id=$1`,
+        [ctx.rfqVendorId]);
+    }
+    const items = await this.poRepo.query(
+      `SELECT rfq_item_id AS "rfqItemId", item_code AS "itemCode", description,
+              quantity, unit_of_measure AS "unitOfMeasure", spec_notes AS "specNotes", line_number AS "lineNumber"
+       FROM rfq_items WHERE rfq_id=$1 ORDER BY line_number`, [ctx.rfqId]);
+    // existing quote (if any)
+    const quoteRows = await this.poRepo.query(
+      `SELECT quote_id AS "quoteId", validity_days AS "validityDays", payment_terms AS "paymentTerms",
+              delivery_terms AS "deliveryTerms", overall_lead_days AS "overallLeadDays",
+              vendor_notes AS "vendorNotes", is_submitted AS "isSubmitted", total_amount AS "totalAmount"
+       FROM rfq_quotes WHERE rfq_vendor_id=$1 LIMIT 1`, [ctx.rfqVendorId]);
+    let quoteLines: any[] = [];
+    if (quoteRows.length) {
+      quoteLines = await this.poRepo.query(
+        `SELECT rfq_item_id AS "rfqItemId", unit_price AS "unitPrice", lead_time_days AS "leadTimeDays",
+                brand_offered AS "brandOffered", line_notes AS "lineNotes"
+         FROM rfq_quote_lines WHERE quote_id=$1`, [quoteRows[0].quoteId]);
+    }
+    return {
+      rfqNumber: ctx.rfqNumber, title: ctx.title, description: ctx.description,
+      responseDeadline: ctx.responseDeadline, currencyCode: ctx.currencyCode, termsText: ctx.termsText,
+      vendorName: ctx.vendorName, vendorEmail: ctx.vendorEmail, vendorStatus: ctx.vendorStatus,
+      isOpen: this.rfqIsOpen(ctx),
+      closedReason: this.rfqIsOpen(ctx) ? null
+        : (['CANCELLED','AWARDED'].includes(ctx.rfqStatus) ? 'This RFQ is closed.' : 'The response deadline has passed.'),
+      items,
+      quote: quoteRows[0] || null,
+      quoteLines,
+    };
+  }
+
+  // POST — save/update this vendor's quote (draft) until the deadline
+  async publicSaveQuote(token: string, dto: any): Promise<any> {
+    const ctx = await this.resolveRfqToken(token);
+    if (!this.rfqIsOpen(ctx)) throw new BadRequestException('This RFQ is closed for new quotes.');
+
+    // upsert quote header
+    let quoteId: string;
+    const existing = await this.poRepo.query(
+      `SELECT quote_id FROM rfq_quotes WHERE rfq_vendor_id=$1 LIMIT 1`, [ctx.rfqVendorId]);
+    const lines = dto.lines || [];
+    const total = lines.reduce((s: number, l: any) => s + (Number(l.unitPrice)||0) * 0, 0); // recomputed below with qty
+
+    if (existing.length) {
+      quoteId = existing[0].quote_id;
+      await this.poRepo.query(
+        `UPDATE rfq_quotes SET validity_days=$1, payment_terms=$2, delivery_terms=$3,
+           overall_lead_days=$4, vendor_notes=$5, updated_at=now() WHERE quote_id=$6`,
+        [dto.validityDays||null, dto.paymentTerms||null, dto.deliveryTerms||null,
+         dto.overallLeadDays||null, dto.vendorNotes||null, quoteId]);
+      await this.poRepo.query(`DELETE FROM rfq_quote_lines WHERE quote_id=$1`, [quoteId]);
+    } else {
+      const ins = await this.poRepo.query(
+        `INSERT INTO rfq_quotes (rfq_vendor_id, rfq_id, tenant_id, validity_days, payment_terms,
+           delivery_terms, overall_lead_days, vendor_notes, is_submitted)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,false) RETURNING quote_id`,
+        [ctx.rfqVendorId, ctx.rfqId, ctx.tenantId, dto.validityDays||null, dto.paymentTerms||null,
+         dto.deliveryTerms||null, dto.overallLeadDays||null, dto.vendorNotes||null]);
+      quoteId = ins[0].quote_id;
+    }
+
+    // fetch item quantities to compute line totals
+    const itemQtys = await this.poRepo.query(
+      `SELECT rfq_item_id AS id, quantity FROM rfq_items WHERE rfq_id=$1`, [ctx.rfqId]);
+    const qtyMap: any = {};
+    for (const it of itemQtys) qtyMap[it.id] = Number(it.quantity) || 0;
+
+    let grand = 0;
+    for (const l of lines) {
+      const lt = (Number(l.unitPrice)||0) * (qtyMap[l.rfqItemId] || 0);
+      grand += lt;
+      await this.poRepo.query(
+        `INSERT INTO rfq_quote_lines (quote_id, rfq_item_id, tenant_id, unit_price, lead_time_days,
+           brand_offered, line_notes, line_total)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [quoteId, l.rfqItemId, ctx.tenantId, Number(l.unitPrice)||0, l.leadTimeDays||null,
+         l.brandOffered||null, l.lineNotes||null, lt]);
+    }
+    await this.poRepo.query(`UPDATE rfq_quotes SET total_amount=$1 WHERE quote_id=$2`, [grand, quoteId]);
+
+    // mark vendor as DRAFT (working) if not yet submitted
+    if (ctx.vendorStatus !== 'SUBMITTED') {
+      await this.poRepo.query(`UPDATE rfq_vendors SET status='DRAFT' WHERE rfq_vendor_id=$1`, [ctx.rfqVendorId]);
+    }
+    return { success: true, total: grand, message: 'Your quote has been saved.' };
+  }
+
+  // POST — finalize submission
+  async publicSubmitQuote(token: string, dto: any): Promise<any> {
+    // save first (so submit captures the latest edits if sent together)
+    if (dto && dto.lines) await this.publicSaveQuote(token, dto);
+    const ctx = await this.resolveRfqToken(token);
+    if (!this.rfqIsOpen(ctx)) throw new BadRequestException('This RFQ is closed.');
+    const q = await this.poRepo.query(`SELECT quote_id FROM rfq_quotes WHERE rfq_vendor_id=$1 LIMIT 1`, [ctx.rfqVendorId]);
+    if (!q.length) throw new BadRequestException('Please enter your quote before submitting.');
+    await this.poRepo.query(
+      `UPDATE rfq_quotes SET is_submitted=true, submitted_at=now() WHERE quote_id=$1`, [q[0].quote_id]);
+    await this.poRepo.query(
+      `UPDATE rfq_vendors SET status='SUBMITTED', submitted_at=now() WHERE rfq_vendor_id=$1`, [ctx.rfqVendorId]);
+    return { success: true, message: 'Your quote has been submitted. Thank you.' };
+  }
+
+  // POST — vendor declines to quote
+  async publicDeclineQuote(token: string): Promise<any> {
+    const ctx = await this.resolveRfqToken(token);
+    await this.poRepo.query(`UPDATE rfq_vendors SET status='DECLINED' WHERE rfq_vendor_id=$1`, [ctx.rfqVendorId]);
+    return { success: true, message: 'You have declined this RFQ. Thank you for letting us know.' };
+  }
+
     async getReorderReport(tenantId: string, filters: any = {}) {
     const qb = this.productRepo.createQueryBuilder('p')
       .where('p.tenantId = :tenantId', { tenantId })
