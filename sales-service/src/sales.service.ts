@@ -5222,6 +5222,120 @@ Rules:
     };
   }
 
+    // Award an RFQ -> create draft PO(s). Two modes:
+  //   WHOLE  : one winning vendor gets all items (dto.rfqVendorId)
+  //   SPLIT  : each item awarded to a chosen vendor (dto.lineAwards: [{rfqItemId, rfqVendorId}])
+  //            -> one draft PO per winning vendor (grouped).
+  async awardRfq(tenantId: string, rfqId: string, dto: any, userId: string): Promise<any> {
+    const rfqRows = await this.poRepo.query(
+      `SELECT rfq_id AS "rfqId", rfq_number AS "rfqNumber", status, currency_code AS "currencyCode",
+              terms_text AS "termsText"
+       FROM rfqs WHERE rfq_id=$1 AND tenant_id=$2`, [rfqId, tenantId]);
+    if (!rfqRows.length) throw new BadRequestException('RFQ not found');
+    const rfq = rfqRows[0];
+    if (rfq.status === 'AWARDED') throw new BadRequestException('This RFQ has already been awarded');
+    if (rfq.status === 'CANCELLED') throw new BadRequestException('This RFQ is cancelled');
+
+    const items = await this.poRepo.query(
+      `SELECT rfq_item_id AS "rfqItemId", product_id AS "productId", item_code AS "itemCode",
+              description, quantity, unit_of_measure AS "unitOfMeasure"
+       FROM rfq_items WHERE rfq_id=$1 ORDER BY line_number`, [rfqId]);
+    const itemMap: any = {};
+    for (const it of items) itemMap[it.rfqItemId] = it;
+
+    // Build a map: rfqVendorId -> { vendorInfo, quoteLines{itemId->line} }
+    const vendorRows = await this.poRepo.query(
+      `SELECT v.rfq_vendor_id AS "rfqVendorId", v.supplier_id AS "supplierId",
+              v.vendor_name AS "vendorName", v.vendor_email AS "vendorEmail",
+              q.quote_id AS "quoteId"
+       FROM rfq_vendors v JOIN rfq_quotes q ON q.rfq_vendor_id=v.rfq_vendor_id
+       WHERE v.rfq_id=$1`, [rfqId]);
+    const vendorMap: any = {};
+    for (const v of vendorRows) vendorMap[v.rfqVendorId] = v;
+
+    const quoteLines = await this.poRepo.query(
+      `SELECT quote_id AS "quoteId", rfq_item_id AS "rfqItemId", unit_price AS "unitPrice"
+       FROM rfq_quote_lines WHERE quote_id IN (SELECT quote_id FROM rfq_quotes WHERE rfq_id=$1)`, [rfqId]);
+    const priceMap: any = {}; // priceMap[quoteId][rfqItemId] = unitPrice
+    for (const l of quoteLines) (priceMap[l.quoteId] ||= {})[l.rfqItemId] = Number(l.unitPrice) || 0;
+
+    // Resolve the award assignment -> list of {rfqItemId, rfqVendorId}
+    let assignments: any[] = [];
+    if (dto.mode === 'SPLIT') {
+      if (!Array.isArray(dto.lineAwards) || !dto.lineAwards.length)
+        throw new BadRequestException('No line awards provided for split award');
+      assignments = dto.lineAwards.filter((a: any) => a.rfqItemId && a.rfqVendorId);
+    } else {
+      // WHOLE
+      if (!dto.rfqVendorId) throw new BadRequestException('No winning vendor selected');
+      assignments = items.map((it: any) => ({ rfqItemId: it.rfqItemId, rfqVendorId: dto.rfqVendorId }));
+    }
+
+    // Group assignments by winning vendor
+    const byVendor: any = {};
+    for (const a of assignments) {
+      if (!vendorMap[a.rfqVendorId]) continue;
+      (byVendor[a.rfqVendorId] ||= []).push(a.rfqItemId);
+    }
+    if (!Object.keys(byVendor).length) throw new BadRequestException('No valid awards to process');
+
+    // Create one draft PO per winning vendor
+    const createdPOs: any[] = [];
+    for (const rfqVendorId of Object.keys(byVendor)) {
+      const v = vendorMap[rfqVendorId];
+      const itemIds: string[] = byVendor[rfqVendorId];
+      const poItems = itemIds.map((iid) => {
+        const it = itemMap[iid];
+        const unitPrice = priceMap[v.quoteId]?.[iid] || 0;
+        const qty = Number(it.quantity) || 0;
+        return {
+          productId: it.productId || null,
+          itemCode: it.itemCode || null,
+          description: it.description,
+          unitOfMeasure: it.unitOfMeasure,
+          quantity: qty,
+          unitPrice,
+          lineTotal: qty * unitPrice,
+        };
+      });
+      const subtotal = poItems.reduce((s, i) => s + i.lineTotal, 0);
+      // Resolve supplier (use linked supplier_id; fall back to find-or-create for ad-hoc)
+      let supplierId = v.supplierId;
+      let supplierName = v.vendorName;
+      if (!supplierId) {
+        const oc = await this.findOrCreateSupplier(tenantId, v.vendorName, { email: v.vendorEmail });
+        supplierId = oc.id;
+      }
+      const poDto: any = {
+        supplierId, supplierName,
+        supplierEmail: v.vendorEmail || null,
+        poDate: new Date().toISOString().slice(0, 10),
+        currencyCode: rfq.currencyCode || 'OMR',
+        status: 'DRAFT',
+        subtotal, taxableAmount: subtotal, vatRate: 0, vatAmount: 0, totalAmount: subtotal,
+        terms_conditions: rfq.termsText || null,
+        notes: `Awarded from ${rfq.rfqNumber}`,
+        rfqId, rfqVendorId,
+        items: poItems,
+      };
+      const po = await this.createPurchaseOrder(tenantId, poDto, userId);
+      createdPOs.push({ poNumber: (po as any)?.poNumber, vendorName: supplierName, total: subtotal, items: poItems.length });
+    }
+
+    // Mark RFQ awarded
+    await this.poRepo.query(
+      `UPDATE rfqs SET status='AWARDED', awarded_at=now(), updated_at=now() WHERE rfq_id=$1 AND tenant_id=$2`,
+      [rfqId, tenantId]);
+
+    return {
+      success: true,
+      mode: dto.mode || 'WHOLE',
+      posCreated: createdPOs.length,
+      purchaseOrders: createdPOs,
+      message: `${createdPOs.length} draft purchase order(s) created from ${rfq.rfqNumber}.`,
+    };
+  }
+
     async getReorderReport(tenantId: string, filters: any = {}) {
     const qb = this.productRepo.createQueryBuilder('p')
       .where('p.tenantId = :tenantId', { tenantId })

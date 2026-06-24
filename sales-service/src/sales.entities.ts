@@ -133,6 +133,8 @@ export class QuotationEntity {
   @Column({ default: 'DRAFT' }) status: string;
   @Column({ name: 'prepared_by', nullable: true }) preparedBy: string;
   @Column({ name: 'prepared_by_name', nullable: true }) preparedByName: string;
+  @Column({ name: 'rfq_id', nullable: true }) rfqId: string;
+  @Column({ name: 'rfq_vendor_id', nullable: true }) rfqVendorId: string;
   @Column({ name: 'approved_by', nullable: true }) approvedBy: string;
   @Column({ name: 'approved_by_name', nullable: true }) approvedByName: string;
   @Column({ name: 'created_by', nullable: true }) createdBy: string;

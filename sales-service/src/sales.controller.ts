@@ -40,6 +40,10 @@ export class SalesController {
   getRfqVendorLinks(@Request() req: any, @Param('id') id: string, @Query() q: any) {
     return this.svc.getRfqVendorLinks(req.user.tenantId, id, q?.base);
   }
+  @Post('rfqs/:id/award')
+  awardRfq(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.awardRfq(req.user.tenantId, id, dto, req.user.userId);
+  }
   @Get('rfqs/:id/comparison')
   getRfqComparison(@Request() req: any, @Param('id') id: string) {
     return this.svc.getRfqComparison(req.user.tenantId, id);
