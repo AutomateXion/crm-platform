@@ -4708,7 +4708,183 @@ Rules:
   }
 
 
-  async getReorderReport(tenantId: string, filters: any = {}) {
+  // ═══════════════════════════════════════════════════════════
+  // RFQ / VENDOR QUOTATION MODULE
+  // ═══════════════════════════════════════════════════════════
+
+  // RFQ number generator (raw SQL — RFQ tables are not TypeORM entities)
+  private async generateRfqNumber(tenantId: string): Promise<string> {
+    const year = new Date().getFullYear();
+    const rows = await this.poRepo.query(
+      `SELECT MAX(rfq_number) AS max FROM rfqs WHERE tenant_id = $1 AND rfq_number LIKE $2`,
+      [tenantId, `RFQ-${year}-%`]);
+    let next = 1;
+    const max = rows?.[0]?.max;
+    if (max) {
+      const last = parseInt(String(max).split('-').pop(), 10);
+      if (!isNaN(last)) next = last + 1;
+    }
+    return `RFQ-${year}-${String(next).padStart(4, '0')}`;
+  }
+
+  private genRfqToken(): string {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const crypto = require('crypto');
+    return crypto.randomBytes(48).toString('hex'); // 96 chars
+  }
+
+  // Create RFQ: header + items + invited vendors (status DRAFT; tokens generated, NOT emailed yet)
+  async createRfq(tenantId: string, dto: any, userId: string): Promise<any> {
+    const number = await this.generateRfqNumber(tenantId);
+    const rfqRows = await this.poRepo.query(
+      `INSERT INTO rfqs (tenant_id, rfq_number, title, description, status, response_deadline,
+         currency_code, delivery_location_id, terms_text, created_by)
+       VALUES ($1,$2,$3,$4,'DRAFT',$5,$6,$7,$8,$9)
+       RETURNING rfq_id`,
+      [tenantId, number, dto.title || 'Untitled RFQ', dto.description || null,
+       dto.responseDeadline || null, dto.currencyCode || 'OMR',
+       dto.deliveryLocationId || null, dto.termsText || null, userId]);
+    const rfqId = rfqRows[0].rfq_id;
+
+    // Items
+    const items = dto.items || [];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      await this.poRepo.query(
+        `INSERT INTO rfq_items (rfq_id, tenant_id, product_id, item_code, description,
+           quantity, unit_of_measure, spec_notes, line_number)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [rfqId, tenantId, it.productId || null, it.itemCode || null,
+         it.description || '', Number(it.quantity) || 0, it.unitOfMeasure || null,
+         it.specNotes || null, i + 1]);
+    }
+
+    // Invited vendors (each gets a unique token; expiry = deadline if set)
+    const vendors = dto.vendors || [];
+    for (const v of vendors) {
+      await this.poRepo.query(
+        `INSERT INTO rfq_vendors (rfq_id, tenant_id, supplier_id, vendor_name, vendor_email,
+           access_token, status, token_expires_at)
+         VALUES ($1,$2,$3,$4,$5,$6,'INVITED',$7)`,
+        [rfqId, tenantId, v.supplierId || null, v.vendorName || '',
+         v.vendorEmail || '', this.genRfqToken(), dto.responseDeadline || null]);
+    }
+
+    return this.getRfq(tenantId, rfqId);
+  }
+
+  async getRfqs(tenantId: string, status?: string): Promise<any> {
+    const params: any[] = [tenantId];
+    let where = `r.tenant_id = $1`;
+    if (status) { where += ` AND r.status = $2`; params.push(status); }
+    const rows = await this.poRepo.query(
+      `SELECT r.rfq_id AS "rfqId", r.rfq_number AS "rfqNumber", r.title, r.status,
+              r.response_deadline AS "responseDeadline", r.currency_code AS "currencyCode",
+              r.created_at AS "createdAt",
+              (SELECT COUNT(*) FROM rfq_vendors v WHERE v.rfq_id = r.rfq_id) AS "vendorCount",
+              (SELECT COUNT(*) FROM rfq_vendors v WHERE v.rfq_id = r.rfq_id AND v.status='SUBMITTED') AS "responseCount",
+              (SELECT COUNT(*) FROM rfq_items i WHERE i.rfq_id = r.rfq_id) AS "itemCount"
+       FROM rfqs r WHERE ${where} ORDER BY r.created_at DESC`,
+      params);
+    return rows;
+  }
+
+  async getRfq(tenantId: string, rfqId: string): Promise<any> {
+    const head = await this.poRepo.query(
+      `SELECT rfq_id AS "rfqId", rfq_number AS "rfqNumber", title, description, status,
+              response_deadline AS "responseDeadline", currency_code AS "currencyCode",
+              delivery_location_id AS "deliveryLocationId", terms_text AS "termsText",
+              created_at AS "createdAt", awarded_at AS "awardedAt"
+       FROM rfqs WHERE rfq_id = $1 AND tenant_id = $2`,
+      [rfqId, tenantId]);
+    if (!head.length) throw new BadRequestException('RFQ not found');
+    const items = await this.poRepo.query(
+      `SELECT rfq_item_id AS "rfqItemId", product_id AS "productId", item_code AS "itemCode",
+              description, quantity, unit_of_measure AS "unitOfMeasure", spec_notes AS "specNotes",
+              line_number AS "lineNumber"
+       FROM rfq_items WHERE rfq_id = $1 ORDER BY line_number`,
+      [rfqId]);
+    const vendors = await this.poRepo.query(
+      `SELECT rfq_vendor_id AS "rfqVendorId", supplier_id AS "supplierId", vendor_name AS "vendorName",
+              vendor_email AS "vendorEmail", status, invited_at AS "invitedAt",
+              submitted_at AS "submittedAt"
+       FROM rfq_vendors WHERE rfq_id = $1 ORDER BY vendor_name`,
+      [rfqId]);
+    return { ...head[0], items, vendors };
+  }
+
+  async updateRfq(tenantId: string, rfqId: string, dto: any): Promise<any> {
+    // Only DRAFT RFQs can be structurally edited
+    const cur = await this.poRepo.query(
+      `SELECT status FROM rfqs WHERE rfq_id = $1 AND tenant_id = $2`, [rfqId, tenantId]);
+    if (!cur.length) throw new BadRequestException('RFQ not found');
+    if (cur[0].status !== 'DRAFT')
+      throw new BadRequestException('Only draft RFQs can be edited');
+
+    await this.poRepo.query(
+      `UPDATE rfqs SET title=$1, description=$2, response_deadline=$3, currency_code=$4,
+         delivery_location_id=$5, terms_text=$6, updated_at=now()
+       WHERE rfq_id=$7 AND tenant_id=$8`,
+      [dto.title, dto.description || null, dto.responseDeadline || null,
+       dto.currencyCode || 'OMR', dto.deliveryLocationId || null, dto.termsText || null,
+       rfqId, tenantId]);
+
+    if (dto.items) {
+      await this.poRepo.query(`DELETE FROM rfq_items WHERE rfq_id=$1`, [rfqId]);
+      for (let i = 0; i < dto.items.length; i++) {
+        const it = dto.items[i];
+        await this.poRepo.query(
+          `INSERT INTO rfq_items (rfq_id, tenant_id, product_id, item_code, description,
+             quantity, unit_of_measure, spec_notes, line_number)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [rfqId, tenantId, it.productId || null, it.itemCode || null, it.description || '',
+           Number(it.quantity) || 0, it.unitOfMeasure || null, it.specNotes || null, i + 1]);
+      }
+    }
+    // Vendor edits (add/remove) only while DRAFT — tokens preserved for existing
+    if (dto.vendors) {
+      const existing = await this.poRepo.query(
+        `SELECT rfq_vendor_id AS id, supplier_id AS "supplierId", vendor_email AS "vendorEmail" FROM rfq_vendors WHERE rfq_id=$1`, [rfqId]);
+      const keepEmails = new Set(dto.vendors.map((v: any) => (v.vendorEmail || '').toLowerCase()));
+      // remove vendors no longer in the list
+      for (const ex of existing) {
+        if (!keepEmails.has((ex.vendorEmail || '').toLowerCase())) {
+          await this.poRepo.query(`DELETE FROM rfq_vendors WHERE rfq_vendor_id=$1`, [ex.id]);
+        }
+      }
+      const haveEmails = new Set(existing.map((e: any) => (e.vendorEmail || '').toLowerCase()));
+      for (const v of dto.vendors) {
+        if (!haveEmails.has((v.vendorEmail || '').toLowerCase())) {
+          await this.poRepo.query(
+            `INSERT INTO rfq_vendors (rfq_id, tenant_id, supplier_id, vendor_name, vendor_email,
+               access_token, status, token_expires_at)
+             VALUES ($1,$2,$3,$4,$5,$6,'INVITED',$7)`,
+            [rfqId, tenantId, v.supplierId || null, v.vendorName || '', v.vendorEmail || '',
+             this.genRfqToken(), dto.responseDeadline || null]);
+        }
+      }
+    }
+    return this.getRfq(tenantId, rfqId);
+  }
+
+  async deleteRfq(tenantId: string, rfqId: string): Promise<any> {
+    const cur = await this.poRepo.query(
+      `SELECT status FROM rfqs WHERE rfq_id=$1 AND tenant_id=$2`, [rfqId, tenantId]);
+    if (!cur.length) throw new BadRequestException('RFQ not found');
+    if (!['DRAFT', 'CANCELLED'].includes(cur[0].status))
+      throw new BadRequestException('Only draft or cancelled RFQs can be deleted');
+    await this.poRepo.query(`DELETE FROM rfqs WHERE rfq_id=$1 AND tenant_id=$2`, [rfqId, tenantId]);
+    return { success: true };
+  }
+
+  async cancelRfq(tenantId: string, rfqId: string): Promise<any> {
+    await this.poRepo.query(
+      `UPDATE rfqs SET status='CANCELLED', updated_at=now() WHERE rfq_id=$1 AND tenant_id=$2`,
+      [rfqId, tenantId]);
+    return { success: true };
+  }
+
+    async getReorderReport(tenantId: string, filters: any = {}) {
     const qb = this.productRepo.createQueryBuilder('p')
       .where('p.tenantId = :tenantId', { tenantId })
       .andWhere('p.trackStock = true');

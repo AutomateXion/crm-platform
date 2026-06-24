@@ -11,6 +11,32 @@ export class SalesController {
   constructor(private readonly svc: SalesService) {}
 
   // ── Reports ───────────────────────────
+  // ── RFQ / Vendor Quotation ──────────────────────────────
+  @Post('rfqs')
+  createRfq(@Request() req: any, @Body() dto: any) {
+    return this.svc.createRfq(req.user.tenantId, dto, req.user.userId);
+  }
+  @Get('rfqs')
+  getRfqs(@Request() req: any, @Query() q: any) {
+    return this.svc.getRfqs(req.user.tenantId, q.status);
+  }
+  @Get('rfqs/:id')
+  getRfq(@Request() req: any, @Param('id') id: string) {
+    return this.svc.getRfq(req.user.tenantId, id);
+  }
+  @Put('rfqs/:id')
+  updateRfq(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
+    return this.svc.updateRfq(req.user.tenantId, id, dto);
+  }
+  @Delete('rfqs/:id')
+  deleteRfq(@Request() req: any, @Param('id') id: string) {
+    return this.svc.deleteRfq(req.user.tenantId, id);
+  }
+  @Patch('rfqs/:id/cancel')
+  cancelRfq(@Request() req: any, @Param('id') id: string) {
+    return this.svc.cancelRfq(req.user.tenantId, id);
+  }
+
   @Get('reports/reorder-management')
   getReorderReport(@Request() req: any, @Query() q: any) {
     return this.svc.getReorderReport(req.user.tenantId, q);
