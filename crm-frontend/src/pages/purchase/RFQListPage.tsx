@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Typography, Tag, Space, Modal, Form, Input, DatePicker,
          Select, InputNumber, message, Popconfirm, Tooltip, Row, Col, Divider } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, StopOutlined,
-         EyeOutlined, FileSearchOutlined, DeleteRowOutlined, SendOutlined, LinkOutlined, CopyOutlined } from '@ant-design/icons';
+         EyeOutlined, FileSearchOutlined, DeleteRowOutlined, SendOutlined, LinkOutlined, CopyOutlined, BarChartOutlined, TrophyOutlined } from '@ant-design/icons';
 import { rfqApi, suppliersApi, productsApi } from '../../services/salesApi';
 import dayjs from 'dayjs';
 
@@ -30,6 +30,9 @@ export default function RFQListPage() {
   const [vendorLinks, setVendorLinks] = useState<any[]>([]);
   const [linksRfq, setLinksRfq] = useState<any>(null);
   const [sending, setSending] = useState(false);
+  const [cmpOpen, setCmpOpen] = useState(false);
+  const [cmp, setCmp] = useState<any>(null);
+  const [cmpLoading, setCmpLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -119,6 +122,16 @@ export default function RFQListPage() {
   const doCancel = async (row: any) => { try { await rfqApi.cancel(row.rfqId); message.success('RFQ cancelled'); load(); } catch { message.error('Cancel failed'); } };
   const doDelete = async (row: any) => { try { await rfqApi.delete(row.rfqId); message.success('RFQ deleted'); load(); } catch (e: any) { message.error(e.response?.data?.message || 'Delete failed'); } };
 
+  const openComparison = async (row: any) => {
+    setCmpOpen(true); setCmpLoading(true); setCmp(null);
+    try {
+      const r = await rfqApi.getComparison(row.rfqId);
+      setCmp(r.data);
+    } catch (e: any) {
+      message.error(e.response?.data?.message || 'Could not load comparison');
+    } finally { setCmpLoading(false); }
+  };
+
   const doSend = async (row: any) => {
     setSending(true);
     try {
@@ -168,6 +181,8 @@ export default function RFQListPage() {
           </Popconfirm>)}
         {['SENT', 'CLOSED', 'AWARDED'].includes(r.status) && (
           <Tooltip title="Vendor links"><Button size="small" icon={<LinkOutlined />} onClick={() => openLinks(r)} /></Tooltip>)}
+        {['SENT', 'CLOSED', 'AWARDED'].includes(r.status) && (
+          <Tooltip title="Compare quotes"><Button size="small" type="primary" ghost icon={<BarChartOutlined />} onClick={() => openComparison(r)} /></Tooltip>)}
         {['DRAFT', 'SENT'].includes(r.status) && (
           <Popconfirm title="Cancel this RFQ?" onConfirm={() => doCancel(r)}>
             <Tooltip title="Cancel"><Button size="small" icon={<StopOutlined />} /></Tooltip>
@@ -247,6 +262,66 @@ export default function RFQListPage() {
             <TextArea rows={2} placeholder="Payment terms, delivery expectations, validity required, etc." />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal title={`Comparison${cmp ? ' — ' + cmp.rfqNumber : ''}`} open={cmpOpen}
+        onCancel={() => setCmpOpen(false)} footer={null} width={Math.min(1100, 520 + (cmp?.vendors?.length || 1) * 180)}
+        className="comparison-modal">
+        {cmpLoading && <div style={{ textAlign: 'center', padding: 40 }}><Text>Loading comparison…</Text></div>}
+        {cmp && !cmpLoading && (
+          <div>
+            {(!cmp.vendors || !cmp.vendors.length) ? (
+              <Text type="secondary">No vendor has submitted a quote yet.</Text>
+            ) : (
+              <>
+                <Table dataSource={cmp.items} rowKey="rfqItemId" size="small" pagination={false}
+                  scroll={{ x: true }}
+                  columns={[
+                    { title: 'Item', dataIndex: 'description', fixed: 'left' as const, width: 200, render: (v: string, r: any) => (
+                      <Space direction="vertical" size={0}>
+                        <Text strong style={{ fontSize: 12 }}>{v}</Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{Number(r.quantity).toFixed(2)} {r.unitOfMeasure}</Text>
+                      </Space>) },
+                    ...cmp.vendors.map((v: any, vi: number) => ({
+                      title: <span style={{ fontSize: 12 }}>{v.vendorName}{v.isLowestTotal ? ' 🏆' : ''}</span>,
+                      key: 'v' + vi, align: 'right' as const, width: 160,
+                      render: (_: any, r: any) => {
+                        const cell = r.perVendor[vi];
+                        if (!cell || cell.unitPrice == null) return <Text type="secondary">—</Text>;
+                        const isLow = r.lowestPrice != null && cell.unitPrice === r.lowestPrice;
+                        return (
+                          <Space direction="vertical" size={0} style={{ width: '100%' }}>
+                            <Text strong style={{ color: isLow ? '#389e0d' : undefined, background: isLow ? '#f6ffed' : undefined, padding: isLow ? '0 6px' : 0, borderRadius: 4 }}>
+                              {cmp.currencyCode} {Number(cell.unitPrice).toFixed(3)}
+                            </Text>
+                            <Text type="secondary" style={{ fontSize: 11 }}>
+                              {cell.leadTimeDays != null ? `${cell.leadTimeDays}d` : '—'}{cell.brandOffered ? ` · ${cell.brandOffered}` : ''}
+                            </Text>
+                          </Space>);
+                      },
+                    })),
+                  ] as any} />
+
+                <Table style={{ marginTop: 16 }} dataSource={cmp.vendors} rowKey="rfqVendorId" size="small" pagination={false}
+                  title={() => <Text strong>Vendor totals & terms</Text>}
+                  columns={[
+                    { title: 'Vendor', dataIndex: 'vendorName', render: (v: string, r: any) => (
+                      <Space>{r.isLowestTotal && <TrophyOutlined style={{ color: '#faad14' }} />}<Text strong={r.isLowestTotal}>{v}</Text>
+                        {r.isSubmitted ? <Tag color="green">Submitted</Tag> : <Tag>Draft</Tag>}</Space>) },
+                    { title: 'Total', dataIndex: 'totalAmount', align: 'right' as const,
+                      render: (v: number, r: any) => <Text strong style={{ color: r.isLowestTotal ? '#389e0d' : undefined }}>{cmp.currencyCode} {Number(v).toFixed(3)}</Text> },
+                    { title: 'Validity', dataIndex: 'validityDays', align: 'center' as const, render: (v: any) => v ? `${v}d` : '—' },
+                    { title: 'Lead', dataIndex: 'overallLeadDays', align: 'center' as const, render: (v: any) => v ? `${v}d` : '—' },
+                    { title: 'Payment', dataIndex: 'paymentTerms', render: (v: string) => v || '—' },
+                    { title: 'Delivery', dataIndex: 'deliveryTerms', render: (v: string) => v || '—' },
+                  ] as any} />
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
+                  Green = lowest unit price for that line · 🏆 = lowest overall total. Awarding the winner to a PO is the next step.
+                </Text>
+              </>
+            )}
+          </div>
+        )}
       </Modal>
 
       <Modal title={`Vendor quote links${linksRfq ? ' — ' + linksRfq.rfqNumber : ''}`} open={linksModalOpen}

@@ -116,6 +116,7 @@ export const rfqApi = {
   cancel: (id: string) => salesApi.patch(`/sales/rfqs/${id}/cancel`),
   send: (id: string, body?: any) => salesApi.post(`/sales/rfqs/${id}/send`, body || {}),
   getVendorLinks: (id: string) => salesApi.get(`/sales/rfqs/${id}/vendor-links`),
+  getComparison: (id: string) => salesApi.get(`/sales/rfqs/${id}/comparison`),
 };
 
 export const grnsApi = {
