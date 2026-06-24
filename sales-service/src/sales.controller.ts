@@ -53,6 +53,16 @@ export class SalesController {
     return this.svc.cancelRfq(req.user.tenantId, id);
   }
 
+  // Product search field configuration (global)
+  @Get('settings/product-search')
+  getProductSearchSettings(@Request() req: any) {
+    return this.svc.getProductSearchSettings(req.user.tenantId);
+  }
+  @Put('settings/product-search')
+  updateProductSearchSettings(@Request() req: any, @Body() body: any) {
+    return this.svc.updateProductSearchSettings(req.user.tenantId, body?.fields || []);
+  }
+
   @Get('reports/reorder-management')
   getReorderReport(@Request() req: any, @Query() q: any) {
     return this.svc.getReorderReport(req.user.tenantId, q);

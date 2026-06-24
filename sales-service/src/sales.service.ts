@@ -91,7 +91,11 @@ export class SalesService {
     const qb = this.productRepo.createQueryBuilder('p')
       .where('p.tenantId = :tenantId', { tenantId })
       .andWhere('p.isActive = true');
-    if (search) qb.andWhere('(p.productName ILIKE :s OR p.productCode ILIKE :s)', { s: `%${search}%` });
+    if (search) {
+      const fields = await this.resolveProductSearchFields(tenantId);
+      const ors = fields.map((f) => `p.${f} ILIKE :s`).join(' OR ');
+      qb.andWhere(`(${ors})`, { s: `%${search}%` });
+    }
     if (category) qb.andWhere('p.category = :category', { category });
     qb.orderBy('p.productName', 'ASC').skip((page - 1) * limit).take(limit);
     const [data, total] = await qb.getManyAndCount();
@@ -5339,6 +5343,75 @@ Rules:
       purchaseOrders: createdPOs,
       message: `${createdPOs.length} draft purchase order(s) created from ${rfq.rfqNumber}.`,
     };
+  }
+
+    // ── Product search field configuration (tenant-level, global) ───────────
+  // Whitelist: only these entity props may ever be searched (SQL-safe).
+  private readonly PRODUCT_SEARCH_WHITELIST: { key: string; prop: string; label: string }[] = [
+    { key: 'name',        prop: 'productName',   label: 'Product Name' },
+    { key: 'nameAr',      prop: 'productNameAr', label: 'Product Name (Arabic)' },
+    { key: 'code',        prop: 'productCode',   label: 'Product Code' },
+    { key: 'brand',       prop: 'brand',         label: 'Brand' },
+    { key: 'category',    prop: 'category',      label: 'Category' },
+    { key: 'barcode',     prop: 'barcode',       label: 'Barcode' },
+    { key: 'partNumber',  prop: 'partNumber',    label: 'Part Number' },
+    { key: 'modelNumber', prop: 'modelNumber',   label: 'Model Number' },
+    { key: 'designNumber',prop: 'designNumber',  label: 'Design Number' },
+    { key: 'manufacturer',prop: 'manufacturer',  label: 'Manufacturer' },
+    { key: 'hsCode',      prop: 'hsCode',        label: 'HS Code' },
+    { key: 'description', prop: 'description',   label: 'Description' },
+  ];
+
+  // Resolve which fields to search for a tenant (defaults to name + code).
+  private async resolveProductSearchFields(tenantId: string): Promise<string[]> {
+    try {
+      const rows = await this.productRepo.query(
+        `SELECT settings FROM tenants WHERE tenant_id = $1`, [tenantId]);
+      let settings = rows?.[0]?.settings;
+      if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch { settings = {}; } }
+      const cfg = settings?.productSearchFields;
+      if (Array.isArray(cfg) && cfg.length) {
+        // keep only whitelisted keys
+        const allowed = new Set(this.PRODUCT_SEARCH_WHITELIST.map(w => w.key));
+        const props = cfg.filter((k: string) => allowed.has(k))
+          .map((k: string) => this.PRODUCT_SEARCH_WHITELIST.find(w => w.key === k)!.prop);
+        if (props.length) return props;
+      }
+    } catch { /* fall through to default */ }
+    return ['productName', 'productCode']; // safe default
+  }
+
+  // GET current setting (keys + the full available list with labels)
+  async getProductSearchSettings(tenantId: string): Promise<any> {
+    const rows = await this.productRepo.query(
+      `SELECT settings FROM tenants WHERE tenant_id = $1`, [tenantId]);
+    let settings = rows?.[0]?.settings;
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch { settings = {}; } }
+    const cfg = settings?.productSearchFields;
+    const enabled = Array.isArray(cfg) && cfg.length ? cfg : ['name', 'code'];
+    return {
+      available: this.PRODUCT_SEARCH_WHITELIST.map(w => ({ key: w.key, label: w.label })),
+      enabled,
+    };
+  }
+
+  // PUT update the setting (merge into tenants.settings JSON, never clobbering emailConfig etc.)
+  async updateProductSearchSettings(tenantId: string, fields: string[]): Promise<any> {
+    const allowed = new Set(this.PRODUCT_SEARCH_WHITELIST.map(w => w.key));
+    let clean = (Array.isArray(fields) ? fields : []).filter(k => allowed.has(k));
+    // always keep at least name + code so search never returns nothing
+    if (!clean.includes('name')) clean.unshift('name');
+    if (!clean.includes('code')) clean.push('code');
+    const rows = await this.productRepo.query(
+      `SELECT settings FROM tenants WHERE tenant_id = $1`, [tenantId]);
+    let settings = rows?.[0]?.settings;
+    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch { settings = {}; } }
+    if (!settings || typeof settings !== 'object') settings = {};
+    settings.productSearchFields = clean;
+    await this.productRepo.query(
+      `UPDATE tenants SET settings = $1 WHERE tenant_id = $2`,
+      [JSON.stringify(settings), tenantId]);
+    return { success: true, enabled: clean };
   }
 
     async getReorderReport(tenantId: string, filters: any = {}) {
