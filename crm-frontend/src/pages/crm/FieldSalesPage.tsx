@@ -56,6 +56,21 @@ function CheckInDrawer({ open, onClose, onSuccess, accounts, products }: any) {
   const [saving, setSaving] = useState(false);
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [orderLines, setOrderLines] = useState<any[]>([{ description:'', quantity:1, unitPrice:0, lineTotal:0 }]);
+  const [localProducts, setLocalProducts] = useState<any[]>([]);
+  useEffect(() => { setLocalProducts(products || []); }, [products]);
+  const [prodTimer, setProdTimer] = useState<any>(null);
+  const searchProducts = (term: string) => {
+    if (prodTimer) clearTimeout(prodTimer);
+    const t = setTimeout(async () => {
+      try {
+        const pApi = (await import('axios')).default.create({ baseURL: '/sales-api' });
+        pApi.interceptors.request.use((c:any) => { const tk = localStorage.getItem('accessToken'); if(tk) c.headers.Authorization=`Bearer ${tk}`; return c; });
+        const r = await pApi.get('/sales/products', { params: { limit: 50, search: term || undefined } });
+        setLocalProducts(r.data.data || []);
+      } catch { /* keep current list */ }
+    }, 300);
+    setProdTimer(t);
+  };
   const mobile = isMobile();
 
   const updateOrderLineProduct = (idx: number, productId: string, productName: string, unitPrice: number) => {
@@ -156,10 +171,11 @@ function CheckInDrawer({ open, onClose, onSuccess, accounts, products }: any) {
             {orderLines.map((line, idx) => (
               <div key={idx} style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                 <Select showSearch style={{ width: '100%', marginBottom: 8 }} size="large"
-                  placeholder="Select product..." optionFilterProp="children"
+                  placeholder="Select product..." filterOption={false}
+                  onSearch={searchProducts}
                   value={line.productId || undefined}
                   onChange={(v, opt:any) => updateOrderLineProduct(idx, v as string, opt.label as string, Number(opt.price)||0)}>
-                  {products.map((p:any) => (
+                  {localProducts.map((p:any) => (
                     <Option key={p.productId} value={p.productId} label={p.productName} price={p.unitPrice}>
                       {p.productName} — OMR {Number(p.unitPrice).toFixed(3)}
                     </Option>
