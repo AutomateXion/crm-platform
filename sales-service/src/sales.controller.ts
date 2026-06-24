@@ -32,6 +32,14 @@ export class SalesController {
   deleteRfq(@Request() req: any, @Param('id') id: string) {
     return this.svc.deleteRfq(req.user.tenantId, id);
   }
+  @Post('rfqs/:id/send')
+  sendRfqInvitations(@Request() req: any, @Param('id') id: string, @Body() body: any) {
+    return this.svc.sendRfqInvitations(req.user.tenantId, id, body?.frontendBaseUrl);
+  }
+  @Get('rfqs/:id/vendor-links')
+  getRfqVendorLinks(@Request() req: any, @Param('id') id: string, @Query() q: any) {
+    return this.svc.getRfqVendorLinks(req.user.tenantId, id, q?.base);
+  }
   @Patch('rfqs/:id/cancel')
   cancelRfq(@Request() req: any, @Param('id') id: string) {
     return this.svc.cancelRfq(req.user.tenantId, id);

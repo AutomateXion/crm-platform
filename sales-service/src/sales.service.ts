@@ -4884,6 +4884,109 @@ Rules:
     return { success: true };
   }
 
+    // Send RFQ invitations: email each invited vendor their unique quote link, move RFQ to SENT.
+  async sendRfqInvitations(tenantId: string, rfqId: string, frontendBaseUrl?: string): Promise<any> {
+    const rfqRows = await this.poRepo.query(
+      `SELECT rfq_number AS "rfqNumber", title, status, response_deadline AS "responseDeadline"
+       FROM rfqs WHERE rfq_id = $1 AND tenant_id = $2`, [rfqId, tenantId]);
+    if (!rfqRows.length) throw new BadRequestException('RFQ not found');
+    const rfq = rfqRows[0];
+    if (!['DRAFT', 'SENT'].includes(rfq.status))
+      throw new BadRequestException('Only draft or already-sent RFQs can have invitations sent');
+
+    const vendors = await this.poRepo.query(
+      `SELECT rfq_vendor_id AS "rfqVendorId", vendor_name AS "vendorName",
+              vendor_email AS "vendorEmail", access_token AS "accessToken", status
+       FROM rfq_vendors WHERE rfq_id = $1`, [rfqId]);
+    const withEmail = vendors.filter((v: any) => v.vendorEmail && v.vendorEmail.includes('@'));
+    if (!withEmail.length)
+      throw new BadRequestException('No invited vendors have a valid email address');
+
+    // Fetch tenant email config (same source the rest of the app uses)
+    const tenantRows = await this.poRepo.query(
+      `SELECT settings FROM tenants WHERE tenant_id = $1`, [tenantId]);
+    const settings = tenantRows?.[0]?.settings || {};
+    const cfg = settings.emailConfig;
+    const base = (frontendBaseUrl || 'https://automatexion-crm-frontend.onrender.com').replace(/\/$/, '');
+
+    let sent = 0, skipped = 0;
+    const emailReady = cfg?.host && cfg?.username && cfg?.password;
+    let transporter: any = null;
+    if (emailReady) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const nodemailer = require('nodemailer');
+      transporter = nodemailer.createTransport({
+        host: cfg.host, port: cfg.port || 587, secure: cfg.secure || false,
+        auth: { user: cfg.username, pass: cfg.password },
+      });
+    }
+
+    const deadlineStr = rfq.responseDeadline
+      ? new Date(rfq.responseDeadline).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+      : 'the stated deadline';
+
+    for (const v of withEmail) {
+      const link = `${base}/vendor-quote?token=${v.accessToken}`;
+      if (transporter) {
+        try {
+          await transporter.sendMail({
+            from: `"${cfg.fromName || 'Envoiso Procurement'}" <${cfg.fromEmail || cfg.username}>`,
+            to: v.vendorEmail,
+            subject: `Request for Quotation ${rfq.rfqNumber} — ${rfq.title}`,
+            html: `
+              <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto">
+                <h2 style="color:#0B2547">Request for Quotation</h2>
+                <p>Dear ${v.vendorName || 'Supplier'},</p>
+                <p>You are invited to submit a quotation for <strong>${rfq.rfqNumber} — ${rfq.title}</strong>.</p>
+                <p>Please submit your prices using the secure link below. Responses are due by <strong>${deadlineStr}</strong>.</p>
+                <p style="text-align:center;margin:28px 0">
+                  <a href="${link}" style="background:#1A4D8F;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;display:inline-block">Submit Your Quote</a>
+                </p>
+                <p style="color:#666;font-size:13px">This link is unique to you. Please do not share it. It remains open until the deadline.</p>
+                <p style="color:#999;font-size:12px">${cfg.signature || 'Sent via Envoiso'}</p>
+              </div>`,
+          });
+          sent++;
+        } catch (e) {
+          skipped++;
+        }
+      } else {
+        skipped++;
+      }
+      // mark invited regardless (token is valid; buyer can copy the link manually if email is off)
+      await this.poRepo.query(
+        `UPDATE rfq_vendors SET status = CASE WHEN status='INVITED' THEN 'INVITED' ELSE status END,
+           invited_at = COALESCE(invited_at, now()) WHERE rfq_vendor_id = $1`, [v.rfqVendorId]);
+    }
+
+    await this.poRepo.query(
+      `UPDATE rfqs SET status='SENT', updated_at=now() WHERE rfq_id=$1 AND tenant_id=$2`,
+      [rfqId, tenantId]);
+
+    return {
+      success: true,
+      sent, skipped,
+      emailConfigured: !!emailReady,
+      message: emailReady
+        ? `Invitations sent to ${sent} vendor(s)${skipped ? `, ${skipped} failed` : ''}.`
+        : `Email is not configured for this tenant. The RFQ is marked Sent and tokens are active — you can copy each vendor's link from the RFQ. Configure SMTP in Email Configuration to send automatically.`,
+    };
+  }
+
+  // Return vendor links (so the buyer can copy/share manually, esp. when email is off)
+  async getRfqVendorLinks(tenantId: string, rfqId: string, frontendBaseUrl?: string): Promise<any> {
+    const base = (frontendBaseUrl || 'https://automatexion-crm-frontend.onrender.com').replace(/\/$/, '');
+    const vendors = await this.poRepo.query(
+      `SELECT vendor_name AS "vendorName", vendor_email AS "vendorEmail",
+              access_token AS "accessToken", status
+       FROM rfq_vendors WHERE rfq_id = $1 AND tenant_id = $2 ORDER BY vendor_name`,
+      [rfqId, tenantId]);
+    return vendors.map((v: any) => ({
+      vendorName: v.vendorName, vendorEmail: v.vendorEmail, status: v.status,
+      link: `${base}/vendor-quote?token=${v.accessToken}`,
+    }));
+  }
+
     async getReorderReport(tenantId: string, filters: any = {}) {
     const qb = this.productRepo.createQueryBuilder('p')
       .where('p.tenantId = :tenantId', { tenantId })
