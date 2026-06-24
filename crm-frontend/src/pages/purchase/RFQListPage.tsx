@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Typography, Tag, Space, Modal, Form, Input, DatePicker,
-         Select, InputNumber, message, Popconfirm, Tooltip, Row, Col, Divider } from 'antd';
+         Select, InputNumber, message, Popconfirm, Tooltip, Row, Col, Divider, Radio, Alert } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, StopOutlined,
          EyeOutlined, FileSearchOutlined, DeleteRowOutlined, SendOutlined, LinkOutlined, CopyOutlined, BarChartOutlined, TrophyOutlined } from '@ant-design/icons';
 import { rfqApi, suppliersApi, productsApi } from '../../services/salesApi';
@@ -33,6 +33,10 @@ export default function RFQListPage() {
   const [cmpOpen, setCmpOpen] = useState(false);
   const [cmp, setCmp] = useState<any>(null);
   const [cmpLoading, setCmpLoading] = useState(false);
+  const [awardMode, setAwardMode] = useState<'WHOLE' | 'SPLIT'>('WHOLE');
+  const [wholeVendor, setWholeVendor] = useState<string | undefined>();
+  const [lineAward, setLineAward] = useState<Record<string, string>>({});
+  const [awarding, setAwarding] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -122,11 +126,89 @@ export default function RFQListPage() {
   const doCancel = async (row: any) => { try { await rfqApi.cancel(row.rfqId); message.success('RFQ cancelled'); load(); } catch { message.error('Cancel failed'); } };
   const doDelete = async (row: any) => { try { await rfqApi.delete(row.rfqId); message.success('RFQ deleted'); load(); } catch (e: any) { message.error(e.response?.data?.message || 'Delete failed'); } };
 
+  const autoPickLowest = () => {
+    if (!cmp) return;
+    const la: Record<string, string> = {};
+    cmp.items.forEach((it: any) => {
+      let best: any = null;
+      cmp.vendors.forEach((v: any, vi: number) => {
+        const cell = it.perVendor[vi];
+        if (cell && cell.unitPrice != null && cell.unitPrice > 0) {
+          if (!best || cell.unitPrice < best.price) best = { rfqVendorId: v.rfqVendorId, price: cell.unitPrice };
+        }
+      });
+      if (best) la[it.rfqItemId] = best.rfqVendorId;
+    });
+    setLineAward(la);
+    message.success('Lowest-priced vendor selected for each line');
+  };
+
+  const awardSummary = () => {
+    if (!cmp) return { pos: 0, total: 0 };
+    if (awardMode === 'WHOLE') {
+      const v = cmp.vendors.find((x: any) => x.rfqVendorId === wholeVendor);
+      return { pos: v ? 1 : 0, total: v ? v.totalAmount : 0 };
+    }
+    // SPLIT: group by vendor, sum line totals
+    const vendorSet = new Set<string>();
+    let total = 0;
+    cmp.items.forEach((it: any) => {
+      const vid = lineAward[it.rfqItemId];
+      if (!vid) return;
+      const vi = cmp.vendors.findIndex((v: any) => v.rfqVendorId === vid);
+      const cell = it.perVendor[vi];
+      if (cell && cell.unitPrice != null) { total += cell.unitPrice * it.quantity; vendorSet.add(vid); }
+    });
+    return { pos: vendorSet.size, total };
+  };
+
+  const doAward = async () => {
+    if (!cmp) return;
+    const payload: any = { mode: awardMode };
+    if (awardMode === 'WHOLE') {
+      if (!wholeVendor) { message.warning('Select a winning vendor'); return; }
+      payload.rfqVendorId = wholeVendor;
+    } else {
+      const lineAwards = cmp.items
+        .filter((it: any) => lineAward[it.rfqItemId])
+        .map((it: any) => ({ rfqItemId: it.rfqItemId, rfqVendorId: lineAward[it.rfqItemId] }));
+      if (!lineAwards.length) { message.warning('Assign at least one line to a vendor'); return; }
+      payload.lineAwards = lineAwards;
+    }
+    setAwarding(true);
+    try {
+      const r = await rfqApi.award(cmp.rfqId, payload);
+      const pos = (r.data?.purchaseOrders || []).map((x: any) => x.poNumber).join(', ');
+      message.success(`${r.data?.posCreated || 0} draft PO(s) created: ${pos}`);
+      setCmpOpen(false); load();
+    } catch (e: any) {
+      message.error(e.response?.data?.message || 'Award failed');
+    } finally { setAwarding(false); }
+  };
+
   const openComparison = async (row: any) => {
     setCmpOpen(true); setCmpLoading(true); setCmp(null);
     try {
       const r = await rfqApi.getComparison(row.rfqId);
       setCmp(r.data);
+      // seed award defaults
+      const d = r.data;
+      const lowestV = (d.vendors || []).find((v: any) => v.isLowestTotal) || (d.vendors || [])[0];
+      setWholeVendor(lowestV?.rfqVendorId);
+      setAwardMode('WHOLE');
+      const la: Record<string, string> = {};
+      (d.items || []).forEach((it: any) => {
+        // pick the vendor with the lowest unit price on this line
+        let best: any = null;
+        (d.vendors || []).forEach((v: any, vi: number) => {
+          const cell = it.perVendor[vi];
+          if (cell && cell.unitPrice != null && cell.unitPrice > 0) {
+            if (!best || cell.unitPrice < best.price) best = { rfqVendorId: v.rfqVendorId, price: cell.unitPrice };
+          }
+        });
+        if (best) la[it.rfqItemId] = best.rfqVendorId;
+      });
+      setLineAward(la);
     } catch (e: any) {
       message.error(e.response?.data?.message || 'Could not load comparison');
     } finally { setCmpLoading(false); }
@@ -315,8 +397,53 @@ export default function RFQListPage() {
                     { title: 'Payment', dataIndex: 'paymentTerms', render: (v: string) => v || '—' },
                     { title: 'Delivery', dataIndex: 'deliveryTerms', render: (v: string) => v || '—' },
                   ] as any} />
+                <Divider style={{ margin: '16px 0 12px' }} />
+                <Text strong>Award decision</Text>
+                {cmp.status === 'AWARDED' ? (
+                  <Alert style={{ marginTop: 8 }} type="success" showIcon message="This RFQ has already been awarded." />
+                ) : (
+                <div style={{ marginTop: 8 }}>
+                  <Radio.Group value={awardMode} onChange={e => setAwardMode(e.target.value)} style={{ marginBottom: 12 }}>
+                    <Radio.Button value="WHOLE">Award all to one vendor</Radio.Button>
+                    <Radio.Button value="SPLIT">Award per line (split)</Radio.Button>
+                  </Radio.Group>
+                  {awardMode === 'WHOLE' ? (
+                    <div>
+                      <Text>Winning vendor: </Text>
+                      <Select style={{ width: 320 }} value={wholeVendor} onChange={setWholeVendor}>
+                        {cmp.vendors.map((v: any) => <Option key={v.rfqVendorId} value={v.rfqVendorId}>{v.vendorName} — {cmp.currencyCode} {Number(v.totalAmount).toFixed(3)}{v.isLowestTotal ? ' 🏆' : ''}</Option>)}
+                      </Select>
+                    </div>
+                  ) : (
+                    <div>
+                      <Button size="small" onClick={autoPickLowest} style={{ marginBottom: 8 }}>Auto-pick lowest per line</Button>
+                      <Table dataSource={cmp.items} rowKey="rfqItemId" size="small" pagination={false}
+                        columns={[
+                          { title: 'Item', dataIndex: 'description', render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text> },
+                          { title: 'Award to', width: 280, render: (_: any, r: any) => (
+                            <Select style={{ width: '100%' }} value={lineAward[r.rfqItemId]}
+                              onChange={val => setLineAward(prev => ({ ...prev, [r.rfqItemId]: val }))}
+                              placeholder="Select vendor">
+                              {cmp.vendors.map((v: any, vi: number) => {
+                                const cell = r.perVendor[vi];
+                                if (!cell || cell.unitPrice == null) return null;
+                                const isLow = r.lowestPrice != null && cell.unitPrice === r.lowestPrice;
+                                return <Option key={v.rfqVendorId} value={v.rfqVendorId}>{v.vendorName} — {cmp.currencyCode} {Number(cell.unitPrice).toFixed(3)}{isLow ? ' ✓' : ''}</Option>;
+                              })}
+                            </Select>) },
+                        ] as any} />
+                    </div>
+                  )}
+                  <div style={{ marginTop: 12, padding: 12, background: '#f6ffed', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text>Will create <strong>{awardSummary().pos}</strong> draft PO(s) · projected total <strong>{cmp.currencyCode} {awardSummary().total.toFixed(3)}</strong></Text>
+                    <Popconfirm title={`Create ${awardSummary().pos} draft PO(s) and mark this RFQ awarded?`} onConfirm={doAward}>
+                      <Button type="primary" icon={<TrophyOutlined />} loading={awarding} disabled={!awardSummary().pos}>Award & create PO(s)</Button>
+                    </Popconfirm>
+                  </div>
+                </div>
+                )}
                 <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
-                  Green = lowest unit price for that line · 🏆 = lowest overall total. Awarding the winner to a PO is the next step.
+                  Green = lowest unit price for that line · 🏆 = lowest overall total. Split award groups your per-line picks into one PO per vendor.
                 </Text>
               </>
             )}

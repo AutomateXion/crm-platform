@@ -117,6 +117,7 @@ export const rfqApi = {
   send: (id: string, body?: any) => salesApi.post(`/sales/rfqs/${id}/send`, body || {}),
   getVendorLinks: (id: string) => salesApi.get(`/sales/rfqs/${id}/vendor-links`),
   getComparison: (id: string) => salesApi.get(`/sales/rfqs/${id}/comparison`),
+  award: (id: string, data: any) => salesApi.post(`/sales/rfqs/${id}/award`, data),
 };
 
 export const grnsApi = {
