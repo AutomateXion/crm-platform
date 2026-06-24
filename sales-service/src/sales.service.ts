@@ -5140,6 +5140,88 @@ Rules:
     return { success: true, message: 'You have declined this RFQ. Thank you for letting us know.' };
   }
 
+    // Comparison matrix: all vendors' quotes aligned by RFQ item, with per-line and
+  // total bests flagged. Used by the buyer's award screen.
+  async getRfqComparison(tenantId: string, rfqId: string): Promise<any> {
+    const head = await this.poRepo.query(
+      `SELECT rfq_id AS "rfqId", rfq_number AS "rfqNumber", title, status,
+              currency_code AS "currencyCode", response_deadline AS "responseDeadline"
+       FROM rfqs WHERE rfq_id=$1 AND tenant_id=$2`, [rfqId, tenantId]);
+    if (!head.length) throw new BadRequestException('RFQ not found');
+
+    const items = await this.poRepo.query(
+      `SELECT rfq_item_id AS "rfqItemId", item_code AS "itemCode", description,
+              quantity, unit_of_measure AS "unitOfMeasure", line_number AS "lineNumber"
+       FROM rfq_items WHERE rfq_id=$1 ORDER BY line_number`, [rfqId]);
+
+    // Only vendors who have a quote (submitted or draft) appear in the comparison
+    const vendors = await this.poRepo.query(
+      `SELECT v.rfq_vendor_id AS "rfqVendorId", v.vendor_name AS "vendorName", v.status,
+              v.submitted_at AS "submittedAt",
+              q.quote_id AS "quoteId", q.total_amount AS "totalAmount",
+              q.validity_days AS "validityDays", q.payment_terms AS "paymentTerms",
+              q.delivery_terms AS "deliveryTerms", q.overall_lead_days AS "overallLeadDays",
+              q.vendor_notes AS "vendorNotes", q.is_submitted AS "isSubmitted"
+       FROM rfq_vendors v JOIN rfq_quotes q ON q.rfq_vendor_id=v.rfq_vendor_id
+       WHERE v.rfq_id=$1 ORDER BY q.total_amount ASC NULLS LAST`, [rfqId]);
+
+    // All quote lines for these quotes, keyed for fast lookup
+    const allLines = await this.poRepo.query(
+      `SELECT l.quote_id AS "quoteId", l.rfq_item_id AS "rfqItemId",
+              l.unit_price AS "unitPrice", l.lead_time_days AS "leadTimeDays",
+              l.brand_offered AS "brandOffered", l.line_notes AS "lineNotes", l.line_total AS "lineTotal"
+       FROM rfq_quote_lines l
+       WHERE l.quote_id IN (SELECT quote_id FROM rfq_quotes WHERE rfq_id=$1)`, [rfqId]);
+
+    // index: lineMap[rfqItemId][quoteId] = lineData
+    const lineMap: any = {};
+    for (const ln of allLines) {
+      (lineMap[ln.rfqItemId] ||= {})[ln.quoteId] = ln;
+    }
+
+    // Per-item: compute lowest price + fastest lead across vendors
+    const itemRows = items.map((it: any) => {
+      const perVendor = vendors.map((v: any) => {
+        const ln = lineMap[it.rfqItemId]?.[v.quoteId];
+        return ln ? {
+          quoteId: v.quoteId,
+          unitPrice: Number(ln.unitPrice),
+          leadTimeDays: ln.leadTimeDays != null ? Number(ln.leadTimeDays) : null,
+          brandOffered: ln.brandOffered,
+          lineNotes: ln.lineNotes,
+          lineTotal: Number(ln.lineTotal),
+        } : { quoteId: v.quoteId, unitPrice: null, leadTimeDays: null, brandOffered: null, lineNotes: null, lineTotal: null };
+      });
+      const prices = perVendor.filter(p => p.unitPrice != null && p.unitPrice > 0).map(p => p.unitPrice as number);
+      const leads = perVendor.filter(p => p.leadTimeDays != null).map(p => p.leadTimeDays as number);
+      const lowestPrice = prices.length ? Math.min(...prices) : null;
+      const fastestLead = leads.length ? Math.min(...leads) : null;
+      return {
+        rfqItemId: it.rfqItemId, itemCode: it.itemCode, description: it.description,
+        quantity: Number(it.quantity), unitOfMeasure: it.unitOfMeasure, lineNumber: it.lineNumber,
+        lowestPrice, fastestLead, perVendor,
+      };
+    });
+
+    // Total bests
+    const totals = vendors.map((v: any) => Number(v.totalAmount) || 0).filter(t => t > 0);
+    const lowestTotal = totals.length ? Math.min(...totals) : null;
+
+    return {
+      ...head[0],
+      items: itemRows,
+      vendors: vendors.map((v: any) => ({
+        rfqVendorId: v.rfqVendorId, quoteId: v.quoteId, vendorName: v.vendorName,
+        status: v.status, isSubmitted: v.isSubmitted, submittedAt: v.submittedAt,
+        totalAmount: Number(v.totalAmount) || 0,
+        validityDays: v.validityDays, paymentTerms: v.paymentTerms,
+        deliveryTerms: v.deliveryTerms, overallLeadDays: v.overallLeadDays, vendorNotes: v.vendorNotes,
+        isLowestTotal: lowestTotal != null && Number(v.totalAmount) === lowestTotal,
+      })),
+      lowestTotal,
+    };
+  }
+
     async getReorderReport(tenantId: string, filters: any = {}) {
     const qb = this.productRepo.createQueryBuilder('p')
       .where('p.tenantId = :tenantId', { tenantId })

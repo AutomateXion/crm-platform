@@ -40,6 +40,10 @@ export class SalesController {
   getRfqVendorLinks(@Request() req: any, @Param('id') id: string, @Query() q: any) {
     return this.svc.getRfqVendorLinks(req.user.tenantId, id, q?.base);
   }
+  @Get('rfqs/:id/comparison')
+  getRfqComparison(@Request() req: any, @Param('id') id: string) {
+    return this.svc.getRfqComparison(req.user.tenantId, id);
+  }
   @Patch('rfqs/:id/cancel')
   cancelRfq(@Request() req: any, @Param('id') id: string) {
     return this.svc.cancelRfq(req.user.tenantId, id);
