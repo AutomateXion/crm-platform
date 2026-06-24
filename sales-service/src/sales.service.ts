@@ -5150,9 +5150,11 @@ Rules:
     if (!head.length) throw new BadRequestException('RFQ not found');
 
     const items = await this.poRepo.query(
-      `SELECT rfq_item_id AS "rfqItemId", item_code AS "itemCode", description,
-              quantity, unit_of_measure AS "unitOfMeasure", line_number AS "lineNumber"
-       FROM rfq_items WHERE rfq_id=$1 ORDER BY line_number`, [rfqId]);
+      `SELECT ri.rfq_item_id AS "rfqItemId", ri.item_code AS "itemCode", ri.description,
+              ri.quantity, ri.unit_of_measure AS "unitOfMeasure", ri.line_number AS "lineNumber",
+              ri.product_id AS "productId", p.location_id AS "defaultLocationId"
+       FROM rfq_items ri LEFT JOIN products p ON p.product_id = ri.product_id
+       WHERE ri.rfq_id=$1 ORDER BY ri.line_number`, [rfqId]);
 
     // Only vendors who have a quote (submitted or draft) appear in the comparison
     const vendors = await this.poRepo.query(
@@ -5199,6 +5201,7 @@ Rules:
       return {
         rfqItemId: it.rfqItemId, itemCode: it.itemCode, description: it.description,
         quantity: Number(it.quantity), unitOfMeasure: it.unitOfMeasure, lineNumber: it.lineNumber,
+        productId: it.productId || null, defaultLocationId: it.defaultLocationId || null,
         lowestPrice, fastestLead, perVendor,
       };
     });
@@ -5284,6 +5287,7 @@ Rules:
     for (const rfqVendorId of Object.keys(byVendor)) {
       const v = vendorMap[rfqVendorId];
       const itemIds: string[] = byVendor[rfqVendorId];
+      const lineLocations = dto.lineLocations || {};
       const poItems = itemIds.map((iid) => {
         const it = itemMap[iid];
         const unitPrice = priceMap[v.quoteId]?.[iid] || 0;
@@ -5296,6 +5300,7 @@ Rules:
           quantity: qty,
           unitPrice,
           lineTotal: qty * unitPrice,
+          warehouseLocationId: lineLocations[iid] || null,
         };
       });
       const subtotal = poItems.reduce((s, i) => s + i.lineTotal, 0);
