@@ -1,9 +1,9 @@
-# AutomateXion CRM/ERP — Engineering Log & Troubleshooting Playbook
+# Envoiso CRM/ERP — Engineering Log & Troubleshooting Playbook
 
-> **Purpose:** A living document for developers maintaining and extending the AutomateXion CRM/ERP platform. As this becomes a multi-client product, this log preserves hard-won debugging knowledge, recurring gotchas, architectural decisions, and a chronological change history. **Append to this file; do not let knowledge live only in chat sessions.**
+> **Purpose:** A living document for developers maintaining and extending the Envoiso CRM/ERP platform (operated by AutomateXion Trading and Services). As this becomes a multi-client product, this log preserves hard-won debugging knowledge, recurring gotchas, architectural decisions, and a chronological change history. **Append to this file; do not let knowledge live only in chat sessions.**
 >
 > **Location:** `/docs/ENGINEERING_LOG.md` (committed to the repo, version-controlled, diff-friendly).
-> **Last updated:** 16 June 2026 (Draft/Post governance; meeting minutes persistence fix)
+> **Last updated:** 23 June 2026 (Opening-Balance Migration Engine, Recurring Expenses, Reorder→PO Conversion, Account Recovery, AI Invoice Extraction parked)
 
 ---
 
@@ -94,19 +94,94 @@ These are patterns that have bitten us more than once. Check here FIRST when deb
 **Rule (accounting decision):** Consumables are expensed on purchase — the GRN for a consumable does NOT debit 1140 Inventory and does NOT create cost layers. The `consumable_stock` table is an **operational quantity tracker only**, fully separate from `product_warehouse_stock` and the FIFO/AVCO costing engine. Issuing a consumable (Consumable Issue Voucher / CIV) decrements `consumable_stock` and records a row in `consumable_transactions`, but posts **NO GL entry** and does not affect business stock-in-hand or COGS. Never route consumables through inventory valuation. Product `product_type` distinguishes STOCK (valued, costed) from CONSUMABLE (tracked only) from FIXED_ASSET (creates draft assets) from SERVICE (no stock).
 **Reference commits:** `5d3af1ba`, `750e5f6d`.
 
-### A14. Document side-effects belong on POST, not CREATE
-**Gotcha:** `createPaymentVoucher` was consuming the cheque leaf, marking the linked invoice paid, AND posting the GL journal at creation time — yet saving the record with status DRAFT. The status said DRAFT but the ledger was already committed, which is misleading and prevents review-before-commit.
-**Rule:** For any financial document with a draft/post lifecycle, CREATE only persists data (status DRAFT). ALL side effects — GL journal, cheque-leaf consumption (AVAILABLE→USED), invoice balance/paid updates, stock movements, credit block/unblock — belong in a separate POST action, guarded against double-posting (`if status === 'POSTED' throw`). POSTED documents must be protected from edit/delete to avoid orphaned journals/leaves.
-**Design consequence:** DRAFT documents must NOT affect downstream financials. This works naturally when credit control and AR aging read from invoice `balance_due` (which only changes on post) and the PDC list filters `status = 'POSTED'` — so a DRAFT receipt is invisible to credit/aging/PDC until posted.
-**Applied to:** Payment Vouchers (`28f499d1`, `d986b8ea`) and Receipts (`0cb8642c`). **Deliberately NOT applied to Sales Invoices** — they post immediately on create because the blast radius (e-invoicing/Fawtara submission, COGS journals, AR aging, credit control) is much wider and needs careful staging. Revisit only as a dedicated, well-tested change.
+### A14. PostgreSQL `date` columns hydrate as JS `Date` objects — string comparison silently fails
+**Symptom:** A "find due items" query that works perfectly in raw SQL returns **0 rows** when the same logic runs in JS/TypeScript. No error — it just silently finds nothing.
+**Cause:** A PG `date` column comes back to Node as a JavaScript `Date` object, not a string. Comparing `dateObj <= "2026-06-30"` (Date vs string) does not behave like the SQL `<=` — the coercion produces wrong/false results.
+**Fix / Rule:** Normalize any `date` value to a `YYYY-MM-DD` string **before** comparing it in JS. Use a small helper: `const toDateStr = (d) => new Date(d).toISOString().slice(0,10);` then compare strings to strings. Better still, do date filtering in SQL (`WHERE next_due_date <= $1`) and pass a `YYYY-MM-DD` string parameter.
+**Cost when missed:** The recurring-expenses "generate due" engine found 0 items despite due schedules existing — the cron silently did nothing. **Reference commit:** `a68228a2`.
 
-### A15. Form fields silently dropped when the DB column is missing
-**Symptom:** A form saves and returns HTTP 200, some fields persist, but structured/newer fields vanish — the View/Edit modal shows them empty. (Seen with structured meeting minutes: attendees + flat `agenda` text saved, but `agendaItems`, `meetingType`, `nextMeetingDate` were lost.)
-**Cause:** The frontend sends fields that have no matching DB column / entity `@Column` mapping. TypeORM silently ignores unmapped properties on `save()` — no error, no warning.
-**Fix:** Every field the form sends must have BOTH a DB column AND an entity `@Column` mapping. When adding structured (jsonb) fields to an existing form, add the column + mapping in the SAME change as the form work — don't assume an existing table covers them. Verify by querying the row after a test save (per A1, on the Render DB for production).
-**Reference commit:** `c965c364` (pm_meetings: agenda_items / meeting_type / next_meeting_date).
+### A15. In-memory caches that store DB row IDs are dangerous across deletes/restarts
+**Symptom:** A foreign-key violation (`insert or update ... violates foreign key constraint`) when creating a document that references a supplier/customer — even though the lookup "succeeded."
+**Cause:** A `findOrCreate` helper cached the resolved supplier/customer **id** in an in-memory `Record<string,string>`. When that row was later deleted (or the service restarted with a stale map across a different data state), the cache returned an id that no longer exists, and the insert referencing it failed the FK check.
+**Fix / Rule:** Do **not** cache DB primary keys in process memory for find-or-create. Query the DB every time — it is a cheap indexed lookup. A cache that outlives the lifetime/validity of the thing it caches is a latent bug, especially for multi-tenant data that other instances can mutate.
+**Cost when missed:** Recurring "bill" generation hit FK violations after test data was cleaned. Removed `_ocCustomerCache` / `_ocSupplierCache`. **Reference commit:** `cf81e16d`.
+
+### A16. The audit-log DTO (`AuditLogInput`) has a fixed field set — `description` is NOT one of them
+**Symptom:** Build fails: `error TS2353: Object literal may only specify known properties, and 'description' does not exist in type 'AuditLogInput'.`
+**Cause:** `auditService.log({...})` accepts only: `tenantId`, `userId`, `userName`, `module`, `action`, `entityType`, `entityId`. There is no free-text `description` field. Adding one breaks the TypeScript build.
+**Fix / Rule:** Match the existing audit calls exactly — copy the field set from a known-good call (e.g. users.service `resetPassword`). `entityType` is lowercase by convention (`'user'`, not `'User'`). Put any descriptive nuance into `action` or leave it out. **Reference:** account-unlock audit call.
+
+### A17. crm-core auth is PER-ROUTE, not a global guard — public endpoints just omit the guard
+**Symptom:** Need an endpoint reachable without a token (e.g. login, forgot-password, reset-password for a locked-out user) and unsure how to make it "public."
+**Cause/Fact:** crm-core does **not** register a global `APP_GUARD`. Each protected route carries its own `@UseGuards(JwtAuthGuard)`. There is **no `@Public()` decorator** in the codebase (don't look for one).
+**Fix / Rule:** To make an endpoint public, simply **do not add `JwtAuthGuard`**. For login-adjacent public endpoints, add `@UseGuards(ThrottlerGuard)` for rate-limiting (mirrors the `login` endpoint). This is exactly what password-recovery endpoints need, since a locked-out/forgotten user cannot authenticate. **Reference commits:** `4bd20bd2`, `8f9ae5ed`.
+
+### A18. Email uniqueness is PER-TENANT, not global
+**Symptom:** Designing "forgot password" by email alone is ambiguous.
+**Cause/Fact:** Login is `tenantCode + email + password`; the user lookup is `WHERE email = ? AND tenant_id = ?`. The same email address can therefore exist in multiple tenants as distinct users.
+**Fix / Rule:** Any flow that resolves a user from an email **must also take the tenant/company code** (forgot-password takes `{ tenantCode, email }`, matching the login form). Never assume an email maps to exactly one user system-wide.
+
+### A19. Base64 file delivery — the stale-file download trap
+**Symptom:** A freshly-generated file is "delivered," decoded on the local machine, built, and committed — but the change doesn't appear, and `git commit` reports a suspiciously small diff (e.g. "1 file changed, 1 insertion"). A later `wc -l` shows the **old** file content.
+**Cause:** When an updated file is re-presented under the **same name**, the browser may not re-download it (it already has that filename in Downloads), so decoding reads the **previous** version. The decode "succeeds" but writes stale content.
+**Fix / Rule:** (1) Present updated files under a **new name** (`_v2`) to force a fresh download. (2) **Always verify the decode**: `base64 -d file.b64 | wc -l` and `grep -c <new-marker>` **before** building/committing. (3) Treat a tiny `git commit` summary as a red flag that the decode didn't land.
+**Cost when missed:** The reorder→PO frontend appeared to deploy but was the old 260-line file; only after re-presenting as `ReorderReport_v2` did the real 292-line version land. **Reference commit:** `bceda601`.
+
+### A20. Render free-tier services cold-start (~45–60s) after ~15 min idle — NOT a bug
+**Symptom:** A page (e.g. Project Management) "hangs" / doesn't load for ~45 seconds after the app has been idle, then works instantly afterwards.
+**Cause:** Render **free** instances spin down after ~15 minutes of no traffic. The next request must wait for a full cold-start (a NestJS service + DB connect is ~45–60s). Confirmed via timed curl: first hit `46s`, second hit `0.4s`.
+**Fix / Rule:** Not a code bug. Options: (a) upgrade customer-facing services to Render **Starter** (~$7/mo each) to stay always-on — do this for **crm-core** and any demo-facing service before customer demos; (b) warm the services by hitting each endpoint a minute before a demo; (c) tolerate it during solo development. A 46s wait in front of a client reads as "broken," so warm or upgrade before any demo.
 
 ---
+
+### A14. PostgreSQL `date` columns hydrate as JS `Date` objects — string comparison silently fails
+**Symptom:** A query that works perfectly in raw SQL returns zero matches in JS. E.g. the recurring "generate due" engine found 0 due schedules even though due rows clearly existed.
+**Cause:** A PG `date`/`timestamp` column comes back into Node as a JavaScript `Date` object, not a string. Comparing `row.next_due_date <= "2026-06-23"` (Date vs string) does **not** behave like the SQL comparison — it coerces in surprising ways and silently yields false.
+**Fix / Rule:** Normalize to a `YYYY-MM-DD` string before any JS-side date comparison:
+```js
+const toDateStr = (d) => (d instanceof Date ? d.toISOString().slice(0,10) : String(d).slice(0,10));
+if (toDateStr(row.next_due_date) <= todayStr) { ... }
+```
+Prefer doing date filtering in SQL (`WHERE next_due_date <= $1`) where possible; only compare in JS after normalizing.
+**Reference commit:** `a68228a2`.
+
+### A15. In-memory caches that store DB row IDs are dangerous across deletes/restarts
+**Symptom:** A foreign-key violation inserting a child row (e.g. a recurring BILL referencing a supplier) even though "the supplier exists" — or did a moment ago.
+**Cause:** A `findOrCreate` helper cached the resolved supplier/customer **id** in an in-memory object (`_ocSupplierCache`). When that row was later deleted (or the cache survived a restart while the row didn't), the stale id was reused, producing an FK violation. Caching DB primary keys in process memory assumes the DB never changes underneath you — it does.
+**Fix / Rule:** Do **not** cache DB row ids in memory for correctness-critical lookups. Query the DB every time (an indexed lookup is cheap). Reserve in-memory caches for immutable/derived data, never for "does this row still exist."
+**Reference commit:** `cf81e16d`.
+
+### A16. `AuditLogInput` has a fixed field set — `description` is NOT one of them
+**Symptom:** Build fails: `error TS2353: Object literal may only specify known properties, and 'description' does not exist in type 'AuditLogInput'`.
+**Cause:** `this.auditService.log({...})` accepts only: `tenantId, userId, userName, module, action, entityType, entityId`. There is no free-text `description` field. `entityType` is lowercase by convention (`'user'`, not `'User'`).
+**Fix / Rule:** Match the existing audit calls exactly — no `description`. If you need detail, encode it in `action`/`entityType`. Copy a nearby working `auditService.log(...)` call rather than inventing fields.
+**Reference commit:** `8f9ae5ed` (account-recovery build; removed the invalid `description`).
+
+### A17. crm-core auth is PER-ROUTE — there is no global guard and no `@Public` decorator
+**Symptom:** Need a public (unauthenticated) endpoint — e.g. forgot/reset-password for a locked-out user who has no token.
+**Cause/Reality:** crm-core does **not** register a global `APP_GUARD`. Each protected route carries its own `@UseGuards(JwtAuthGuard)`. There is **no** `@Public()` decorator in the codebase (don't look for one).
+**Fix / Rule:** To make an endpoint public, simply **omit** `@UseGuards(JwtAuthGuard)`. Add `@UseGuards(ThrottlerGuard)` for rate-limiting (the pattern `login` uses). To make one protected, add the JWT guard.
+**Reference:** `auth.controller.ts` — `login`, `forgot-password`, `reset-password` are guard-free (ThrottlerGuard only); `me`, `2fa/*`, `logout` use `JwtAuthGuard`.
+
+### A18. Email/login identity is per-TENANT, not global
+**Symptom:** Designing forgot-password by email alone is ambiguous.
+**Cause:** Login is `tenantCode + email + password`; the user lookup is `WHERE email = $1 AND tenant_id = $2`. The same email can exist in multiple tenants. Email is **unique per tenant**, not globally.
+**Fix / Rule:** Any cross-tenant identity flow (forgot-password, invites) must include the **company/tenant code** to disambiguate. The forgot-password form asks for company code + email, mirroring login.
+
+### A19. base64 file delivery — the stale-download trap
+**Symptom:** You decode a re-sent `file.b64`, the build is clean, but the change isn't live; a later `wc -l`/`grep` shows the OLD file content.
+**Cause:** Re-presenting an updated `*.b64` under the **same filename** doesn't always re-download — the browser/Downloads keeps the previous version, so `base64 -d` silently writes stale content. Hit twice (ReorderManagementReport 260 vs 292 lines).
+**Fix / Rule:** Present updated files under a **new name** (`_v2`) to force a fresh download, and **always verify the decoded result** before trusting it:
+```bash
+base64 -d ".../File_v2.tsx.b64" | wc -l        # confirm expected line count
+base64 -d ".../File_v2.tsx.b64" | grep -c NEW   # confirm new content present
+```
+A `git commit` reporting "1 file changed, 1 insertion(+)" when you expected a big change is the same tell — the decode didn't land.
+
+### A20. Render free tier cold-start (~46s) is NOT a bug
+**Symptom:** A page (e.g. PM) "hangs" / doesn't load for ~30-60s after a period of inactivity, then works instantly.
+**Cause:** Render **free** instances spin down after ~15 min idle; the next request pays a cold-start (measured ~46s for a NestJS service to boot + connect). Subsequent requests are fast (<1s).
+**Fix / Rule:** Not a code issue. For demos/production, upgrade the customer-facing services (at minimum **crm-core** + the demo target) to a paid Starter instance (always-on), or warm the services by hitting them right before a demo. Confirm cold-start vs. real error with `time curl -s -o /dev/null -w "%{http_code}" <service-root>` — a slow first call then a fast second call = cold-start, not a crash.
 
 ## PART B — STANDARD OPERATING PROCEDURES
 
@@ -144,27 +219,96 @@ Client-side `window.open()` + inline-styled HTML + `window.print()`. Used for Fe
 - Delivery auto-posts the COGS journal `Dr 5001 COGS / Cr 1140 Inventory` at computed cost via `createAutoJournalEntry`.
 - Opening layers for pre-existing stock must be seeded once (stock_qty × cost_price) — they don't build retroactively.
 
-### B6. Draft / Post lifecycle for financial documents
-Pattern (see A14). Implemented for Payment Vouchers and Receipts:
-- **createX()** persists the record with `status = 'DRAFT'`. For cheque-based docs, validate and capture the leaf reference but do NOT consume it. Persist any allocation list (e.g. receipts `allocated_invoice_ids`) for POST to apply.
-- **postX(tenantId, id, userId)** guards `if status === 'POSTED' throw BadRequestException`; then consumes the cheque leaf, applies invoice balances, posts the GL journal via `createAutoJournalEntry`, runs credit checks, and sets `status = 'POSTED'`.
-- Controller route: `@Post('<docs>/:id/post')`. Frontend: a DRAFT-only Post button (Popconfirm) + `disabled`/hidden edit & delete on POSTED rows; status tag orange=DRAFT, green=POSTED.
-- Downstream queries (credit control, AR aging, PDC list) must count only POSTED/non-DRAFT documents.
-- When migrating: existing docs created under old immediate-post logic should be normalized to POSTED (their side effects already fired) — do NOT re-post them.
+### B6. Opening-balance migration engine (AR / AP / Assets / GL / Stock)
+- Purpose: load a new tenant's opening balances at go-live so AR, AP, inventory and the GL start reconciled.
+- AR/AP loaders use **find-or-create** master helpers: `findOrCreateCustomer(tenantId, name, rich)` (matches `accounts` by `account_name ILIKE` where `is_customer=true`; creates with email/phone/address/city) and `findOrCreateSupplier(tenantId, name, rich)` (the `suppliers` table, auto-code `SUP-NNNN`, with trn/email/phone/address/city/country/paymentTerms). Both return `{ id, created }` and are **cache-free** (see A15) — they query the DB every call.
+- **Control-account model (important):** ALL customers roll up to AR control **1130**; ALL suppliers to AP control **2110**. Customers/suppliers are name/id-keyed **sub-ledgers**; `accounts.account_code` is unused (NOT a COA link). So an opening AR/AP posting is the grand total to 1130/2110 with the contra to **3900 Opening Balance Equity (OBE)** — this is accounting-correct.
+- Phase B "rich field" loaders store contact/address detail on the created masters. GL and Stock rich-field loaders were deliberately **not** built (low value vs. touching the shared posting core / cost-layer fiddliness — documented won't-do).
+
+### B7. Recurring expenses engine (scheduled journals & bills)
+- Tables: `recurring_expenses` (the schedule) + `recurring_expense_log` with **`UNIQUE(recurring_id, period_date)`** as the idempotency guard.
+- Engine `generateDueRecurringItems(tenantId?)`: **no arg = all tenants** (the cron path); **arg = one tenant** (manual button). Finds active due schedules, runs a **catch-up while-loop** (guard < 60 iterations) so a schedule that missed periods generates each missed period once.
+- Idempotency: claims a period by `INSERT INTO recurring_expense_log ... ON CONFLICT DO NOTHING RETURNING` — if no row returns, the period was already done and is skipped. **Caveat:** a permanently-FAILED period keeps its log slot and will not auto-retry; clearing the FAILED log row lets it retry. (v1 accepted; a max-retry/disable refinement is backlogged.)
+- Generates either a **JOURNAL** (Dr expense account / Cr credit account, +VAT to 1160 if vat>0) or a **BILL** (a draft `purchase_invoice` reusing `findOrCreateSupplier`), at `status` per the schedule's `post_mode` (DRAFT default). `advanceDate` moves `next_due_date` by frequency×interval with day-of-month clamping. A **FAILED period does not advance** (so it retries next run).
+- Daily `@Cron('0 2 * * *')` via `@nestjs/schedule` (`ScheduleModule.forRoot()` + a `RecurringScheduler` provider) calls the engine for all tenants; a manual `POST /sales/recurring-expenses/generate-due` is the backstop.
+- **Multi-tenancy:** all CRUD is tenant-scoped; the cron threads each schedule's own `tenant_id` (`tid = sc.tenant_id`) through **every** write (log, supplier, bill, journal, COA lookup) — no cross-tenant leak. Two internal engine UPDATEs scope by `recurring_id` (UUID PK) only — safe today; adding `AND tenant_id` is a backlogged defense-in-depth nicety.
+- **Reference commits:** `7829530f` (engine+cron+CRUD), `a68228a2` (date fix, see A14), `5dc396c5` (frontend), `b065a4ff` (COA dropdown endpoint fix), `cf81e16d` (cache fix, see A15).
+
+### B8. Account recovery (admin unlock + self-service password reset)
+- **Lockout policy:** 5 failed logins → 30-minute lock (`failed_login_count` + `locked_until` on `users`, set in `auth.service handleFailedLogin`). A successful login and any password reset clear both.
+- **Admin unlock (Part A):** `unlockUser(tenantId, userId, unlockedBy)` clears the lock without changing the password; endpoint `PATCH /users/:id/unlock`. The users-list `select` now returns `lockedUntil`/`failedLoginCount`; the Users page shows a red **Locked** badge and a conditional **Unlock** button. (Admin reset-password already existed and also clears the lock.)
+- **Self-service (Part C):** table `password_reset_tokens` (token, user_id, tenant_id, expires_at, used_at). Public endpoints (no `JwtAuthGuard`, with `ThrottlerGuard` — see A17): `POST /auth/forgot-password` `{ tenantCode, email, resetBaseUrl? }` issues a 96-char crypto token (1-hour expiry), invalidates prior unused tokens, emails a reset link via the tenant's `settings.emailConfig` (nodemailer, reused from tenants.service), and **always returns a generic success** (no account enumeration). `POST /auth/reset-password` `{ token, newPassword }` validates (exists / not used / not expired), bcrypt-hashes, clears lockout, marks the token used.
+- Frontend: a "Forgot your password?" modal on the login page (company code + email), and a public `/reset-password?token=…` page.
+- **Security properties:** single-use expiring tokens, no enumeration, rate-limited, lockout cleared on reset. Use **`bcryptjs`** (the file's existing import) — not native `bcrypt`.
+- **Reference commits:** `4bd20bd2` (Part A+B), `8f9ae5ed` (Part C).
 
 ---
 
+### B6. Opening-balance migration engine (AR / AP / GL / Stock)
+- Loads a tenant's opening balances at go-live. AR/AP loaders create real, selectable master records via `findOrCreateCustomer` / `findOrCreateSupplier` (match by name ILIKE within tenant; create with rich fields; auto supplier code SUP-NNNN). All customers roll up to **AR control 1130**, all suppliers to **AP control 2110** (fixed control accounts — `accounts.account_code` is unused, NOT a COA link), with the contra to **3900 Opening Balance Equity (OBE)**. So a grand-total AR/AP posting to the control account + OBE is accounting-correct.
+- Phase B adds rich-field capture (email/phone/address/city/TRN/payment terms) on the created masters. GL and Stock rich-field loaders were deliberately **not** built (low value vs. risk of touching the shared posting core; stock cost layers are already correct).
+- **Do not cache** the resolved master ids (see A15).
+
+### B7. Recurring expenses (schedule → journal/bill, cron, idempotent catch-up)
+- Tables: `recurring_expenses` (schedule) + `recurring_expense_log` with **`UNIQUE(recurring_id, period_date)`** as the idempotency guard.
+- Engine `generateDueRecurringItems(tenantId?)`: no arg = all tenants (cron path), arg = one tenant (manual button). Finds active due schedules, runs a catch-up while-loop (guard <60), **claims each period via `INSERT ... ON CONFLICT DO NOTHING RETURNING`** (idempotent), then creates a JOURNAL (Dr expense / Cr credit account, +VAT 1160 if any) or a draft BILL (reusing `findOrCreateSupplier`) at status per the schedule's `post_mode` (DRAFT default), advances `next_due_date`, and logs the outcome. A failed period does **not** advance — it retries next run.
+- Daily `@Cron('0 2 * * *')` via `@nestjs/schedule` (added `ScheduleModule.forRoot()` + a `RecurringScheduler` provider). Manual trigger `POST /sales/recurring-expenses/generate-due` is the backstop.
+- **Idempotency caveat:** a FAILED log row still occupies the unique slot, so a retry is skipped until that row is cleared. To force a retry of a genuinely-failed period: `DELETE FROM recurring_expense_log WHERE status='FAILED' AND ...`. (v1 behaviour; a self-clearing-on-failure refinement is backlogged.)
+- Multi-tenant audited: every CRUD query is tenant-scoped; the cron threads each schedule's own `tenant_id` (`tid = sc.tenant_id`) through every write — no cross-tenant leak. Two internal engine UPDATEs scope by `recurring_id` (UUID PK) only — safe, with `AND tenant_id` as a backlogged defense-in-depth.
+
+### B8. Account recovery (admin unlock + self-service reset)
+- **Lockout:** 5 failed logins → 30-min lock (`failed_login_count`, `locked_until` on `users`). A successful login, an admin reset, or an admin unlock clears both.
+- **Admin unlock:** `unlockUser()` + `PATCH /users/:id/unlock` (clears count + lock, audit-logged). Users list select must include `lockedUntil`/`failedLoginCount` for the UI "Locked" badge + Unlock button.
+- **Self-service:** table `password_reset_tokens` (token, user, expires_at, used_at). Public endpoints (no JwtAuthGuard, ThrottlerGuard): `POST /auth/forgot-password` {tenantCode, email} → 96-char crypto token, 1-hr expiry, prior unused tokens invalidated, reset link emailed via the tenant's `settings.emailConfig` (nodemailer); **always returns a generic success (no account enumeration)**. `POST /auth/reset-password` {token, newPassword} → validates (exists/unused/unexpired), bcrypt-hashes, clears lockout, marks token used (single-use). All proven end-to-end on AWAK.
+
+### B9. AI invoice extraction (BUILT, PARKED — needs API key + UI)
+- Backend `extractInvoice(tenantId, fileBase64, mediaType)` calls the Anthropic Messages API via native fetch (model `claude-haiku-4-5`, ~\$0.007/invoice), strict-JSON extraction prompt, matches supplier (suggestion only), returns a purchase-invoice prefill + confidence. Endpoint `POST /sales/extract-invoice`. Reads `process.env.ANTHROPIC_API_KEY`.
+- **To resume:** add `ANTHROPIC_API_KEY` to the sales-service env (docker-compose + Render dashboard), test with a real invoice, then build the upload/review UI (pre-fills the PO/invoice form, low-confidence flagged, human confirms & posts). Safety boundary: AI drafts, a human always posts.
+
 ## PART C — CHANGE LOG (chronological, newest first)
 
-### 16 June 2026 — Session: Draft/Post governance for Payment Vouchers & Receipts
+### 23 June 2026 — Session: Account Recovery (unlock + self-service reset)
 | Commit | Summary |
 |---|---|
-| c965c364 | **Fix:** meeting minutes persistence — add pm_meetings.agenda_items / meeting_type / next_meeting_date columns + entity mappings (structured agenda/type/next-date were silently dropped on save) |
-| 0cb8642c | Receipts Post button (DRAFT-only) + edit/delete guards on POSTED + status colors |
-| (sales-svc) | Receipts draft/post flow: create as DRAFT (no GL/invoice/credit); post applies invoice + posts journal with PDC routing (1119 cheque / 1120 cash) + credit unblock; PDC list & due-count now filter status='POSTED'; allocated_invoice_ids column added to persist multi-invoice allocation |
-| d986b8ea | Payment Voucher Post button (DRAFT-only) + edit/delete guards on POSTED + status colors |
-| 28f499d1 | Payment Voucher draft/post flow: create as DRAFT (no GL/leaf); post action consumes cheque leaf + applies to invoice + posts Dr 2110 AP / Cr 1120 Bank |
-| — | Data fix: existing PV-2026-0006/0007 and 25 CONFIRMED receipts normalized to POSTED (side effects already happened under old immediate-post logic) |
+| 8f9ae5ed | Account recovery Part C: self-service forgot/reset password — `password_reset_tokens` table, public `/auth/forgot-password` + `/auth/reset-password` (single-use 96-char tokens, 1-hr expiry, no account enumeration, rate-limited, lockout cleared on reset, email via tenant SMTP), forgot-password modal on login + `/reset-password` page |
+| 4bd20bd2 | Account recovery Part A+B: admin unlock (`/users/:id/unlock`, Locked badge + Unlock button), lock fields in users list, clearer lockout message pointing to reset/admin |
+
+### 22 June 2026 — Session: Reorder→PO conversion, Recurring Expenses, Opening Balances
+| Commit | Summary |
+|---|---|
+| bceda601 | Reorder→PO frontend: per-line warehouse delivery (each item to its own location, pre-filled from product default, "deliver all to" convenience) + computed PO header totals |
+| e90b493d | Reorder→PO: backend location field on reorder rows; fix PO header totals (subtotal/total were 0 — `createPurchaseOrder` doesn't auto-sum) |
+| 0d1b2f3c | Reorder Management: select items → create draft PO (supplier + warehouse picker, editable qty/price) |
+| cf81e16d | **Fix:** remove in-memory cache returning stale supplier/customer ids after deletes (FK violation in recurring bills) — query DB every time (see A15) |
+| b065a4ff | **Fix:** recurring account dropdowns load COA from `salesApi /sales/chart-of-accounts` (was wrong endpoint → "No data") |
+| 5dc396c5 | Recurring Expenses frontend: admin page (list/create/edit schedules, generate-due, due badge, history) + route + nav + `recurringApi` |
+| a68228a2 | **Fix:** recurring engine normalize PG date columns to `YYYY-MM-DD` before JS comparison (date-vs-string bug → found 0 due; see A14) |
+| 7829530f | Recurring expenses engine: schedule → journal/bill, draft, idempotent catch-up + daily `@Cron` via `@nestjs/schedule` + manual trigger + due-count + full CRUD |
+| 7c0e6ac9 | AI invoice extraction backend (PARKED): `extractInvoice` via Anthropic Messages API (`claude-haiku-4-5`), strict-JSON, supplier match, purchase-invoice prefill — awaiting API key + UI |
+| 4f2aac81 | Opening balances: customer/supplier master find-or-create + linkage (real selectable masters, dedup, rich fields, auto SUP-NNNN); AR→control 1130 / AP→control 2110 / contra OBE 3900 |
+
+
+### 23 June 2026 — Session: Account Recovery (admin unlock + self-service reset)
+| Commit | Summary |
+|---|---|
+| 8f9ae5ed | Account recovery Part C: self-service forgot/reset password — `password_reset_tokens` table, public `/auth/forgot-password` + `/auth/reset-password` (single-use 96-char token, 1hr expiry, no enumeration, rate-limited, lockout cleared on reset), email via tenant SMTP, forgot-password modal on login + `/reset-password` page. Full token lifecycle tested. |
+| 4bd20bd2 | Account recovery Part A+B: admin unlock action (Locked badge + Unlock button on Users page) + `PATCH /users/:id/unlock` clearing failed-count/lock; clearer lockout message pointing to reset/admin. |
+
+### 22 June 2026 — Session: Reorder→PO conversion, Recurring Expenses, Opening Balances
+| Commit | Summary |
+|---|---|
+| bceda601 | Reorder→PO frontend (the real 292-line landing after a stale-file retry, see A19): per-line warehouse delivery (each item to its own location, pre-filled from product default, + "deliver all to" convenience) and computed PO header totals. |
+| e90b493d | Reorder→PO backend: add product default `locationId`/`warehouseId` to reorder report rows (fixes header total = 0 by computing/sending subtotal/total). |
+| 0d1b2f3c | Reorder Management: select items → convert to draft Purchase Order (supplier + warehouse picker, editable qty/price). |
+| cf81e16d | **Fix:** remove in-memory find-or-create cache returning stale supplier/customer ids after deletes (FK violation in recurring bills) — see A15. |
+| b065a4ff | **Fix:** recurring-expenses account dropdowns load COA from `salesApi /sales/chart-of-accounts` (was hitting the wrong endpoint → "No data"). |
+| 5dc396c5 | Recurring Expenses frontend: admin page (list/create/edit schedules, generate-due button, due badge, history) + route + nav + recurringApi helper. |
+| a68228a2 | **Fix:** recurring engine normalizes PG `date` to `YYYY-MM-DD` strings before JS comparison (Date-vs-string bug → 0 due items) — see A14. |
+| 7829530f | Recurring expenses: schedule engine (journal/bill, draft, idempotent catch-up) + daily `@Cron` via `@nestjs/schedule` + manual trigger + due-count + full CRUD. |
+| 7c0e6ac9 | AI invoice extraction backend (PARKED — needs `ANTHROPIC_API_KEY` + frontend UI): `extractInvoice` calls Anthropic `claude-haiku-4-5` via native fetch, strict-JSON extraction, supplier-match suggestion, maps to purchase-invoice prefill. Human confirms/posts. |
+| 4f2aac81 | Opening-balance AR/AP loaders wired to find-or-create customer/supplier masters (real selectable records + created counts). |
+
+
 
 ### 15 June 2026 — Session: Stock Costing & Consumables
 | Commit | Summary |
@@ -217,20 +361,44 @@ Credit control foundation, Bank Account Management (bank accounts, cheque books/
 ---
 
 ## PART D — KNOWN PENDING ITEMS / BACKLOG
-- **Gantt / Timeline view** (PM) — last item of the PM enhancement roadmap (Feasibility → Reports → Gantt). Largest UI build.
-- **Daily PDC deposit reminder** on the notification bell (Received Cheques page itself is complete).
-- **Sales Invoices draft/post** — invoices still post GL immediately on create. Applying the draft/post pattern (A14/B6) is deferred: wide blast radius (e-invoicing/Fawtara, COGS journals from costing, AR aging, credit control) needs careful staging. Only as a dedicated change.
-- **Consumable Issue Voucher PDF** — printable CIV like other vouchers (offered, not yet built).
-- **Duplicate COGS accounts** — both 5001 and 5100 exist as "Cost of Goods Sold". The system uses **5001**; 5100 should be cleaned up.
-- **Sales return values inventory at selling price** — the return path currently uses `dto.subtotal` (selling value) as the inventory/COGS-reversal amount. Now that the costing engine exists, this should be corrected to use computed cost for consistency with the sale side.
+- **AI invoice extraction (PARKED — resume when ready):** backend is built and pushed (`7c0e6ac9`). To finish: (1) get an Anthropic API key from console.anthropic.com (~$5 credit; `claude-haiku-4-5` ≈ $0.007/invoice); (2) add `ANTHROPIC_API_KEY` to docker-compose sales-service env **and** the Render dashboard (sales-service → Environment); (3) test with a real invoice; (4) build the frontend upload+review UI that pre-fills the purchase-invoice form (low-confidence fields flagged; a human confirms and posts). Safety boundary: AI drafts, human posts.
+- **Multi-tenancy defense-in-depth (minor):** two recurring-engine UPDATEs scope by `recurring_id` (UUID PK) only. Safe today; add `AND tenant_id = …` as belt-and-suspenders.
+- **Recurring v1 caveat:** a permanently-FAILED period retries forever (its log row never advances). Acceptable for v1; add a max-retry → auto-disable later.
+- **Render free-tier cold-start:** upgrade crm-core + demo-facing services to Starter (~$7/mo) before customer demos (see A20).
+- **Gantt / Timeline view** (PM) — last item of the PM enhancement roadmap. Largest UI build.
+- **Daily PDC deposit reminder** on the notification bell.
+- **Consumable Issue Voucher PDF** — printable CIV like other vouchers.
+- **Duplicate COGS accounts** — both 5001 and 5100 exist; standardise on 5001, clean up 5100.
+- **Sales return values inventory at selling price** — should use computed cost now that the costing engine exists.
+- **Credit block columns on contacts table** — accidentally added; belong only on accounts.
+- **Bank Statement Upload (Phase 3)** — CSV/PDF upload + auto-reconciliation.
+- **Receipts bounced-cheque workflow** — no auto-block on bounce yet.
 - Several report routes still hidden as "·soon" until built.
+- **Pre-launch financial items** (from the Financial Integrity Audit): clean opening balances on go-live (now supported by the opening-balance engine — see B6), input validation (required invoice date + sanity threshold), separate trade vs asset payables (2115), historical COGS backfill.
+
+### Completed since last log (previously pending or new)
+- ✅ **Account recovery** — admin unlock + self-service forgot/reset password (all proven). Closes the lockout production gap.
+- ✅ **Recurring expenses** — schedule engine + cron + CRUD + UI (proven, multi-tenant audited).
+- ✅ **Reorder→PO conversion** — per-line warehouse + correct totals (proven).
+- ✅ **Opening-balance migration** — AR/AP loaders with customer/supplier master linkage.
+- ⏸️ **AI invoice extraction** — backend built, PARKED pending Anthropic API key + review UI (see B9).
+
+### New backlog items
+- **Recurring engine multi-tenancy defense-in-depth** — two internal UPDATEs scope by `recurring_id` (UUID PK) only; add `AND tenant_id` (belt-and-suspenders; safe today).
+- **Recurring FAILED-period retry** — a permanently-failing period retries forever and a FAILED log row blocks retry until manually cleared; add max-retries → auto-disable, and/or self-clear the log row on failure.
+- **Render free-tier cold-start** — upgrade crm-core + demo-facing services to paid Starter before any customer demo (see A20).
+- **Separate trade vs asset payables (2115)**, **historical COGS backfill**, **duplicate COGS 5001/5100 cleanup**, **input validation (required invoice date + sanity threshold)** — pre-launch financial items (see Financial Integrity Audit).
 
 ### Completed this period (previously pending)
+- ✅ **Account recovery** — admin unlock + clearer lockout message + self-service forgot/reset password (all three parts), tested end-to-end.
+- ✅ **Recurring expenses** — engine + daily cron + manual trigger + full CRUD + UI; multi-tenancy audited.
+- ✅ **Reorder → PO conversion** — select items → draft PO with per-line warehouse + correct totals.
+- ✅ **Opening-balance migration engine** — AR/AP/Assets with find-or-create masters; OBE contra.
 - ✅ Credit control, PDC management, navigation restructure, structured meeting minutes, PM feasibility — done.
 - ✅ `product_warehouse_stock` ledger + Stock by Location report — done.
 - ✅ Stock costing (FIFO/AVCO) + COGS posting + valuation report — done.
 - ✅ Consumables issue workflow — done.
-- ✅ Architecture Document + ERD — refreshed (this session).
+- ✅ Architecture Document + ERD — refreshed (23 Jun: + recurring/reset tables, account-recovery flow, rebranding).
 
 ---
 
