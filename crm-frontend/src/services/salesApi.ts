@@ -107,6 +107,15 @@ export const purchaseOrdersApi = {
   delete: (id: string) => salesApi.delete(`/sales/purchase-orders/${id}`),
 };
 
+export const rfqApi = {
+  getAll: (params?: any) => salesApi.get('/sales/rfqs', { params }),
+  getOne: (id: string) => salesApi.get(`/sales/rfqs/${id}`),
+  create: (data: any) => salesApi.post('/sales/rfqs', data),
+  update: (id: string, data: any) => salesApi.put(`/sales/rfqs/${id}`, data),
+  delete: (id: string) => salesApi.delete(`/sales/rfqs/${id}`),
+  cancel: (id: string) => salesApi.patch(`/sales/rfqs/${id}/cancel`),
+};
+
 export const grnsApi = {
   getAll: (params?: any) => salesApi.get('/sales/grns', { params }),
   getOne: (id: string) => salesApi.get(`/sales/grns/${id}`),

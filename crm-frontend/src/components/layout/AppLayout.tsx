@@ -12,7 +12,7 @@ import {
   CheckCircleOutlined, RollbackOutlined, SwapOutlined, InboxOutlined, CalculatorOutlined,
   ShoppingOutlined, CarOutlined, BankOutlined, ShoppingCartOutlined, ShopOutlined,
   EditOutlined, UnorderedListOutlined, ClockCircleOutlined, FundOutlined, WarningOutlined, UploadOutlined, RocketOutlined, EnvironmentOutlined,
-  SyncOutlined,
+  SyncOutlined, FileSearchOutlined,
 } from '@ant-design/icons';
 import { logout } from '../../store/slices/authSlice';
 import { RootState, AppDispatch } from '../../store';
@@ -58,6 +58,7 @@ const NAV_ITEMS = [
     key: 'purchase-grp', icon: <ShoppingCartOutlined />, label: 'Purchase',
     children: [
       { key: '/purchase/suppliers', icon: <ShopOutlined />,        label: 'Suppliers' },
+      { key: '/purchase/rfqs',      icon: <FileSearchOutlined />,  label: 'RFQ / Quotations' },
       { key: '/purchase/orders',    icon: <FileTextOutlined />,    label: 'Purchase Orders' },
       { key: '/purchase/grn',       icon: <InboxOutlined />,       label: 'Goods Receipt' },
       { key: '/purchase/invoices',  icon: <DollarOutlined />,      label: 'Purchase Invoices' },

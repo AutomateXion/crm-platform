@@ -88,6 +88,7 @@ import StockAdjustmentsPage from './pages/warehouse/StockAdjustmentsPage';
 // Phase 6 — Purchase
 import SuppliersPage         from './pages/purchase/SuppliersPage';
 import PurchaseOrdersPage    from './pages/purchase/PurchaseOrdersPage';
+import RFQListPage          from './pages/purchase/RFQListPage';
 import GRNPage               from './pages/purchase/GRNPage';
 import PurchaseInvoicesPage  from './pages/purchase/PurchaseInvoicesPage';
 import PurchaseReturnsPage    from './pages/purchase/PurchaseReturnsPage';
@@ -217,6 +218,7 @@ export default function App() {
         <Route path="warehouse/adjustments"     element={<StockAdjustmentsPage />} />
         {/* Phase 6 — Purchase */}
         <Route path="purchase/suppliers"        element={<SuppliersPage />} />
+        <Route path="purchase/rfqs"             element={<RFQListPage />} />
         <Route path="purchase/orders"           element={<PurchaseOrdersPage />} />
         <Route path="purchase/grn"              element={<GRNPage />} />
         <Route path="purchase/invoices"         element={<PurchaseInvoicesPage />} />
