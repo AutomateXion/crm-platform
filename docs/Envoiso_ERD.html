@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Envoiso ERP — Entity Relationship Diagram</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0f1923; color: #e0e0e0; overflow: hidden; height: 100vh; }
+#header { background: #1a2940; padding: 10px 20px; display: flex; align-items: center; gap: 16px; border-bottom: 2px solid #2d5086; z-index: 100; position: relative; }
+#header h1 { font-size: 18px; color: #7eb3ff; font-weight: 700; }
+#header span { font-size: 12px; color: #888; }
+#controls { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+.btn { padding: 5px 12px; border-radius: 6px; border: 1px solid #2d5086; background: #1f3a5f; color: #7eb3ff; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+.btn:hover, .btn.active { background: #2d5086; color: #fff; }
+.btn.reset { border-color: #555; color: #aaa; background: #1a2535; }
+#legend { display: flex; gap: 12px; flex-wrap: wrap; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 11px; }
+.leg-dot { width: 12px; height: 12px; border-radius: 3px; }
+#canvas { width: 100vw; height: calc(100vh - 52px); }
+svg { width: 100%; height: 100%; }
+.table-group .header rect { rx: 6; ry: 6; }
+.table-group text { pointer-events: none; }
+.link { stroke-opacity: 0.5; fill: none; stroke-width: 1.5; }
+.link:hover { stroke-opacity: 1; stroke-width: 2.5; }
+.link.highlighted { stroke-opacity: 1; stroke-width: 3; }
+.table-group { cursor: grab; }
+.table-group:active { cursor: grabbing; }
+.table-group.highlighted .card { filter: drop-shadow(0 0 8px rgba(126,179,255,0.8)); }
+.table-group.dimmed { opacity: 0.2; }
+.link.dimmed { opacity: 0.05; }
+#tooltip { position: fixed; background: #1a2940; border: 1px solid #2d5086; border-radius: 8px; padding: 10px 14px; font-size: 12px; pointer-events: none; display: none; z-index: 999; max-width: 280px; }
+#tooltip .tt-title { font-weight: 700; color: #7eb3ff; margin-bottom: 6px; font-size: 13px; }
+#tooltip .tt-row { display: flex; justify-content: space-between; gap: 12px; margin: 2px 0; }
+#tooltip .tt-key { color: #aaa; }
+#tooltip .tt-val { color: #fff; font-weight: 600; }
+#search { padding: 4px 10px; border-radius: 6px; border: 1px solid #2d5086; background: #0f1923; color: #e0e0e0; font-size: 12px; width: 160px; }
+#search::placeholder { color: #555; }
+#info { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); background: rgba(26,41,64,0.9); border: 1px solid #2d5086; border-radius: 8px; padding: 6px 16px; font-size: 11px; color: #888; }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>Envoiso ERP — ERD</h1>
+  <span>80 Tables · 92 Relationships</span>
+  <div id="legend">
+    <div class="leg"><div class="leg-dot" style="background:#2d5086"></div>Core/Auth</div>
+    <div class="leg"><div class="leg-dot" style="background:#1a5c3a"></div>CRM</div>
+    <div class="leg"><div class="leg-dot" style="background:#5c3a1a"></div>Sales/Finance</div>
+    <div class="leg"><div class="leg-dot" style="background:#5c1a2d"></div>Purchase</div>
+    <div class="leg"><div class="leg-dot" style="background:#1a4a5c"></div>Inventory/WH</div>
+    <div class="leg"><div class="leg-dot" style="background:#3a1a5c"></div>Assets</div>
+    <div class="leg"><div class="leg-dot" style="background:#1a5c4a"></div>Bank/Cheque</div>
+    <div class="leg"><div class="leg-dot" style="background:#4a3a1a"></div>PM</div>
+    <div class="leg"><div class="leg-dot" style="background:#5c1a4a"></div>Automation</div>
+  </div>
+  <div id="controls">
+    <input id="search" type="text" placeholder="Search table...">
+    <button class="btn" onclick="resetView()">⟳ Reset</button>
+    <button class="btn" id="btnAll" onclick="filterGroup('all')" class="active">All</button>
+    <button class="btn" onclick="filterGroup('core')">Core</button>
+    <button class="btn" onclick="filterGroup('crm')">CRM</button>
+    <button class="btn" onclick="filterGroup('sales')">Sales</button>
+    <button class="btn" onclick="filterGroup('purchase')">Purchase</button>
+    <button class="btn" onclick="filterGroup('inventory')">Inventory</button>
+    <button class="btn" onclick="filterGroup('assets')">Assets</button>
+    <button class="btn" onclick="filterGroup('bank')">Bank</button>
+    <button class="btn" onclick="filterGroup('pm')">PM</button>
+  </div>
+</div>
+<div id="canvas"><svg id="svg"></svg></div>
+<div id="tooltip"></div>
+<div id="info">Scroll to zoom · Drag to pan · Click table to highlight relationships · Hover link for details</div>
+
+<script>
+const GROUPS = {
+  core: { color: '#2d5086', header: '#1a3a6e', tables: ['tenants','users','user_groups','user_sessions','permissions','modules','sub_modules','pages','fields','master_categories','master_values','document_configs','password_reset_tokens','plan_modules'] },
+  crm: { color: '#1a5c3a', header: '#0f3d26', tables: ['accounts','contacts','leads','opportunities','opportunity_items','customer_visits','activities','suppliers'] },
+  sales: { color: '#5c3a1a', header: '#3d2610', tables: ['quotations','quotation_items','delivery_notes','delivery_note_items','sales_invoices','sales_invoice_items','receipts','sales_returns','sales_return_items','exchange_rates','chart_of_accounts','template_chart_of_accounts','journal_vouchers','journal_voucher_lines','einvoice_settings','einvoice_certificates','einvoice_submissions','sales_targets','recurring_expenses','recurring_expense_log','template_chart_of_accounts'] },
+  purchase: { color: '#5c1a2d', header: '#3d1020', tables: ['purchase_orders','purchase_order_items','goods_receipt_notes','goods_receipt_note_items','purchase_invoices','purchase_invoice_items','payment_vouchers','purchase_returns','purchase_return_items','po_asset_units'] },
+  inventory: { color: '#1a4a5c', header: '#0f2f3d', tables: ['products','stock_movements','stock_adjustments','stock_adjustment_items','stock_transfers','stock_transfer_items','product_warehouse_stock','stock_cost_layers','warehouses','warehouse_locations','consumable_stock','consumable_transactions','document_signatures'] },
+  assets: { color: '#3a1a5c', header: '#260f3d', tables: ['fixed_assets','asset_depreciation','asset_maintenance','asset_transfers','asset_brands'] },
+  bank: { color: '#1a5c4a', header: '#0f3d30', tables: ['bank_accounts','cheque_books','cheque_leaves'] },
+  pm: { color: '#4a3a1a', header: '#2f2510', tables: ['pm_projects','pm_tasks','pm_milestones','pm_stages','pm_risks','pm_meetings','pm_resources','pm_budget_entries','pm_change_requests','pm_task_comments','pm_task_documents','pm_feasibility'] },
+  automation: { color: '#5c1a4a', header: '#3d0f30', tables: ['recurring_expenses','recurring_expense_log'] },
+};
+
+const TABLE_FIELDS = {
+  tenants: ['tenant_id (PK)', 'company_name', 'domain', 'is_active', 'plan', 'currency_code', 'costing_method', 'default_discount_rate'],
+  users: ['user_id (PK)', 'tenant_id (FK)', 'email', 'role', 'user_group_id (FK)', 'is_active'],
+  user_groups: ['user_group_id (PK)', 'tenant_id (FK)', 'group_name'],
+  user_sessions: ['session_id (PK)', 'tenant_id (FK)', 'user_id (FK)', 'refresh_token', 'expires_at'],
+  accounts: ['account_id (PK)', 'tenant_id', 'account_name', 'is_customer', 'is_supplier', 'credit_limit', 'credit_period_days', 'credit_blocked', 'credit_block_override'],
+  contacts: ['contact_id (PK)', 'tenant_id', 'account_id (FK)', 'first_name', 'last_name', 'email', 'phone'],
+  leads: ['lead_id (PK)', 'tenant_id', 'account_id', 'first_name', 'stage', 'source'],
+  opportunities: ['opportunity_id (PK)', 'tenant_id', 'account_id (FK)', 'contact_id (FK)', 'lead_id (FK)', 'deal_value', 'stage_code'],
+  opportunity_items: ['item_id (PK)', 'opportunity_id (FK)', 'product_id', 'quantity', 'unit_price'],
+  suppliers: ['supplier_id (PK)', 'tenant_id (FK)', 'account_id (FK)', 'supplier_name', 'supplier_code'],
+  products: ['product_id (PK)', 'tenant_id', 'product_code', 'product_name', 'product_type', 'stock_qty', 'cost_price', 'avg_cost', 'opening_stock', 'warehouse_id (FK)', 'location_id (FK)'],
+  stock_movements: ['movement_id (PK)', 'tenant_id', 'product_id', 'movement_type', 'quantity', 'unit_cost', 'warehouse_id (→location)', 'reference_number'],
+  quotations: ['quotation_id (PK)', 'tenant_id', 'account_id', 'quotation_number', 'total_amount', 'status'],
+  quotation_items: ['item_id (PK)', 'quotation_id (FK)', 'product_id', 'quantity', 'unit_price'],
+  delivery_notes: ['dn_id (PK)', 'tenant_id', 'account_id', 'dn_number', 'status', 'total_amount'],
+  delivery_note_items: ['item_id (PK)', 'dn_id (FK)', 'product_id', 'quantity', 'unit_price'],
+  sales_invoices: ['invoice_id (PK)', 'tenant_id', 'account_id', 'invoice_number', 'due_date', 'total_amount', 'paid_amount', 'balance_due', 'status'],
+  sales_invoice_items: ['item_id (PK)', 'invoice_id (FK)', 'product_id', 'quantity', 'unit_price'],
+  receipts: ['receipt_id (PK)', 'tenant_id', 'invoice_id', 'customer_name', 'amount', 'payment_method', 'cheque_number', 'deposit_bank_account_id', 'cheque_status'],
+  sales_returns: ['return_id (PK)', 'tenant_id', 'invoice_id', 'return_number', 'total_amount', 'status'],
+  sales_return_items: ['item_id (PK)', 'return_id (FK)', 'product_id', 'quantity'],
+  chart_of_accounts: ['account_id (PK)', 'tenant_id', 'account_code', 'account_name', 'account_type', 'parent_account_id (FK self)'],
+  journal_vouchers: ['voucher_id (PK)', 'tenant_id (FK)', 'voucher_number', 'voucher_type', 'total_debit', 'status'],
+  journal_voucher_lines: ['line_id (PK)', 'voucher_id (FK)', 'account_id (FK→COA)', 'debit', 'credit'],
+  purchase_orders: ['po_id (PK)', 'tenant_id (FK)', 'supplier_id (FK)', 'po_number', 'total_amount', 'status'],
+  purchase_order_items: ['item_id (PK)', 'po_id (FK)', 'product_id (FK)', 'quantity', 'warehouse_location_id'],
+  goods_receipt_notes: ['grn_id (PK)', 'tenant_id (FK)', 'po_id (FK)', 'supplier_id (FK)', 'grn_number', 'total_amount'],
+  goods_receipt_note_items: ['item_id (PK)', 'grn_id (FK)', 'product_id (FK)', 'po_item_id (FK)', 'quantity', 'warehouse_location_id'],
+  purchase_invoices: ['invoice_id (PK)', 'tenant_id (FK)', 'po_id (FK)', 'grn_id (FK)', 'supplier_id (FK)', 'total_amount', 'paid_amount', 'status'],
+  purchase_invoice_items: ['item_id (PK)', 'invoice_id (FK)', 'product_id (FK)', 'quantity', 'unit_price'],
+  payment_vouchers: ['voucher_id (PK)', 'tenant_id (FK)', 'invoice_id (FK)', 'supplier_id (FK)', 'bank_account_id', 'cheque_number', 'cheque_leaf_id', 'amount'],
+  purchase_returns: ['return_id (PK)', 'tenant_id (FK)', 'supplier_id (FK)', 'invoice_id (FK)', 'grn_id (FK)', 'total_amount', 'status'],
+  purchase_return_items: ['item_id (PK)', 'return_id (FK)', 'product_id (FK)', 'quantity'],
+  warehouses: ['warehouse_id (PK)', 'tenant_id (FK)', 'warehouse_code', 'warehouse_name', 'warehouse_type'],
+  warehouse_locations: ['location_id (PK)', 'tenant_id (FK)', 'warehouse_id (FK)', 'location_code', 'zone', 'rack', 'shelf', 'bin'],
+  stock_transfers: ['transfer_id (PK)', 'tenant_id (FK)', 'from_warehouse_id (FK)', 'to_warehouse_id (FK)', 'status'],
+  stock_transfer_items: ['item_id (PK)', 'transfer_id (FK)', 'product_id (FK)', 'from_location_id (FK)', 'to_location_id (FK)', 'quantity'],
+  stock_adjustments: ['adjustment_id (PK)', 'tenant_id (FK)', 'warehouse_id (FK)', 'adjustment_number', 'status'],
+  stock_adjustment_items: ['item_id (PK)', 'adjustment_id (FK)', 'product_id (FK)', 'location_id (FK)', 'quantity'],
+  fixed_assets: ['asset_id (PK)', 'tenant_id', 'asset_code', 'asset_name', 'category', 'purchase_cost', 'current_book_value', 'status', 'depreciation_method'],
+  asset_depreciation: ['dep_id (PK)', 'asset_id (FK)', 'depreciation_date', 'amount', 'accumulated'],
+  asset_maintenance: ['maint_id (PK)', 'asset_id (FK)', 'maintenance_date', 'type', 'cost'],
+  asset_transfers: ['transfer_id (PK)', 'asset_id (FK)', 'from_location', 'to_location', 'transfer_date'],
+  bank_accounts: ['bank_account_id (PK)', 'tenant_id', 'account_name', 'bank_name', 'account_number', 'iban', 'gl_account_id', 'current_balance'],
+  cheque_books: ['cheque_book_id (PK)', 'tenant_id', 'bank_account_id (FK)', 'book_number', 'start_leaf_no', 'end_leaf_no', 'status'],
+  cheque_leaves: ['leaf_id (PK)', 'tenant_id', 'cheque_book_id (FK)', 'bank_account_id (FK)', 'leaf_number', 'status', 'payee_name', 'realized_date', 'reconciled_date'],
+  product_warehouse_stock: ['stock_id (PK)', 'tenant_id', 'product_id (FK)', 'warehouse_id (FK)', 'location_id (FK)', 'quantity', 'reserved_qty', 'available_qty'],
+  stock_cost_layers: ['layer_id (PK)', 'tenant_id', 'product_id', 'location_id', 'received_at', 'original_qty', 'remaining_qty', 'unit_cost', 'reference_number'],
+  master_categories: ['category_id (PK)', 'category_code', 'category_name', 'is_global', 'module_id (FK)'],
+  master_values: ['value_id (PK)', 'category_id (FK)', 'tenant_id', 'value_code', 'value_label', 'parent_value_id (FK self)'],
+  document_configs: ['config_id (PK)', 'tenant_id', 'doc_type', 'terms_text', 'header_note', 'footer_note', 'show_signature', 'items_per_page'],
+  exchange_rates: ['rate_id (PK)', 'tenant_id', 'from_currency', 'to_currency', 'rate', 'effective_date'],
+  activities: ['activity_id (PK)', 'tenant_id', 'type', 'subject', 'due_date', 'status', 'related_to_type'],
+  customer_visits: ['visit_id (PK)', 'tenant_id', 'account_id', 'visit_date', 'notes', 'location_lat', 'location_lng'],
+  document_signatures: ['sig_id (PK)', 'tenant_id', 'doc_type', 'doc_id', 'signer_name', 'signature_data', 'signed_at'],
+  sales_targets: ['target_id (PK)', 'tenant_id', 'salesman_id', 'year', 'month', 'target_amount'],
+  po_asset_units: ['id (PK)', 'tenant_id', 'po_item_id (FK)', 'asset_id (FK)', 'serial_number'],
+  consumable_stock: ['stock_id (PK)', 'tenant_id', 'product_id (FK)', 'qty_on_hand', 'min_qty', 'last_received_date', 'last_issued_date'],
+  consumable_transactions: ['transaction_id (PK)', 'tenant_id', 'product_id (FK)', 'grn_id', 'transaction_type (RECEIPT/ISSUE)', 'quantity', 'balance_qty', 'reference_no (CIV)', 'department', 'issued_to_id', 'issued_to_name', 'reason'],
+  asset_brands: ['brand_id (PK)', 'tenant_id', 'brand_name'],
+  einvoice_settings: ['id (PK)', 'tenant_id', 'seller_name', 'crn', 'vat_number'],
+  einvoice_certificates: ['id (PK)', 'tenant_id', 'certificate_data', 'valid_from', 'valid_to'],
+  einvoice_submissions: ['id (PK)', 'tenant_id', 'invoice_id', 'submission_status', 'submitted_at'],
+  permissions: ['perm_id (PK)', 'tenant_id (FK)', 'user_group_id (FK)', 'module_id (FK)', 'sub_module_id (FK)', 'page_id (FK)', 'field_id (FK)', 'can_view', 'can_edit'],
+  modules: ['module_id (PK)', 'module_name', 'module_code'],
+  sub_modules: ['sub_module_id (PK)', 'module_id (FK)', 'sub_module_name'],
+  pages: ['page_id (PK)', 'sub_module_id (FK)', 'page_name', 'route'],
+  fields: ['field_id (PK)', 'page_id (FK)', 'field_name'],
+  pm_projects: ['project_id (PK)', 'tenant_id', 'project_name', 'status', 'budget', 'start_date', 'end_date'],
+  pm_tasks: ['task_id (PK)', 'tenant_id', 'project_id', 'title', 'status', 'priority', 'assigned_to'],
+  pm_milestones: ['milestone_id (PK)', 'tenant_id', 'project_id', 'name', 'due_date', 'status'],
+  pm_stages: ['stage_id (PK)', 'tenant_id', 'project_id', 'name', 'order'],
+  pm_risks: ['risk_id (PK)', 'tenant_id', 'project_id', 'description', 'probability', 'impact'],
+  pm_meetings: ['meeting_id (PK)', 'tenant_id', 'project_id', 'title', 'meeting_date', 'attendees (jsonb)', 'agenda_items (jsonb)', 'action_items (jsonb)'],
+  pm_feasibility: ['feasibility_id (PK)', 'tenant_id', 'project_id', 'scenario_name', 'discount_rate', 'initial_investment', 'cash_flows (jsonb)', 'npv', 'irr', 'roi', 'payback_periods', 'profitability_index', 'verdict'],
+  pm_resources: ['resource_id (PK)', 'tenant_id', 'project_id', 'user_id', 'role'],
+  pm_budget_entries: ['entry_id (PK)', 'tenant_id', 'project_id', 'category', 'amount'],
+  pm_change_requests: ['cr_id (PK)', 'tenant_id', 'project_id', 'title', 'status'],
+  pm_task_comments: ['comment_id (PK)', 'tenant_id', 'task_id', 'content', 'created_by'],
+  pm_task_documents: ['doc_id (PK)', 'tenant_id', 'task_id', 'file_name', 'file_url'],
+  password_reset_tokens: ['token_id (PK)', 'tenant_id', 'user_id (FK)', 'token (unique)', 'expires_at', 'used_at', 'created_at'],
+  plan_modules: ['id (PK)', 'plan', 'module_code', 'enabled'],
+  template_chart_of_accounts: ['account_id (PK)', 'account_code', 'account_name', 'account_type', 'parent_code'],
+  recurring_expenses: ['recurring_id (PK)', 'tenant_id', 'name', 'gen_type (JOURNAL/BILL)', 'amount', 'vat_pct', 'expense_account_code', 'credit_account_code', 'supplier_name', 'frequency', 'interval', 'day_of_month', 'next_due_date', 'end_date', 'post_mode (DRAFT/POSTED)', 'is_active'],
+  recurring_expense_log: ['log_id (PK)', 'recurring_id (FK)', 'tenant_id', 'period_date', 'gen_type', 'status (GENERATED/FAILED)', 'amount', 'generated_ref', 'created_at — UNIQUE(recurring_id, period_date)'],
+};
+
+const LINKS = [
+  {s:'asset_depreciation',sc:'asset_id',t:'fixed_assets',tc:'asset_id'},
+  {s:'asset_maintenance',sc:'asset_id',t:'fixed_assets',tc:'asset_id'},
+  {s:'asset_transfers',sc:'asset_id',t:'fixed_assets',tc:'asset_id'},
+  {s:'chart_of_accounts',sc:'parent_account_id',t:'chart_of_accounts',tc:'account_id'},
+  {s:'consumable_stock',sc:'product_id',t:'products',tc:'product_id'},
+  {s:'consumable_transactions',sc:'product_id',t:'products',tc:'product_id'},
+  {s:'stock_cost_layers',sc:'product_id',t:'products',tc:'product_id'},
+  {s:'stock_cost_layers',sc:'location_id',t:'warehouse_locations',tc:'location_id'},
+  {s:'pm_feasibility',sc:'project_id',t:'pm_projects',tc:'project_id'},
+  {s:'contacts',sc:'account_id',t:'accounts',tc:'account_id'},
+  {s:'delivery_note_items',sc:'dn_id',t:'delivery_notes',tc:'dn_id'},
+  {s:'goods_receipt_note_items',sc:'product_id',t:'products',tc:'product_id'},
+  {s:'goods_receipt_note_items',sc:'grn_id',t:'goods_receipt_notes',tc:'grn_id'},
+  {s:'goods_receipt_note_items',sc:'po_item_id',t:'purchase_order_items',tc:'item_id'},
+  {s:'goods_receipt_notes',sc:'po_id',t:'purchase_orders',tc:'po_id'},
+  {s:'goods_receipt_notes',sc:'supplier_id',t:'suppliers',tc:'supplier_id'},
+  {s:'journal_voucher_lines',sc:'account_id',t:'chart_of_accounts',tc:'account_id'},
+  {s:'journal_voucher_lines',sc:'voucher_id',t:'journal_vouchers',tc:'voucher_id'},
+  {s:'master_values',sc:'parent_value_id',t:'master_values',tc:'value_id'},
+  {s:'master_values',sc:'category_id',t:'master_categories',tc:'category_id'},
+  {s:'opportunities',sc:'account_id',t:'accounts',tc:'account_id'},
+  {s:'opportunities',sc:'lead_id',t:'leads',tc:'lead_id'},
+  {s:'opportunities',sc:'contact_id',t:'contacts',tc:'contact_id'},
+  {s:'opportunity_items',sc:'opportunity_id',t:'opportunities',tc:'opportunity_id'},
+  {s:'payment_vouchers',sc:'invoice_id',t:'purchase_invoices',tc:'invoice_id'},
+  {s:'payment_vouchers',sc:'supplier_id',t:'suppliers',tc:'supplier_id'},
+  {s:'po_asset_units',sc:'asset_id',t:'fixed_assets',tc:'asset_id'},
+  {s:'po_asset_units',sc:'po_item_id',t:'purchase_order_items',tc:'item_id'},
+  {s:'product_warehouse_stock',sc:'product_id',t:'products',tc:'product_id'},
+  {s:'product_warehouse_stock',sc:'warehouse_id',t:'warehouses',tc:'warehouse_id'},
+  {s:'product_warehouse_stock',sc:'location_id',t:'warehouse_locations',tc:'location_id'},
+  {s:'products',sc:'warehouse_id',t:'warehouses',tc:'warehouse_id'},
+  {s:'products',sc:'location_id',t:'warehouse_locations',tc:'location_id'},
+  {s:'purchase_invoice_items',sc:'product_id',t:'products',tc:'product_id'},
+  {s:'purchase_invoice_items',sc:'invoice_id',t:'purchase_invoices',tc:'invoice_id'},
+  {s:'purchase_invoices',sc:'grn_id',t:'goods_receipt_notes',tc:'grn_id'},
+  {s:'purchase_invoices',sc:'supplier_id',t:'suppliers',tc:'supplier_id'},
+  {s:'purchase_invoices',sc:'po_id',t:'purchase_orders',tc:'po_id'},
+  {s:'purchase_order_items',sc:'product_id',t:'products',tc:'product_id'},
+  {s:'purchase_order_items',sc:'po_id',t:'purchase_orders',tc:'po_id'},
+  {s:'purchase_orders',sc:'supplier_id',t:'suppliers',tc:'supplier_id'},
+  {s:'purchase_return_items',sc:'return_id',t:'purchase_returns',tc:'return_id'},
+  {s:'purchase_return_items',sc:'product_id',t:'products',tc:'product_id'},
+  {s:'purchase_returns',sc:'supplier_id',t:'suppliers',tc:'supplier_id'},
+  {s:'purchase_returns',sc:'grn_id',t:'goods_receipt_notes',tc:'grn_id'},
+  {s:'purchase_returns',sc:'invoice_id',t:'purchase_invoices',tc:'invoice_id'},
+  {s:'quotation_items',sc:'quotation_id',t:'quotations',tc:'quotation_id'},
+  {s:'sales_invoice_items',sc:'invoice_id',t:'sales_invoices',tc:'invoice_id'},
+  {s:'sales_return_items',sc:'return_id',t:'sales_returns',tc:'return_id'},
+  {s:'stock_adjustment_items',sc:'location_id',t:'warehouse_locations',tc:'location_id'},
+  {s:'stock_adjustment_items',sc:'product_id',t:'products',tc:'product_id'},
+  {s:'stock_adjustment_items',sc:'adjustment_id',t:'stock_adjustments',tc:'adjustment_id'},
+  {s:'stock_adjustments',sc:'warehouse_id',t:'warehouses',tc:'warehouse_id'},
+  {s:'stock_transfer_items',sc:'transfer_id',t:'stock_transfers',tc:'transfer_id'},
+  {s:'stock_transfer_items',sc:'product_id',t:'products',tc:'product_id'},
+  {s:'stock_transfer_items',sc:'from_location_id',t:'warehouse_locations',tc:'location_id'},
+  {s:'stock_transfer_items',sc:'to_location_id',t:'warehouse_locations',tc:'location_id'},
+  {s:'stock_transfers',sc:'from_warehouse_id',t:'warehouses',tc:'warehouse_id'},
+  {s:'stock_transfers',sc:'to_warehouse_id',t:'warehouses',tc:'warehouse_id'},
+  {s:'suppliers',sc:'account_id',t:'accounts',tc:'account_id'},
+  {s:'cheque_books',sc:'bank_account_id',t:'bank_accounts',tc:'bank_account_id'},
+  {s:'cheque_leaves',sc:'cheque_book_id',t:'cheque_books',tc:'cheque_book_id'},
+  {s:'cheque_leaves',sc:'bank_account_id',t:'bank_accounts',tc:'bank_account_id'},
+  {s:'users',sc:'user_group_id',t:'user_groups',tc:'user_group_id'},
+  {s:'permissions',sc:'user_group_id',t:'user_groups',tc:'user_group_id'},
+  {s:'fields',sc:'page_id',t:'pages',tc:'page_id'},
+  {s:'pages',sc:'sub_module_id',t:'sub_modules',tc:'sub_module_id'},
+  {s:'sub_modules',sc:'module_id',t:'modules',tc:'module_id'},
+  {s:'permissions',sc:'module_id',t:'modules',tc:'module_id'},
+  {s:'master_categories',sc:'module_id',t:'modules',tc:'module_id'},
+  {s:'warehouse_locations',sc:'warehouse_id',t:'warehouses',tc:'warehouse_id'},
+  {s:'password_reset_tokens',sc:'user_id',t:'users',tc:'user_id'},
+  {s:'recurring_expense_log',sc:'recurring_id',t:'recurring_expenses',tc:'recurring_id'},
+];
+
+// Layout: initial positions by group
+const POSITIONS = {
+  // Core (top center)
+  tenants:{x:900,y:80}, users:{x:700,y:80}, user_groups:{x:500,y:80}, user_sessions:{x:300,y:80},
+  permissions:{x:1100,y:80}, modules:{x:1300,y:80}, sub_modules:{x:1500,y:80}, pages:{x:1700,y:80},
+  fields:{x:1900,y:80}, master_categories:{x:2100,y:80}, master_values:{x:2300,y:80}, document_configs:{x:2500,y:80},
+  // CRM (left)
+  accounts:{x:80,y:300}, contacts:{x:80,y:460}, leads:{x:80,y:620}, opportunities:{x:80,y:780},
+  opportunity_items:{x:80,y:940}, customer_visits:{x:80,y:1100}, activities:{x:80,y:1260}, suppliers:{x:80,y:1420},
+  // Sales/Finance (center-left)
+  quotations:{x:480,y:300}, quotation_items:{x:480,y:460}, delivery_notes:{x:480,y:620},
+  delivery_note_items:{x:480,y:780}, sales_invoices:{x:480,y:940}, sales_invoice_items:{x:480,y:1100},
+  receipts:{x:480,y:1260}, sales_returns:{x:480,y:1420}, sales_return_items:{x:480,y:1580},
+  chart_of_accounts:{x:720,y:300}, journal_vouchers:{x:720,y:460}, journal_voucher_lines:{x:720,y:620},
+  exchange_rates:{x:720,y:780}, einvoice_settings:{x:720,y:940}, einvoice_certificates:{x:720,y:1100},
+  einvoice_submissions:{x:720,y:1260}, sales_targets:{x:720,y:1420},
+  // Purchase (center-right)
+  purchase_orders:{x:1100,y:300}, purchase_order_items:{x:1100,y:460}, goods_receipt_notes:{x:1100,y:620},
+  goods_receipt_note_items:{x:1100,y:780}, purchase_invoices:{x:1100,y:940}, purchase_invoice_items:{x:1100,y:1100},
+  payment_vouchers:{x:1100,y:1260}, purchase_returns:{x:1100,y:1420}, purchase_return_items:{x:1100,y:1580},
+  po_asset_units:{x:1100,y:1740},
+  // Inventory/WH (right-center)
+  products:{x:1500,y:300}, stock_movements:{x:1500,y:460}, product_warehouse_stock:{x:1500,y:620},
+  warehouses:{x:1500,y:780}, warehouse_locations:{x:1500,y:940}, stock_transfers:{x:1500,y:1100},
+  stock_transfer_items:{x:1500,y:1260}, stock_adjustments:{x:1500,y:1420}, stock_adjustment_items:{x:1500,y:1580},
+  consumable_stock:{x:1500,y:1740}, consumable_transactions:{x:1500,y:1900}, document_signatures:{x:1500,y:2060},
+  // Assets (right)
+  fixed_assets:{x:1900,y:300}, asset_depreciation:{x:1900,y:460}, asset_maintenance:{x:1900,y:620},
+  asset_transfers:{x:1900,y:780}, asset_brands:{x:1900,y:940},
+  // Bank (far right)
+  bank_accounts:{x:2300,y:300}, cheque_books:{x:2300,y:460}, cheque_leaves:{x:2300,y:620},
+  // PM (bottom right)
+  pm_projects:{x:2100,y:780}, pm_tasks:{x:2100,y:940}, pm_milestones:{x:2100,y:1100},
+  pm_stages:{x:2100,y:1260}, pm_risks:{x:2100,y:1420}, pm_meetings:{x:2100,y:1580},
+  pm_resources:{x:2300,y:780}, pm_budget_entries:{x:2300,y:940}, pm_change_requests:{x:2300,y:1100},
+  pm_task_comments:{x:2500,y:780}, pm_task_documents:{x:2500,y:940},
+};
+
+function getGroup(t) {
+  for (const [g, d] of Object.entries(GROUPS)) if (d.tables.includes(t)) return g;
+  return 'core';
+}
+function getColor(t) { return GROUPS[getGroup(t)]?.color || '#333'; }
+function getHeader(t) { return GROUPS[getGroup(t)]?.header || '#1a1a1a'; }
+
+const W = 200, H_HDR = 26, H_ROW = 18;
+function tableHeight(name) { return H_HDR + (TABLE_FIELDS[name]?.length || 3) * H_ROW + 6; }
+
+const svg = d3.select('#svg');
+const g = svg.append('g');
+
+// Zoom
+const zoom = d3.zoom().scaleExtent([0.05, 2]).on('zoom', e => g.attr('transform', e.transform));
+svg.call(zoom);
+
+// Defs for arrow markers
+const defs = svg.append('defs');
+const mkArrow = (id, color) => defs.append('marker').attr('id',id).attr('viewBox','0 -5 10 10').attr('refX',8).attr('refY',0).attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto').append('path').attr('d','M0,-5L10,0L0,5').attr('fill',color);
+mkArrow('arrow','#4a7ab5');
+mkArrow('arrow-hi','#7eb3ff');
+
+const nodes = [];
+for (const [name, pos] of Object.entries(POSITIONS)) {
+  nodes.push({ name, x: pos.x, y: pos.y });
+}
+
+// Draw links
+const linkG = g.append('g').attr('class','links');
+const linkEls = linkG.selectAll('.link').data(LINKS).enter().append('path')
+  .attr('class','link')
+  .attr('stroke', d => getColor(d.s))
+  .attr('marker-end','url(#arrow)')
+  .attr('id', (d,i) => 'link'+i);
+
+// Draw tables
+const tooltip = document.getElementById('tooltip');
+let activeNode = null;
+
+const nodeEls = g.selectAll('.table-group').data(nodes).enter().append('g')
+  .attr('class','table-group')
+  .attr('transform', d => `translate(${d.x},${d.y})`)
+  .call(d3.drag()
+    .on('start', function(e,d) { d3.select(this).raise(); })
+    .on('drag', function(e,d) {
+      d.x += e.dx; d.y += e.dy;
+      d3.select(this).attr('transform',`translate(${d.x},${d.y})`);
+      updateLinks();
+    })
+  )
+  .on('click', function(e,d) {
+    e.stopPropagation();
+    if (activeNode === d.name) {
+      clearHighlight();
+    } else {
+      highlightTable(d.name);
+    }
+  })
+  .on('mouseover', function(e,d) {
+    tooltip.style.display = 'block';
+    const fields = TABLE_FIELDS[d.name] || [];
+    const grp = getGroup(d.name);
+    tooltip.innerHTML = `<div class="tt-title">📋 ${d.name}</div>
+      <div class="tt-row"><span class="tt-key">Group</span><span class="tt-val" style="color:${getColor(d.name)}">${grp.toUpperCase()}</span></div>
+      <div class="tt-row"><span class="tt-key">Fields</span><span class="tt-val">${fields.length}</span></div>
+      <div style="margin-top:6px;font-size:11px;color:#aaa">${fields.slice(0,6).join('<br>')}</div>
+      ${fields.length>6?`<div style="color:#666;font-size:10px">...and ${fields.length-6} more</div>`:''}`;
+  })
+  .on('mousemove', e => { tooltip.style.left=(e.clientX+14)+'px'; tooltip.style.top=(e.clientY-10)+'px'; })
+  .on('mouseleave', () => { tooltip.style.display='none'; });
+
+// Card background
+nodeEls.append('rect').attr('class','card')
+  .attr('width',W).attr('height',d=>tableHeight(d.name))
+  .attr('rx',8).attr('ry',8)
+  .attr('fill','#141e2c').attr('stroke',d=>getColor(d.name)).attr('stroke-width',1.5);
+
+// Header
+nodeEls.append('rect').attr('class','header')
+  .attr('width',W).attr('height',H_HDR)
+  .attr('rx',8).attr('ry',8)
+  .attr('fill',d=>getHeader(d.name));
+
+nodeEls.append('rect').attr('y',H_HDR-8).attr('width',W).attr('height',10).attr('fill',d=>getHeader(d.name));
+
+// Table name
+nodeEls.append('text').attr('x',W/2).attr('y',H_HDR-8)
+  .attr('text-anchor','middle').attr('dominant-baseline','hanging')
+  .attr('fill','#ffffff').attr('font-size',11).attr('font-weight',700)
+  .attr('y', 8)
+  .text(d=>d.name);
+
+// Fields
+nodeEls.each(function(d) {
+  const fields = TABLE_FIELDS[d.name] || [];
+  const el = d3.select(this);
+  fields.forEach((f,i) => {
+    const isPK = f.includes('(PK)');
+    const isFK = f.includes('(FK)');
+    el.append('text')
+      .attr('x', 8).attr('y', H_HDR + 4 + i*H_ROW + H_ROW/2)
+      .attr('dominant-baseline','middle')
+      .attr('fill', isPK ? '#ffd700' : isFK ? '#7eb3ff' : '#aaaaaa')
+      .attr('font-size', 10)
+      .attr('font-family','Courier New')
+      .text(f.length > 26 ? f.slice(0,25)+'…' : f);
+  });
+});
+
+function updateLinks() {
+  linkEls.attr('d', d => {
+    const sn = nodes.find(n=>n.name===d.s);
+    const tn = nodes.find(n=>n.name===d.t);
+    if (!sn || !tn) return '';
+    const sx = sn.x + W, sy = sn.y + H_HDR/2;
+    const tx = tn.x, ty = tn.y + H_HDR/2;
+    const mx = (sx+tx)/2;
+    return `M${sx},${sy} C${mx},${sy} ${mx},${ty} ${tx},${ty}`;
+  });
+}
+
+function highlightTable(name) {
+  activeNode = name;
+  const related = new Set([name]);
+  LINKS.forEach(l => { if(l.s===name||l.t===name) { related.add(l.s); related.add(l.t); }});
+  nodeEls.classed('highlighted', d => related.has(d.name));
+  nodeEls.classed('dimmed', d => !related.has(d.name));
+  linkEls.classed('highlighted', d => d.s===name||d.t===name);
+  linkEls.classed('dimmed', d => d.s!==name&&d.t!==name);
+  linkEls.attr('marker-end', d => (d.s===name||d.t===name)?'url(#arrow-hi)':'url(#arrow)');
+  linkEls.attr('stroke', d => (d.s===name||d.t===name)?'#7eb3ff':getColor(d.s));
+}
+
+function clearHighlight() {
+  activeNode = null;
+  nodeEls.classed('highlighted dimmed', false);
+  linkEls.classed('highlighted dimmed', false);
+  linkEls.attr('marker-end','url(#arrow)');
+  linkEls.attr('stroke', d => getColor(d.s));
+}
+
+svg.on('click', clearHighlight);
+
+function filterGroup(grp) {
+  if (grp === 'all') {
+    nodeEls.style('display','block');
+    linkEls.style('display','block');
+  } else {
+    const visible = GROUPS[grp]?.tables || [];
+    nodeEls.style('display', d => visible.includes(d.name) ? 'block' : 'none');
+    linkEls.style('display', d => visible.includes(d.s) || visible.includes(d.t) ? 'block' : 'none');
+  }
+  clearHighlight();
+}
+
+document.getElementById('search').addEventListener('input', function() {
+  const q = this.value.toLowerCase().trim();
+  if (!q) { nodeEls.style('opacity',1); return; }
+  nodeEls.style('opacity', d => d.name.includes(q) ? 1 : 0.1);
+  if (q.length > 2) {
+    const exact = nodes.find(n=>n.name.includes(q));
+    if (exact) highlightTable(exact.name);
+  }
+});
+
+function resetView() {
+  svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity.translate(0,0).scale(0.3));
+  clearHighlight();
+}
+
+updateLinks();
+// Initial zoom to fit
+setTimeout(() => {
+  svg.call(zoom.transform, d3.zoomIdentity.translate(20,20).scale(0.28));
+}, 100);
+</script>
+</body>
+</html>
