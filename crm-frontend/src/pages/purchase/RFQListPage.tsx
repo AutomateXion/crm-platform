@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Typography, Tag, Space, Modal, Form, Input, DatePicker,
          Select, InputNumber, message, Popconfirm, Tooltip, Row, Col, Divider } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, StopOutlined,
-         EyeOutlined, FileSearchOutlined, DeleteRowOutlined } from '@ant-design/icons';
+         EyeOutlined, FileSearchOutlined, DeleteRowOutlined, SendOutlined, LinkOutlined, CopyOutlined } from '@ant-design/icons';
 import { rfqApi, suppliersApi, productsApi } from '../../services/salesApi';
 import dayjs from 'dayjs';
 
@@ -26,6 +26,10 @@ export default function RFQListPage() {
   const [items, setItems] = useState<any[]>([]);
   const [vendorIds, setVendorIds] = useState<string[]>([]);
   const [form] = Form.useForm();
+  const [linksModalOpen, setLinksModalOpen] = useState(false);
+  const [vendorLinks, setVendorLinks] = useState<any[]>([]);
+  const [linksRfq, setLinksRfq] = useState<any>(null);
+  const [sending, setSending] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,6 +119,35 @@ export default function RFQListPage() {
   const doCancel = async (row: any) => { try { await rfqApi.cancel(row.rfqId); message.success('RFQ cancelled'); load(); } catch { message.error('Cancel failed'); } };
   const doDelete = async (row: any) => { try { await rfqApi.delete(row.rfqId); message.success('RFQ deleted'); load(); } catch (e: any) { message.error(e.response?.data?.message || 'Delete failed'); } };
 
+  const doSend = async (row: any) => {
+    setSending(true);
+    try {
+      const r = await rfqApi.send(row.rfqId, { frontendBaseUrl: window.location.origin });
+      message.success(r.data?.message || 'Invitations processed');
+      load();
+      // immediately show the links so the buyer can copy/share
+      openLinks(row);
+    } catch (e: any) {
+      message.error(e.response?.data?.message || 'Could not send invitations');
+    } finally { setSending(false); }
+  };
+
+  const openLinks = async (row: any) => {
+    try {
+      const r = await rfqApi.getVendorLinks(row.rfqId);
+      setVendorLinks(Array.isArray(r.data) ? r.data : []);
+      setLinksRfq(row);
+      setLinksModalOpen(true);
+    } catch { message.error('Could not load vendor links'); }
+  };
+
+  const copyLink = (link: string) => {
+    navigator.clipboard?.writeText(link).then(
+      () => message.success('Link copied'),
+      () => message.warning('Copy failed — select and copy manually')
+    );
+  };
+
   const columns = [
     { title: 'RFQ #', dataIndex: 'rfqNumber', key: 'num', width: 150, render: (v: string) => <Text strong>{v}</Text> },
     { title: 'Title', dataIndex: 'title', key: 'title' },
@@ -129,6 +162,12 @@ export default function RFQListPage() {
     { title: '', key: 'actions', width: 140, render: (_: any, r: any) => (
       <Space>
         {r.status === 'DRAFT' && <Tooltip title="Edit"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>}
+        {['DRAFT', 'SENT'].includes(r.status) && (
+          <Popconfirm title={r.status === 'SENT' ? 'Re-send invitations to all vendors?' : 'Send invitations to all invited vendors?'} onConfirm={() => doSend(r)}>
+            <Tooltip title="Send invitations"><Button size="small" type="primary" ghost icon={<SendOutlined />} loading={sending} /></Tooltip>
+          </Popconfirm>)}
+        {['SENT', 'CLOSED', 'AWARDED'].includes(r.status) && (
+          <Tooltip title="Vendor links"><Button size="small" icon={<LinkOutlined />} onClick={() => openLinks(r)} /></Tooltip>)}
         {['DRAFT', 'SENT'].includes(r.status) && (
           <Popconfirm title="Cancel this RFQ?" onConfirm={() => doCancel(r)}>
             <Tooltip title="Cancel"><Button size="small" icon={<StopOutlined />} /></Tooltip>
@@ -208,6 +247,28 @@ export default function RFQListPage() {
             <TextArea rows={2} placeholder="Payment terms, delivery expectations, validity required, etc." />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal title={`Vendor quote links${linksRfq ? ' — ' + linksRfq.rfqNumber : ''}`} open={linksModalOpen}
+        onCancel={() => setLinksModalOpen(false)} footer={null} width={760}>
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          Each link is unique to one vendor and opens their private quote form. Share manually (e.g. email, WhatsApp) if automatic email is off.
+        </Text>
+        <Table style={{ marginTop: 12 }} dataSource={vendorLinks} rowKey={(r: any) => r.vendorName + r.link}
+          size="small" pagination={false}
+          columns={[
+            { title: 'Vendor', dataIndex: 'vendorName', render: (v: string, r: any) => (
+              <Space direction="vertical" size={0}>
+                <Text strong>{v}</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>{r.vendorEmail || 'no email'}</Text>
+              </Space>) },
+            { title: 'Status', dataIndex: 'status', width: 100, render: (v: string) => <Tag>{v}</Tag> },
+            { title: 'Link', key: 'link', render: (_: any, r: any) => (
+              <Space>
+                <Input value={r.link} readOnly size="small" style={{ width: 320 }} />
+                <Tooltip title="Copy"><Button size="small" icon={<CopyOutlined />} onClick={() => copyLink(r.link)} /></Tooltip>
+              </Space>) },
+          ] as any} />
       </Modal>
     </div>
   );

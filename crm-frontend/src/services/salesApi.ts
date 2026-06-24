@@ -114,6 +114,8 @@ export const rfqApi = {
   update: (id: string, data: any) => salesApi.put(`/sales/rfqs/${id}`, data),
   delete: (id: string) => salesApi.delete(`/sales/rfqs/${id}`),
   cancel: (id: string) => salesApi.patch(`/sales/rfqs/${id}/cancel`),
+  send: (id: string, body?: any) => salesApi.post(`/sales/rfqs/${id}/send`, body || {}),
+  getVendorLinks: (id: string) => salesApi.get(`/sales/rfqs/${id}/vendor-links`),
 };
 
 export const grnsApi = {
