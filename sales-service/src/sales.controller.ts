@@ -68,6 +68,10 @@ export class SalesController {
   getFieldMyOrders(@Request() req: any, @Query() q: any) {
     return this.svc.getFieldMyOrders(req.user.tenantId, req.user.userId, q.scope || 'mine', +q.limit || 60);
   }
+  @Get('field/customers/:id/open-invoices')
+  getFieldCustomerOpenInvoices(@Request() req: any, @Param('id') id: string) {
+    return this.svc.getFieldCustomerOpenInvoices(req.user.tenantId, id);
+  }
   @Get('field/collections')
   getFieldCollections(@Request() req: any, @Query() q: any) {
     return this.svc.getFieldCollections(req.user.tenantId, q.overdue === 'true', +q.limit || 100);

@@ -5635,6 +5635,23 @@ Rules:
     return { items, totalOutstanding, totalOverdue, count: items.length };
   }
 
+    // ── Field Sales: open invoices for a customer (to allocate a collection) ──
+  async getFieldCustomerOpenInvoices(tenantId: string, accountId: string): Promise<any> {
+    const rows = await this.invoiceRepo.query(
+      `SELECT invoice_id AS "invoiceId", invoice_number AS "invoiceNumber",
+              invoice_date AS "invoiceDate", due_date AS "dueDate",
+              total_amount AS "totalAmount", balance_due AS "balanceDue"
+       FROM sales_invoices
+       WHERE account_id = $1 AND tenant_id::text = $2::text AND balance_due > 0
+       ORDER BY due_date ASC NULLS LAST`,
+      [accountId, tenantId]);
+    return rows.map((r: any) => ({
+      invoiceId: r.invoiceId, invoiceNumber: r.invoiceNumber,
+      invoiceDate: r.invoiceDate, dueDate: r.dueDate,
+      totalAmount: Number(r.totalAmount) || 0, balanceDue: Number(r.balanceDue) || 0,
+    }));
+  }
+
     async getReorderReport(tenantId: string, filters: any = {}) {
     const qb = this.productRepo.createQueryBuilder('p')
       .where('p.tenantId = :tenantId', { tenantId })
