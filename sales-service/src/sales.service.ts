@@ -5491,9 +5491,9 @@ Rules:
               a.credit_limit AS "creditLimit", a.credit_blocked AS "creditBlocked",
               a.credit_block_reason AS "creditBlockReason", a.assigned_to AS "assignedTo",
               COALESCE((SELECT SUM(i.balance_due) FROM sales_invoices i
-                        WHERE i.account_id = a.account_id::text AND i.tenant_id::text = a.tenant_id::text), 0) AS "outstanding",
+                        WHERE (i.account_id = a.account_id::text OR i.customer_name = a.account_name) AND i.tenant_id::text = a.tenant_id::text), 0) AS "outstanding",
               COALESCE((SELECT SUM(i.balance_due) FROM sales_invoices i
-                        WHERE i.account_id = a.account_id::text AND i.tenant_id::text = a.tenant_id::text
+                        WHERE (i.account_id = a.account_id::text OR i.customer_name = a.account_name) AND i.tenant_id::text = a.tenant_id::text
                           AND i.balance_due > 0 AND i.due_date < CURRENT_DATE), 0) AS "overdue"
        FROM accounts a
        WHERE ${where}
@@ -5536,7 +5536,8 @@ Rules:
          COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE - 30 AND due_date >= CURRENT_DATE - 60 THEN balance_due ELSE 0 END),0) AS d60,
          COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE - 60 THEN balance_due ELSE 0 END),0) AS d90
        FROM sales_invoices
-       WHERE account_id = $1 AND tenant_id::text = $2::text AND balance_due > 0`,
+       WHERE (account_id = $1 OR customer_name = (SELECT account_name FROM accounts WHERE account_id = $1::uuid))
+         AND tenant_id::text = $2::text AND balance_due > 0`,
       [accountId, tenantId]);
     const ag = aging[0] || {};
 
@@ -5546,7 +5547,8 @@ Rules:
               due_date AS "dueDate", total_amount AS "totalAmount",
               paid_amount AS "paidAmount", balance_due AS "balanceDue", status
        FROM sales_invoices
-       WHERE account_id = $1 AND tenant_id::text = $2::text
+       WHERE (account_id = $1 OR customer_name = (SELECT account_name FROM accounts WHERE account_id = $1::uuid))
+         AND tenant_id::text = $2::text
        ORDER BY invoice_date DESC NULLS LAST LIMIT 8`,
       [accountId, tenantId]);
 
@@ -5642,7 +5644,8 @@ Rules:
               invoice_date AS "invoiceDate", due_date AS "dueDate",
               total_amount AS "totalAmount", balance_due AS "balanceDue"
        FROM sales_invoices
-       WHERE account_id = $1 AND tenant_id::text = $2::text AND balance_due > 0
+       WHERE (account_id = $1 OR customer_name = (SELECT account_name FROM accounts WHERE account_id = $1::uuid))
+         AND tenant_id::text = $2::text AND balance_due > 0
        ORDER BY due_date ASC NULLS LAST`,
       [accountId, tenantId]);
     return rows.map((r: any) => ({
