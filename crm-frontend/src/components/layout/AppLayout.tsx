@@ -62,6 +62,7 @@ const NAV_ITEMS = [
       { key: '/field/customers',      icon: <TeamOutlined />,        label: 'Customer Snapshot' },
       { key: '/field/my-orders',      icon: <FileTextOutlined />,    label: 'My Orders' },
       { key: '/field/collections',    icon: <DollarOutlined />,      label: 'Collections' },
+      { key: '/field/collect',        icon: <DollarOutlined />,      label: 'Record Collection' },
     ],
   },
   {
