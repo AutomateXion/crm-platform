@@ -123,6 +123,14 @@ export default function MasterDataPage() {
         <Text type="secondary">Configure all dropdown values, statuses and classifications used across the CRM</Text>
       </div>
 
+      <Collapse
+        style={{ marginBottom: 16, borderRadius: 12 }}
+        items={[{
+          key: 'product-search',
+          label: 'Product Search Settings — choose which product fields are searchable',
+          children: <ProductSearchSettings />,
+        }]}
+      />
       <Row gutter={16}>
         {/* Left — Categories */}
         <Col xs={24} md={8} lg={7}>
