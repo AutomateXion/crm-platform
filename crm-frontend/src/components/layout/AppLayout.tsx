@@ -59,6 +59,7 @@ const NAV_ITEMS = [
     children: [
       { key: '/crm/field-sales',      icon: <EnvironmentOutlined />, label: 'Visits & Orders' },
       { key: '/field/availability',   icon: <ShopOutlined />,        label: 'Product Availability' },
+      { key: '/field/customers',      icon: <TeamOutlined />,        label: 'Customer Snapshot' },
     ],
   },
   {

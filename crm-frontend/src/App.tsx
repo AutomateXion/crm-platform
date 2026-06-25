@@ -90,6 +90,7 @@ import SuppliersPage         from './pages/purchase/SuppliersPage';
 import PurchaseOrdersPage    from './pages/purchase/PurchaseOrdersPage';
 import RFQListPage          from './pages/purchase/RFQListPage';
 import ProductAvailabilityPage from './pages/fieldsales/ProductAvailabilityPage';
+import CustomerSnapshotPage from './pages/fieldsales/CustomerSnapshotPage';
 import VendorQuotePage      from './pages/purchase/VendorQuotePage';
 import GRNPage               from './pages/purchase/GRNPage';
 import PurchaseInvoicesPage  from './pages/purchase/PurchaseInvoicesPage';
@@ -126,6 +127,7 @@ export default function App() {
         <Route path="permissions" element={<PermissionMatrixPage />} />
         <Route path="masters"     element={<MasterDataPage />} />
         <Route path="field/availability" element={<ProductAvailabilityPage />} />
+        <Route path="field/customers" element={<CustomerSnapshotPage />} />
         <Route path="onboarding"  element={<OnboardingPage />} />
         <Route path="recurring-expenses" element={<RecurringExpensesPage />} />
         <Route path="settings"    element={<TenantSettingsPage />} />
