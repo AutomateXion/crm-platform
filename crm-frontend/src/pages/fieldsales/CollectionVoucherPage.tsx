@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, Input, Typography, Tag, Spin, Empty, Select, InputNumber, DatePicker,
          Button, Checkbox, message, Divider, Row, Col, Result } from 'antd';
 import { DollarOutlined, SaveOutlined, CheckCircleFilled } from '@ant-design/icons';
@@ -32,6 +32,7 @@ export default function CollectionVoucherPage() {
   const [chequeDate, setChequeDate] = useState<any>(null);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const submitGuard = useRef(false);
   const [done, setDone] = useState<any>(null);
 
   const searchCustomers = useCallback((term: string) => {
@@ -66,10 +67,12 @@ export default function CollectionVoucherPage() {
   };
 
   const submit = async () => {
+    if (submitGuard.current || saving) return; // prevent double-submission
     if (!accountId) { message.warning('Select a customer'); return; }
     if (!amount || amount <= 0) { message.warning('Enter the amount collected'); return; }
     if (method === 'CHEQUE' && !chequeNumber) { message.warning('Enter the cheque number'); return; }
     setSaving(true);
+    submitGuard.current = true;
     try {
       const dto: any = {
         accountId, customerName, amount,
@@ -89,10 +92,12 @@ export default function CollectionVoucherPage() {
       setDone(r.data);
     } catch (e: any) {
       message.error(e.response?.data?.message || 'Could not record collection');
+      submitGuard.current = false; // allow retry on failure
     } finally { setSaving(false); }
   };
 
   const reset = () => {
+    submitGuard.current = false;
     setDone(null); setAccountId(undefined); setCustomerName(''); setInvoices([]);
     setSelectedInvoices([]); setAmount(undefined); setMethod('CASH'); setReceiptDate(dayjs());
     setReference(''); setChequeNumber(''); setChequeBank(''); setChequeDate(null); setNotes('');
