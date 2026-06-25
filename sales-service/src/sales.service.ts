@@ -5477,6 +5477,108 @@ Rules:
     }));
   }
 
+    // ── Field Sales: Customer Snapshot ──────────────────────────────────────
+  // List customers with outstanding-at-a-glance (show-all for now; rep scoping later).
+  async getFieldCustomers(tenantId: string, search?: string, limit = 60): Promise<any> {
+    const params: any[] = [tenantId];
+    let where = `a.tenant_id::text = $1::text AND a.is_customer = true`;
+    if (search) {
+      params.push(`%${search}%`);
+      where += ` AND a.account_name ILIKE $${params.length}`;
+    }
+    const rows = await this.invoiceRepo.query(
+      `SELECT a.account_id AS "accountId", a.account_name AS "accountName",
+              a.credit_limit AS "creditLimit", a.credit_blocked AS "creditBlocked",
+              a.credit_block_reason AS "creditBlockReason", a.assigned_to AS "assignedTo",
+              COALESCE((SELECT SUM(i.balance_due) FROM sales_invoices i
+                        WHERE i.account_id = a.account_id::text AND i.tenant_id::text = a.tenant_id::text), 0) AS "outstanding",
+              COALESCE((SELECT SUM(i.balance_due) FROM sales_invoices i
+                        WHERE i.account_id = a.account_id::text AND i.tenant_id::text = a.tenant_id::text
+                          AND i.balance_due > 0 AND i.due_date < CURRENT_DATE), 0) AS "overdue"
+       FROM accounts a
+       WHERE ${where}
+       ORDER BY a.account_name ASC
+       LIMIT ${Number(limit) || 60}`,
+      params);
+    return rows.map((r: any) => {
+      const outstanding = Number(r.outstanding) || 0;
+      const overdue = Number(r.overdue) || 0;
+      const creditLimit = Number(r.creditLimit) || 0;
+      let creditStatus = 'OK';
+      if (r.creditBlocked) creditStatus = 'BLOCKED';
+      else if (creditLimit > 0 && outstanding >= creditLimit) creditStatus = 'OVER_LIMIT';
+      else if (creditLimit > 0 && outstanding >= creditLimit * 0.8) creditStatus = 'NEAR_LIMIT';
+      return {
+        accountId: r.accountId, accountName: r.accountName,
+        creditLimit, creditBlocked: !!r.creditBlocked, creditBlockReason: r.creditBlockReason,
+        assignedTo: r.assignedTo, outstanding, overdue, creditStatus,
+      };
+    });
+  }
+
+  // Full snapshot for one customer: credit, outstanding, aging, recent invoices, overdue.
+  async getFieldCustomerSnapshot(tenantId: string, accountId: string): Promise<any> {
+    const accRows = await this.invoiceRepo.query(
+      `SELECT a.account_id AS "accountId", a.account_name AS "accountName",
+              a.credit_limit AS "creditLimit", a.credit_period_days AS "creditPeriodDays",
+              a.credit_blocked AS "creditBlocked", a.credit_block_reason AS "creditBlockReason"
+       FROM accounts a WHERE a.account_id = $1 AND a.tenant_id::text = $2::text`,
+      [accountId, tenantId]);
+    if (!accRows.length) throw new BadRequestException('Customer not found');
+    const acc = accRows[0];
+
+    // Outstanding + aging buckets (by due_date vs today)
+    const aging = await this.invoiceRepo.query(
+      `SELECT
+         COALESCE(SUM(balance_due),0) AS total,
+         COALESCE(SUM(CASE WHEN due_date >= CURRENT_DATE OR due_date IS NULL THEN balance_due ELSE 0 END),0) AS current,
+         COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE AND due_date >= CURRENT_DATE - 30 THEN balance_due ELSE 0 END),0) AS d30,
+         COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE - 30 AND due_date >= CURRENT_DATE - 60 THEN balance_due ELSE 0 END),0) AS d60,
+         COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE - 60 THEN balance_due ELSE 0 END),0) AS d90
+       FROM sales_invoices
+       WHERE account_id = $1 AND tenant_id::text = $2::text AND balance_due > 0`,
+      [accountId, tenantId]);
+    const ag = aging[0] || {};
+
+    // Recent invoices (last 8)
+    const recent = await this.invoiceRepo.query(
+      `SELECT invoice_number AS "invoiceNumber", invoice_date AS "invoiceDate",
+              due_date AS "dueDate", total_amount AS "totalAmount",
+              paid_amount AS "paidAmount", balance_due AS "balanceDue", status
+       FROM sales_invoices
+       WHERE account_id = $1 AND tenant_id::text = $2::text
+       ORDER BY invoice_date DESC NULLS LAST LIMIT 8`,
+      [accountId, tenantId]);
+
+    const outstanding = Number(ag.total) || 0;
+    const creditLimit = Number(acc.creditLimit) || 0;
+    let creditStatus = 'OK';
+    if (acc.creditBlocked) creditStatus = 'BLOCKED';
+    else if (creditLimit > 0 && outstanding >= creditLimit) creditStatus = 'OVER_LIMIT';
+    else if (creditLimit > 0 && outstanding >= creditLimit * 0.8) creditStatus = 'NEAR_LIMIT';
+
+    return {
+      accountId: acc.accountId, accountName: acc.accountName,
+      creditLimit, creditPeriodDays: Number(acc.creditPeriodDays) || 0,
+      creditBlocked: !!acc.creditBlocked, creditBlockReason: acc.creditBlockReason,
+      creditStatus,
+      outstanding,
+      available: creditLimit > 0 ? Math.max(creditLimit - outstanding, 0) : null,
+      aging: {
+        current: Number(ag.current) || 0,
+        d30: Number(ag.d30) || 0,
+        d60: Number(ag.d60) || 0,
+        d90: Number(ag.d90) || 0,
+      },
+      recentInvoices: recent.map((i: any) => ({
+        invoiceNumber: i.invoiceNumber, invoiceDate: i.invoiceDate, dueDate: i.dueDate,
+        totalAmount: Number(i.totalAmount) || 0, paidAmount: Number(i.paidAmount) || 0,
+        balanceDue: Number(i.balanceDue) || 0, status: i.status,
+        overdue: i.balanceDue > 0 && i.dueDate && new Date(i.dueDate) < new Date(),
+      })),
+    };
+  }
+
     async getReorderReport(tenantId: string, filters: any = {}) {
     const qb = this.productRepo.createQueryBuilder('p')
       .where('p.tenantId = :tenantId', { tenantId })

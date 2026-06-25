@@ -64,6 +64,14 @@ export class SalesController {
   }
 
   // Field Sales — product availability & price (mobile)
+  @Get('field/customers')
+  getFieldCustomers(@Request() req: any, @Query() q: any) {
+    return this.svc.getFieldCustomers(req.user.tenantId, q.search, +q.limit || 60);
+  }
+  @Get('field/customers/:id/snapshot')
+  getFieldCustomerSnapshot(@Request() req: any, @Param('id') id: string) {
+    return this.svc.getFieldCustomerSnapshot(req.user.tenantId, id);
+  }
   @Get('field/products')
   getFieldProductAvailability(@Request() req: any, @Query() q: any) {
     return this.svc.getFieldProductAvailability(req.user.tenantId, q.search, +q.limit || 50);
