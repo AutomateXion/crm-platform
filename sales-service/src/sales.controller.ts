@@ -63,6 +63,16 @@ export class SalesController {
     return this.svc.updateProductSearchSettings(req.user.tenantId, body?.fields || []);
   }
 
+  // Field Sales — product availability & price (mobile)
+  @Get('field/products')
+  getFieldProductAvailability(@Request() req: any, @Query() q: any) {
+    return this.svc.getFieldProductAvailability(req.user.tenantId, q.search, +q.limit || 50);
+  }
+  @Get('field/products/:id/stock')
+  getFieldProductStock(@Request() req: any, @Param('id') id: string) {
+    return this.svc.getFieldProductStock(req.user.tenantId, id);
+  }
+
   @Get('reports/reorder-management')
   getReorderReport(@Request() req: any, @Query() q: any) {
     return this.svc.getReorderReport(req.user.tenantId, q);

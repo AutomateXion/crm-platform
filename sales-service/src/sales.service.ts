@@ -5414,6 +5414,69 @@ Rules:
     return { success: true, enabled: clean };
   }
 
+    // ── Field Sales: Product Availability & Price ───────────────────────────
+  // Mobile view for reps: searchable products with price + live stock per warehouse.
+  // Uses the tenant's configured product search fields.
+  async getFieldProductAvailability(tenantId: string, search?: string, limit = 50): Promise<any> {
+    const params: any[] = [tenantId];
+    let where = 'p.tenant_id = $1 AND p.is_active = true';
+    if (search) {
+      const fields = await this.resolveProductSearchFields(tenantId); // entity props
+      // map entity props -> db columns for raw SQL
+      const propToCol: any = {
+        productName: 'product_name', productNameAr: 'product_name_ar', productCode: 'product_code',
+        brand: 'brand', category: 'category', barcode: 'barcode', partNumber: 'part_number',
+        modelNumber: 'model_number', designNumber: 'design_number', manufacturer: 'manufacturer',
+        hsCode: 'hs_code', description: 'description',
+      };
+      const cols = fields.map(f => propToCol[f]).filter(Boolean);
+      if (cols.length) {
+        params.push(`%${search}%`);
+        const ors = cols.map(c => `p.${c} ILIKE $${params.length}`).join(' OR ');
+        where += ` AND (${ors})`;
+      }
+    }
+    const rows = await this.productRepo.query(
+      `SELECT p.product_id AS "productId", p.product_code AS "productCode",
+              p.product_name AS "productName", p.brand, p.category,
+              p.unit_of_measure AS "unitOfMeasure", p.unit_price AS "unitPrice",
+              p.currency_code AS "currencyCode", p.is_inventory_item AS "isInventory",
+              p.track_stock AS "trackStock",
+              COALESCE((SELECT SUM(pws.available_qty) FROM product_warehouse_stock pws
+                        WHERE pws.product_id = p.product_id), 0) AS "totalAvailable",
+              p.min_stock_qty AS "minStock"
+       FROM products p
+       WHERE ${where}
+       ORDER BY p.product_name ASC
+       LIMIT ${Number(limit) || 50}`,
+      params);
+    return rows.map((r: any) => ({
+      ...r,
+      unitPrice: Number(r.unitPrice) || 0,
+      totalAvailable: Number(r.totalAvailable) || 0,
+      minStock: Number(r.minStock) || 0,
+      // stock status only meaningful for stock-tracked inventory items
+      stockTracked: !!(r.isInventory && r.trackStock),
+    }));
+  }
+
+  // Per-warehouse breakdown for one product (tapped on the availability card)
+  async getFieldProductStock(tenantId: string, productId: string): Promise<any> {
+    const rows = await this.productRepo.query(
+      `SELECT warehouse_name AS "warehouseName", location_code AS "locationCode",
+              quantity, reserved_qty AS "reservedQty", available_qty AS "availableQty"
+       FROM product_warehouse_stock
+       WHERE tenant_id::text = $1::text AND product_id::text = $2::text
+       ORDER BY warehouse_name`,
+      [tenantId, productId]);
+    return rows.map((r: any) => ({
+      warehouseName: r.warehouseName, locationCode: r.locationCode,
+      quantity: Number(r.quantity) || 0,
+      reservedQty: Number(r.reservedQty) || 0,
+      availableQty: Number(r.availableQty) || 0,
+    }));
+  }
+
     async getReorderReport(tenantId: string, filters: any = {}) {
     const qb = this.productRepo.createQueryBuilder('p')
       .where('p.tenantId = :tenantId', { tenantId })
