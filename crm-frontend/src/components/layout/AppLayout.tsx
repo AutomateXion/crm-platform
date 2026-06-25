@@ -55,7 +55,14 @@ const NAV_ITEMS = [
     ],
   },
   {
-    key: 'purchase-grp', icon: <ShoppingCartOutlined />, label: 'Purchase',
+    key: 'fieldsales-grp', icon: <EnvironmentOutlined />, label: 'Field Sales',
+    children: [
+      { key: '/crm/field-sales',      icon: <EnvironmentOutlined />, label: 'Visits & Orders' },
+      { key: '/field/availability',   icon: <ShopOutlined />,        label: 'Product Availability' },
+    ],
+  },
+  {
+        key: 'purchase-grp', icon: <ShoppingCartOutlined />, label: 'Purchase',
     children: [
       { key: '/purchase/suppliers', icon: <ShopOutlined />,        label: 'Suppliers' },
       { key: '/purchase/rfqs',      icon: <FileSearchOutlined />,  label: 'RFQ / Quotations' },
