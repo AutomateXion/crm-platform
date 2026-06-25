@@ -64,6 +64,14 @@ export class SalesController {
   }
 
   // Field Sales — product availability & price (mobile)
+  @Get('field/my-orders')
+  getFieldMyOrders(@Request() req: any, @Query() q: any) {
+    return this.svc.getFieldMyOrders(req.user.tenantId, req.user.userId, q.scope || 'mine', +q.limit || 60);
+  }
+  @Get('field/collections')
+  getFieldCollections(@Request() req: any, @Query() q: any) {
+    return this.svc.getFieldCollections(req.user.tenantId, q.overdue === 'true', +q.limit || 100);
+  }
   @Get('field/customers')
   getFieldCustomers(@Request() req: any, @Query() q: any) {
     return this.svc.getFieldCustomers(req.user.tenantId, q.search, +q.limit || 60);

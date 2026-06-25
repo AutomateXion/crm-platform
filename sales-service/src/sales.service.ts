@@ -5579,6 +5579,62 @@ Rules:
     };
   }
 
+    // ── Field Sales: My Orders (rep's own quotations/orders) ────────────────
+  async getFieldMyOrders(tenantId: string, userId: string, scope = 'mine', limit = 60): Promise<any> {
+    const params: any[] = [tenantId];
+    let where = 'q.tenant_id::text = $1::text';
+    // scope=mine -> only this rep's; scope=all -> everyone (for managers)
+    if (scope !== 'all' && userId) {
+      params.push(userId);
+      where += ` AND q.created_by::text = $${params.length}::text`;
+    }
+    const rows = await this.quotationRepo.query(
+      `SELECT q.quotation_id AS "quotationId", q.quotation_number AS "orderNumber",
+              q.quotation_date AS "orderDate", q.customer_name AS "customerName",
+              q.account_id AS "accountId", q.total_amount AS "totalAmount", q.status
+       FROM quotations q
+       WHERE ${where}
+       ORDER BY q.quotation_date DESC NULLS LAST, q.created_at DESC NULLS LAST
+       LIMIT ${Number(limit) || 60}`,
+      params);
+    return rows.map((r: any) => ({
+      quotationId: r.quotationId, orderNumber: r.orderNumber, orderDate: r.orderDate,
+      customerName: r.customerName, accountId: r.accountId,
+      totalAmount: Number(r.totalAmount) || 0, status: r.status || 'DRAFT',
+    }));
+  }
+
+  // ── Field Sales: Collections to chase (outstanding invoices, worst first) ──
+  async getFieldCollections(tenantId: string, onlyOverdue = false, limit = 100): Promise<any> {
+    const rows = await this.invoiceRepo.query(
+      `SELECT i.invoice_number AS "invoiceNumber", i.invoice_date AS "invoiceDate",
+              i.due_date AS "dueDate", i.customer_name AS "customerName", i.account_id AS "accountId",
+              i.total_amount AS "totalAmount", i.balance_due AS "balanceDue",
+              CASE WHEN i.due_date IS NOT NULL AND i.due_date < CURRENT_DATE
+                   THEN (CURRENT_DATE - i.due_date) ELSE 0 END AS "daysOverdue"
+       FROM sales_invoices i
+       WHERE i.tenant_id::text = $1::text AND i.balance_due > 0
+       ${onlyOverdue ? 'AND i.due_date < CURRENT_DATE' : ''}
+       ORDER BY (CASE WHEN i.due_date IS NOT NULL AND i.due_date < CURRENT_DATE
+                      THEN (CURRENT_DATE - i.due_date) ELSE 0 END) DESC,
+                i.balance_due DESC
+       LIMIT ${Number(limit) || 100}`,
+      [tenantId]);
+    let totalOutstanding = 0, totalOverdue = 0;
+    const items = rows.map((r: any) => {
+      const bal = Number(r.balanceDue) || 0;
+      const dov = Number(r.daysOverdue) || 0;
+      totalOutstanding += bal;
+      if (dov > 0) totalOverdue += bal;
+      return {
+        invoiceNumber: r.invoiceNumber, invoiceDate: r.invoiceDate, dueDate: r.dueDate,
+        customerName: r.customerName, accountId: r.accountId,
+        totalAmount: Number(r.totalAmount) || 0, balanceDue: bal, daysOverdue: dov,
+      };
+    });
+    return { items, totalOutstanding, totalOverdue, count: items.length };
+  }
+
     async getReorderReport(tenantId: string, filters: any = {}) {
     const qb = this.productRepo.createQueryBuilder('p')
       .where('p.tenantId = :tenantId', { tenantId })
