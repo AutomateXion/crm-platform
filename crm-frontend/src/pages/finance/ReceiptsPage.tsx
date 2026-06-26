@@ -58,7 +58,16 @@ export default function ReceiptsPage() {
   };
     const handleSave = async (values: any) => {
     setSaving(true);
-    try { await receiptsApi.create(values); message.success('Receipt created'); setModalOpen(false); load(); }
+    try {
+      if (editRecord?.receiptId) {
+        await receiptsApi.update(editRecord.receiptId, values);
+        message.success('Receipt updated');
+      } else {
+        await receiptsApi.create(values);
+        message.success('Receipt created');
+      }
+      setModalOpen(false); load();
+    }
     catch (e: any) { message.error(e.response?.data?.message || 'Failed'); }
     finally { setSaving(false); }
   };
@@ -120,7 +129,7 @@ export default function ReceiptsPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
         <div><Title level={4} style={{ margin: 0 }}>Receipts</Title><Text type="secondary">Record customer payments against invoices</Text></div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); form.setFieldsValue({ receiptDate: new Date().toISOString().slice(0,10), currencyCode: 'OMR', paymentMethod: 'BANK_TRANSFER', status: 'DRAFT', chequeStatus: 'RECEIVED' }); setModalOpen(true); }}>New Receipt</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditRecord(null); form.resetFields(); form.setFieldsValue({ receiptDate: new Date().toISOString().slice(0,10), currencyCode: 'OMR', paymentMethod: 'BANK_TRANSFER', status: 'DRAFT', chequeStatus: 'RECEIVED' }); setModalOpen(true); }}>New Receipt</Button>
       </div>
       <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col span={8}><Card style={{ borderRadius: 12, borderLeft: '4px solid #52c41a' }}><Statistic title="Total Received" value={`OMR ${totalReceived.toFixed(3)}`} prefix={<DollarOutlined style={{ color: '#52c41a' }} />} /></Card></Col>
