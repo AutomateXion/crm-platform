@@ -94,6 +94,7 @@ import CustomerSnapshotPage from './pages/fieldsales/CustomerSnapshotPage';
 import MyOrdersPage from './pages/fieldsales/MyOrdersPage';
 import CollectionsPage from './pages/fieldsales/CollectionsPage';
 import CollectionVoucherPage from './pages/fieldsales/CollectionVoucherPage';
+import QuickOrderPage from './pages/fieldsales/QuickOrderPage';
 import VendorQuotePage      from './pages/purchase/VendorQuotePage';
 import GRNPage               from './pages/purchase/GRNPage';
 import PurchaseInvoicesPage  from './pages/purchase/PurchaseInvoicesPage';
@@ -134,6 +135,7 @@ export default function App() {
         <Route path="field/my-orders" element={<MyOrdersPage />} />
         <Route path="field/collections" element={<CollectionsPage />} />
         <Route path="field/collect" element={<CollectionVoucherPage />} />
+        <Route path="field/quick-order" element={<QuickOrderPage />} />
         <Route path="onboarding"  element={<OnboardingPage />} />
         <Route path="recurring-expenses" element={<RecurringExpensesPage />} />
         <Route path="settings"    element={<TenantSettingsPage />} />
