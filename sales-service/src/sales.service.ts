@@ -930,7 +930,21 @@ export class SalesService {
   }
 
   async updateReceipt(tenantId: string, id: string, dto: any) {
-    await this.receiptRepo.update({ tenantId, receiptId: id } as any, dto);
+    const existing = await this.receiptRepo.findOne({ where: { tenantId, receiptId: id } as any }) as any;
+    if (!existing) throw new NotFoundException('Receipt not found');
+    if (existing.status === 'POSTED') {
+      throw new BadRequestException('This receipt is already posted and cannot be edited. Reverse or create an adjustment instead.');
+    }
+    // Strip non-column / immutable fields; map invoice allocation like createReceipt does.
+    const { invoiceIds, receiptNumber: _rn, receiptId: _ri, tenantId: _tid, status: _st,
+            createdBy: _cb, createdAt: _ca, ...receiptData } = dto;
+    if (receiptData.paymentMethod === 'CHEQUE' && !receiptData.chequeStatus) {
+      receiptData.chequeStatus = 'RECEIVED';
+    }
+    const invoiceIdList = invoiceIds?.length ? invoiceIds : (dto.invoiceId ? [dto.invoiceId] : []);
+    const updateData: any = { ...receiptData };
+    if (invoiceIdList.length) updateData.allocatedInvoiceIds = JSON.stringify(invoiceIdList);
+    await this.receiptRepo.update({ tenantId, receiptId: id } as any, updateData);
     return this.receiptRepo.findOne({ where: { tenantId, receiptId: id } as any });
   }
   async createReceipt(tenantId: string, dto: any, userId: string) {
