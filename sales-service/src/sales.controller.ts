@@ -65,31 +65,38 @@ export class SalesController {
 
   // Field Sales — product availability & price (mobile)
   @Get('field/my-orders')
-  getFieldMyOrders(@Request() req: any, @Query() q: any) {
+  async getFieldMyOrders(@Request() req: any, @Query() q: any) {
+    await this.svc.assertFieldSalesAccess(req.user);
     return this.svc.getFieldMyOrders(req.user.tenantId, req.user.userId, q.scope || 'mine', +q.limit || 60);
   }
   @Get('field/customers/:id/open-invoices')
-  getFieldCustomerOpenInvoices(@Request() req: any, @Param('id') id: string) {
+  async getFieldCustomerOpenInvoices(@Request() req: any, @Param('id') id: string) {
+    await this.svc.assertFieldSalesAccess(req.user);
     return this.svc.getFieldCustomerOpenInvoices(req.user.tenantId, id);
   }
   @Get('field/collections')
-  getFieldCollections(@Request() req: any, @Query() q: any) {
+  async getFieldCollections(@Request() req: any, @Query() q: any) {
+    await this.svc.assertFieldSalesAccess(req.user);
     return this.svc.getFieldCollections(req.user.tenantId, q.overdue === 'true', +q.limit || 100);
   }
   @Get('field/customers')
-  getFieldCustomers(@Request() req: any, @Query() q: any) {
+  async getFieldCustomers(@Request() req: any, @Query() q: any) {
+    await this.svc.assertFieldSalesAccess(req.user);
     return this.svc.getFieldCustomers(req.user.tenantId, q.search, +q.limit || 60);
   }
   @Get('field/customers/:id/snapshot')
-  getFieldCustomerSnapshot(@Request() req: any, @Param('id') id: string) {
+  async getFieldCustomerSnapshot(@Request() req: any, @Param('id') id: string) {
+    await this.svc.assertFieldSalesAccess(req.user);
     return this.svc.getFieldCustomerSnapshot(req.user.tenantId, id);
   }
   @Get('field/products')
-  getFieldProductAvailability(@Request() req: any, @Query() q: any) {
+  async getFieldProductAvailability(@Request() req: any, @Query() q: any) {
+    await this.svc.assertFieldSalesAccess(req.user);
     return this.svc.getFieldProductAvailability(req.user.tenantId, q.search, +q.limit || 50);
   }
   @Get('field/products/:id/stock')
-  getFieldProductStock(@Request() req: any, @Param('id') id: string) {
+  async getFieldProductStock(@Request() req: any, @Param('id') id: string) {
+    await this.svc.assertFieldSalesAccess(req.user);
     return this.svc.getFieldProductStock(req.user.tenantId, id);
   }
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, IsNull } from 'typeorm';
 import {
@@ -5667,6 +5667,37 @@ Rules:
       invoiceDate: r.invoiceDate, dueDate: r.dueDate,
       totalAmount: Number(r.totalAmount) || 0, balanceDue: Number(r.balanceDue) || 0,
     }));
+  }
+
+    // ── Field Sales: module-level access check (backend enforcement) ─────────
+  private fieldAccessCache = new Map<string, { ok: boolean; ts: number }>();
+  async assertFieldSalesAccess(user: any): Promise<void> {
+    if (user?.isSuperAdmin) return;
+    const tenantId = user?.tenantId;
+    const userGroupId = user?.userGroupId;
+    if (!tenantId || !userGroupId) {
+      throw new ForbiddenException('Field Sales access could not be verified.');
+    }
+    const cacheKey = `${tenantId}:${userGroupId}`;
+    const cached = this.fieldAccessCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < 60000) {
+      if (!cached.ok) throw new ForbiddenException('You do not have access to Field Sales.');
+      return;
+    }
+    const rows = await this.invoiceRepo.query(
+      `SELECT p.permission_level AS lvl
+       FROM permissions p
+       JOIN modules m ON m.module_id = p.module_id
+       WHERE m.module_code = 'field_sales'
+         AND p.tenant_id::text = $1::text
+         AND p.user_group_id::text = $2::text
+         AND p.sub_module_id IS NULL AND p.page_id IS NULL AND p.field_id IS NULL
+       LIMIT 1`,
+      [tenantId, userGroupId]);
+    const lvl = rows?.[0]?.lvl;
+    const ok = !!lvl && lvl !== 'NA' && lvl !== 'HI';
+    this.fieldAccessCache.set(cacheKey, { ok, ts: Date.now() });
+    if (!ok) throw new ForbiddenException('You do not have access to Field Sales.');
   }
 
     async getReorderReport(tenantId: string, filters: any = {}) {
