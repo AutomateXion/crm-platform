@@ -5700,6 +5700,105 @@ Rules:
     if (!ok) throw new ForbiddenException('You do not have access to Field Sales.');
   }
 
+    // ── Rep Dashboard: personalized data for a sales rep ────────────────────
+  async getRepDashboard(user: any): Promise<any> {
+    await this.assertFieldSalesAccess(user); // reuse field-sales gate
+    const tenantId = user.tenantId;
+    const userId = user.userId;
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+
+    // 1. Collections this month (POSTED receipts by this rep)
+    const collRows = await this.invoiceRepo.query(
+      `SELECT COALESCE(SUM(amount),0) AS total
+       FROM receipts
+       WHERE tenant_id::text = $1::text AND created_by::text = $2::text
+         AND status = 'POSTED'
+         AND EXTRACT(YEAR FROM receipt_date) = $3 AND EXTRACT(MONTH FROM receipt_date) = $4`,
+      [tenantId, userId, year, month]);
+    const collectionsThisMonth = Number(collRows?.[0]?.total) || 0;
+
+    // 2. Target (rep-specific if set, else company monthly target)
+    const tgtRows = await this.invoiceRepo.query(
+      `SELECT target_amount FROM sales_targets
+       WHERE tenant_id::text = $1::text AND period_type='MONTHLY'
+         AND period_year = $2 AND period_month = $3
+         AND (salesman_id::text = $4::text OR salesman_id IS NULL OR salesman_id::text = '')
+       ORDER BY (CASE WHEN salesman_id::text = $4::text THEN 0 ELSE 1 END)
+       LIMIT 1`,
+      [tenantId, year, month, userId]);
+    const target = Number(tgtRows?.[0]?.target_amount) || 0;
+
+    // 3. Tiered commission on collections: 1% up to target, 3% above
+    let commission = 0;
+    if (collectionsThisMonth > 0) {
+      const upTo = Math.min(collectionsThisMonth, target || collectionsThisMonth);
+      const above = Math.max(collectionsThisMonth - (target || 0), 0);
+      commission = upTo * 0.01 + above * 0.03;
+    }
+
+    // 4. New products (last 30 days)
+    const newProducts = await this.productRepo.query(
+      `SELECT product_name AS "productName", product_code AS "productCode",
+              brand, unit_price AS "unitPrice", created_at AS "createdAt"
+       FROM products
+       WHERE tenant_id::text = $1::text AND is_active = true
+         AND created_at >= NOW() - INTERVAL '30 days'
+       ORDER BY created_at DESC LIMIT 8`,
+      [tenantId]);
+
+    // 5. New stock arrived (recent GRNs, last 30 days)
+    let newStock: any[] = [];
+    try {
+      newStock = await this.invoiceRepo.query(
+        `SELECT grn_number AS "grnNumber", grn_date AS "grnDate",
+                supplier_name AS "supplierName", status
+         FROM goods_receipt_notes
+         WHERE tenant_id::text = $1::text
+           AND grn_date >= (CURRENT_DATE - INTERVAL '30 days')
+         ORDER BY grn_date DESC LIMIT 8`,
+        [tenantId]);
+    } catch { newStock = []; }
+
+    // 6. My collections due (outstanding invoices — reuse the field logic, rep's customers)
+    //    Show-all for now (scoping deferred): top outstanding overall, most overdue first
+    const collectionsDue = await this.invoiceRepo.query(
+      `SELECT customer_name AS "customerName", invoice_number AS "invoiceNumber",
+              balance_due AS "balanceDue", due_date AS "dueDate",
+              CASE WHEN due_date < CURRENT_DATE THEN (CURRENT_DATE - due_date) ELSE 0 END AS "daysOverdue"
+       FROM sales_invoices
+       WHERE tenant_id::text = $1::text AND balance_due > 0
+       ORDER BY (CASE WHEN due_date < CURRENT_DATE THEN (CURRENT_DATE - due_date) ELSE 0 END) DESC
+       LIMIT 6`,
+      [tenantId]);
+
+    // 7. My recent orders (rep's quotations)
+    const recentOrders = await this.quotationRepo.query(
+      `SELECT quotation_number AS "orderNumber", customer_name AS "customerName",
+              total_amount AS "totalAmount", status, quotation_date AS "orderDate"
+       FROM quotations
+       WHERE tenant_id::text = $1::text AND created_by::text = $2::text
+       ORDER BY quotation_date DESC NULLS LAST LIMIT 6`,
+      [tenantId, userId]);
+
+    return {
+      salesman: user.fullName || user.email || 'Rep',
+      period: { year, month },
+      collectionsThisMonth,
+      target,
+      targetProgress: target > 0 ? Math.min((collectionsThisMonth / target) * 100, 100) : 0,
+      commission: Number(commission.toFixed(3)),
+      commissionTiers: { upToTargetRate: 1, aboveTargetRate: 3 },
+      newProducts: newProducts.map((p: any) => ({ ...p, unitPrice: Number(p.unitPrice) || 0 })),
+      newStock,
+      collectionsDue: collectionsDue.map((c: any) => ({
+        ...c, balanceDue: Number(c.balanceDue) || 0, daysOverdue: Number(c.daysOverdue) || 0,
+      })),
+      recentOrders: recentOrders.map((o: any) => ({ ...o, totalAmount: Number(o.totalAmount) || 0 })),
+    };
+  }
+
     async getReorderReport(tenantId: string, filters: any = {}) {
     const qb = this.productRepo.createQueryBuilder('p')
       .where('p.tenantId = :tenantId', { tenantId })

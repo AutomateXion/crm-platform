@@ -89,6 +89,10 @@ export class SalesController {
     await this.svc.assertFieldSalesAccess(req.user);
     return this.svc.getFieldCustomerSnapshot(req.user.tenantId, id);
   }
+  @Get('field/rep-dashboard')
+  getRepDashboard(@Request() req: any) {
+    return this.svc.getRepDashboard(req.user);
+  }
   @Get('field/products')
   async getFieldProductAvailability(@Request() req: any, @Query() q: any) {
     await this.svc.assertFieldSalesAccess(req.user);
