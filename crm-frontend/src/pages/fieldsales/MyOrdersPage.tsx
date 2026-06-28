@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Typography, Tag, Spin, Empty, Row, Col, Segmented } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import { usePermissions } from '../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
 const sApi = axios.create({ baseURL: '/sales-api' });
@@ -14,6 +15,8 @@ const STATUS_COLOR: any = { DRAFT: 'default', SENT: 'blue', CONFIRMED: 'cyan', A
 
 export default function MyOrdersPage() {
   const [scope, setScope] = useState<'mine' | 'all'>('mine');
+  const { isFieldVisible } = usePermissions();
+  const canSeeAllOrders = isFieldVisible('field_sales', 'field_info', 'fs_my_orders', 'orders_all_scope');
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
 
@@ -34,8 +37,10 @@ export default function MyOrdersPage() {
         <Text type="secondary">Your recent orders and their status</Text>
       </div>
 
-      <Segmented options={[{ label: 'My orders', value: 'mine' }, { label: 'All', value: 'all' }]}
-        value={scope} onChange={(v: any) => setScope(v)} style={{ marginBottom: 16 }} />
+      {canSeeAllOrders && (
+        <Segmented options={[{ label: 'My orders', value: 'mine' }, { label: 'All', value: 'all' }]}
+          value={scope} onChange={(v: any) => setScope(v)} style={{ marginBottom: 16 }} />
+      )}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Input, Typography, Tag, Spin, Empty, Row, Col, Drawer, Statistic, Divider, List } from 'antd';
 import { SearchOutlined, TeamOutlined, WarningFilled, CheckCircleFilled, StopFilled, ArrowLeftOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import { usePermissions } from '../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
 
@@ -20,6 +21,10 @@ const CREDIT = {
 
 export default function CustomerSnapshotPage() {
   const [search, setSearch] = useState('');
+  const { isFieldVisible } = usePermissions();
+  const showCreditLimit = isFieldVisible('field_sales', 'field_info', 'fs_customers', 'cust_credit_limit');
+  const showOutstanding = isFieldVisible('field_sales', 'field_info', 'fs_customers', 'cust_outstanding');
+  const showAging = isFieldVisible('field_sales', 'field_info', 'fs_customers', 'cust_aging');
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -100,13 +105,14 @@ export default function CustomerSnapshotPage() {
               </div>}
 
             <Row gutter={12}>
-              <Col span={12}><Statistic title="Outstanding" value={snap.outstanding} precision={3} prefix="OMR" valueStyle={{ fontSize: 18 }} /></Col>
-              <Col span={12}><Statistic title="Credit limit" value={snap.creditLimit} precision={3} prefix="OMR" valueStyle={{ fontSize: 18 }} /></Col>
+              {showOutstanding && <Col span={12}><Statistic title="Outstanding" value={snap.outstanding} precision={3} prefix="OMR" valueStyle={{ fontSize: 18 }} /></Col>}
+              {showCreditLimit && <Col span={12}><Statistic title="Credit limit" value={snap.creditLimit} precision={3} prefix="OMR" valueStyle={{ fontSize: 18 }} /></Col>}
             </Row>
-            {snap.available != null &&
+            {showCreditLimit && snap.available != null &&
               <Statistic style={{ marginTop: 8 }} title="Available credit" value={snap.available} precision={3} prefix="OMR"
                 valueStyle={{ fontSize: 16, color: snap.available > 0 ? '#389e0d' : '#cf1322' }} />}
 
+            {showAging && (<>
             <Divider orientation="left" style={{ margin: '16px 0 8px' }}>Aging</Divider>
             <Row gutter={8}>
               {[['Current', snap.aging.current, '#389e0d'], ['1–30d', snap.aging.d30, '#d4b106'],
@@ -117,6 +123,7 @@ export default function CustomerSnapshotPage() {
                 </Col>
               ))}
             </Row>
+            </>)}
 
             <Divider orientation="left" style={{ margin: '16px 0 8px' }}>Recent invoices</Divider>
             {snap.recentInvoices.length === 0 ? <Text type="secondary">No invoices</Text> : (

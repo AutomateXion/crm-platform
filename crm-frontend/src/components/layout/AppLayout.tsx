@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Layout, Menu, Avatar, Dropdown, Badge, Typography, Space, Button, Tooltip } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { usePermissions } from '../../hooks/usePermissions';
 import {
   DashboardOutlined, TeamOutlined, SafetyOutlined, SafetyCertificateOutlined, DatabaseOutlined,
   MailOutlined, SettingOutlined, FileTextOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
@@ -193,6 +194,26 @@ export default function AppLayout() {
   }, []);
   const navigate = useNavigate();
   const location = useLocation();
+  const { canAccessModule, canAccessPage } = usePermissions();
+  const fieldPageCodes: Record<string, { sub: string; code: string }> = {
+    '/field/availability': { sub: 'field_info', code: 'fs_availability' },
+    '/field/customers':    { sub: 'field_info', code: 'fs_customers' },
+    '/field/my-orders':    { sub: 'field_info', code: 'fs_my_orders' },
+    '/field/collections':  { sub: 'field_info', code: 'fs_collections' },
+    '/field/collect':      { sub: 'field_actions', code: 'fs_record_collection' },
+    '/field/quick-order':  { sub: 'field_actions', code: 'fs_quick_order' },
+  };
+  const filteredNav = (NAV_ITEMS as any[]).map((grp: any) => {
+    if (grp?.key !== 'fieldsales-grp') return grp;
+    if (!canAccessModule('field_sales')) return null; // hide whole group
+    const children = (grp.children || []).filter((it: any) => {
+      const m = fieldPageCodes[it.key];
+      if (!m) return true; // non-gated item (e.g. legacy Field Sales link) stays
+      return canAccessPage('field_sales', m.sub, m.code);
+    });
+    return children.length ? { ...grp, children } : null;
+  }).filter(Boolean);
+
   const dispatch = useDispatch<AppDispatch>();
   const { user, tenant } = useSelector((s: RootState) => s.auth);
 
@@ -248,7 +269,7 @@ export default function AppLayout() {
         <Menu
           theme="dark" mode="inline" selectedKeys={[activeKey]}
           defaultOpenKeys={[]}
-          items={NAV_ITEMS}
+          items={filteredNav}
           onClick={({ key }) => { if (key.startsWith('/')) { navigate(key); if (isMobile) setMobileOpen(false); } }}
           style={{ borderRight: 0, marginTop: 8 }}
         />
