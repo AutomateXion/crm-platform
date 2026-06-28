@@ -24,7 +24,7 @@ const { Text } = Typography;
 const NAV_ITEMS = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
   {
-    key: 'crm', icon: <FunnelPlotOutlined />, label: 'CRM',
+    moduleCode: 'crm', key: 'crm', icon: <FunnelPlotOutlined />, label: 'CRM',
     children: [
       { key: '/crm/dashboard', icon: <BarChartOutlined />,       label: 'CRM Analytics' },
       { key: '/crm/field-sales', icon: <EnvironmentOutlined />, label: 'Field Sales' },
@@ -37,14 +37,14 @@ const NAV_ITEMS = [
     ],
   },
   {
-    key: 'pm', icon: <ProjectOutlined />, label: 'Project Management',
+    moduleCode: 'pm', key: 'pm', icon: <ProjectOutlined />, label: 'Project Management',
     children: [
       { key: '/pm/dashboard', icon: <BarChartOutlined />, label: 'PM Analytics' },
       { key: '/projects', icon: <ApartmentOutlined />, label: 'Projects' },
     ],
   },
   {
-    key: 'sales-grp', icon: <DollarOutlined />, label: 'Sales',
+    moduleCode: 'sales', key: 'sales-grp', icon: <DollarOutlined />, label: 'Sales',
     children: [
       { key: '/finance/dashboard',  icon: <BarChartOutlined />,    label: 'Sales Analytics' },
       { key: '/finance/quotations', icon: <FileTextOutlined />,    label: 'Quotations' },
@@ -56,7 +56,7 @@ const NAV_ITEMS = [
     ],
   },
   {
-    key: 'fieldsales-grp', icon: <EnvironmentOutlined />, label: 'Field Sales',
+    moduleCode: 'field_sales', key: 'fieldsales-grp', icon: <EnvironmentOutlined />, label: 'Field Sales',
     children: [
       { key: '/crm/field-sales',      icon: <EnvironmentOutlined />, label: 'Visits & Orders' },
       { key: '/field/availability',   icon: <ShopOutlined />,        label: 'Product Availability' },
@@ -68,7 +68,7 @@ const NAV_ITEMS = [
     ],
   },
   {
-        key: 'purchase-grp', icon: <ShoppingCartOutlined />, label: 'Purchase',
+        moduleCode: 'purchase', key: 'purchase-grp', icon: <ShoppingCartOutlined />, label: 'Purchase',
     children: [
       { key: '/purchase/suppliers', icon: <ShopOutlined />,        label: 'Suppliers' },
       { key: '/purchase/rfqs',      icon: <FileSearchOutlined />,  label: 'RFQ / Quotations' },
@@ -80,7 +80,7 @@ const NAV_ITEMS = [
     ],
   },
   {
-    key: 'banking-grp', icon: <BankOutlined />, label: 'Banking & Cash',
+    moduleCode: 'banking', key: 'banking-grp', icon: <BankOutlined />, label: 'Banking & Cash',
     children: [
       { key: '/finance/bank-accounts',     icon: <BankOutlined />,        label: 'Bank Accounts' },
       { key: '/finance/received-cheques',  icon: <ClockCircleOutlined />, label: 'Received Cheques (PDC)' },
@@ -88,7 +88,7 @@ const NAV_ITEMS = [
     ],
   },
   {
-    key: 'accounting-grp', icon: <CalculatorOutlined />, label: 'Accounting',
+    moduleCode: 'accounting', key: 'accounting-grp', icon: <CalculatorOutlined />, label: 'Accounting',
     children: [
       { key: '/finance/chart-of-accounts', icon: <BankOutlined />,     label: 'Chart of Accounts' },
       { key: '/finance/journal-vouchers',  icon: <EditOutlined />,     label: 'Journal Vouchers' },
@@ -99,7 +99,7 @@ const NAV_ITEMS = [
     ],
   },
   {
-    key: 'inventory', icon: <InboxOutlined />, label: 'Inventory & Warehouse',
+    moduleCode: 'inventory', key: 'inventory', icon: <InboxOutlined />, label: 'Inventory & Warehouse',
     children: [
       { key: '/inventory/dashboard', icon: <BarChartOutlined />, label: 'Inventory Analytics' },
       { key: '/inventory/products',  icon: <ShoppingOutlined />, label: 'Products & Services' },
@@ -115,14 +115,14 @@ const NAV_ITEMS = [
     ],
   },
   {
-    key: 'assets-grp', icon: <DatabaseOutlined />, label: 'Assets',
+    moduleCode: 'assets', key: 'assets-grp', icon: <DatabaseOutlined />, label: 'Assets',
     children: [
       { key: '/assets/fixed',       icon: <BankOutlined />, label: 'Fixed Assets' },
       { key: '/assets/consumables', icon: <CalculatorOutlined />, label: 'Consumables' },
     ],
   },
   {
-    key: 'reports-grp', icon: <BarChartOutlined />, label: 'Reports',
+    moduleCode: 'reports', key: 'reports-grp', icon: <BarChartOutlined />, label: 'Reports',
     children: [
       { key: 'rep-financial', icon: <FolderOutlined />, label: 'Financial', children: [
         { key: '/finance/profit-loss',            label: 'Profit & Loss' },
@@ -157,13 +157,13 @@ const NAV_ITEMS = [
     ],
   },
   {
-    key: 'docs-grp', icon: <FolderOutlined />, label: 'Documents',
+    moduleCode: 'documents', key: 'docs-grp', icon: <FolderOutlined />, label: 'Documents',
     children: [
       { key: '/documents', icon: <FolderOutlined />, label: 'All Documents' },
     ],
   },
   {
-    key: 'admin', icon: <SettingOutlined />, label: 'Administration',
+    moduleCode: 'core', key: 'admin', icon: <SettingOutlined />, label: 'Administration',
     children: [
       { key: '/users',             icon: <UserOutlined />,    label: 'Users' },
       { key: '/user-groups',       icon: <TeamOutlined />,    label: 'User Groups' },
@@ -195,6 +195,24 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { canAccessModule, canAccessPage } = usePermissions();
+  const permMap = useSelector((st: RootState) => st.auth.permissions);
+  const authUser = useSelector((st: RootState) => st.auth.user) as any;
+  const isAdmin = authUser?.isSuperAdmin || authUser?.groupCode === 'TENANT_ADMIN';
+  // default-ALLOW / explicit-DENY: a module is visible unless an explicit NA/HI record exists.
+  const moduleVisible = (moduleCode?: string): boolean => {
+    if (!moduleCode) return true;       // untagged group -> always visible
+    if (isAdmin) return true;           // admins bypass
+    const mod = (permMap as any)?.modules?.[moduleCode];
+    if (!mod) return true;              // no record -> visible (legacy default)
+    return mod.level !== 'NA' && mod.level !== 'HI';
+  };
+  const pageVisible = (moduleCode: string, sub: string, page: string): boolean => {
+    if (isAdmin) return true;
+    const pg = (permMap as any)?.modules?.[moduleCode]?.subModules?.[sub]?.pages?.[page];
+    if (!pg) return true;               // no record -> visible
+    return pg.level !== 'NA' && pg.level !== 'HI';
+  };
+  // page-level map for modules that have registered pages (currently field_sales)
   const fieldPageCodes: Record<string, { sub: string; code: string }> = {
     '/field/availability': { sub: 'field_info', code: 'fs_availability' },
     '/field/customers':    { sub: 'field_info', code: 'fs_customers' },
@@ -204,14 +222,17 @@ export default function AppLayout() {
     '/field/quick-order':  { sub: 'field_actions', code: 'fs_quick_order' },
   };
   const filteredNav = (NAV_ITEMS as any[]).map((grp: any) => {
-    if (grp?.key !== 'fieldsales-grp') return grp;
-    if (!canAccessModule('field_sales')) return null; // hide whole group
-    const children = (grp.children || []).filter((it: any) => {
-      const m = fieldPageCodes[it.key];
-      if (!m) return true; // non-gated item (e.g. legacy Field Sales link) stays
-      return canAccessPage('field_sales', m.sub, m.code);
-    });
-    return children.length ? { ...grp, children } : null;
+    if (!grp?.children) return grp;                         // top-level item (Dashboard)
+    if (!moduleVisible(grp.moduleCode)) return null;        // whole group hidden by module perm
+    // page-level gating for field_sales (the only module with registered pages so far)
+    if (grp.moduleCode === 'field_sales' && !isAdmin) {
+      const children = (grp.children || []).filter((it: any) => {
+        const m = fieldPageCodes[it.key];
+        return m ? pageVisible('field_sales', m.sub, m.code) : true;
+      });
+      return children.length ? { ...grp, children } : null;
+    }
+    return grp;
   }).filter(Boolean);
 
   const dispatch = useDispatch<AppDispatch>();
