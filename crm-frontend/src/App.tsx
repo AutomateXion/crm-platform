@@ -18,6 +18,7 @@ import FeaturesPage from './pages/marketing/FeaturesPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 // Core
 import DashboardPage    from './pages/dashboard/DashboardPage';
+import RepDashboard from './pages/fieldsales/RepDashboard';
 import UsersPage        from './pages/users/UsersPage';
 import UserGroupsPage   from './pages/users/UserGroupsPage';
 import PermissionMatrixPage from './pages/permissions/PermissionMatrixPage';
@@ -108,6 +109,18 @@ import AccountingConfigPage   from './pages/admin/AccountingConfigPage';
 import DocumentConfigPage     from './pages/admin/DocumentConfigPage';
 import EmailConfigPage       from './pages/admin/EmailConfigPage';
 
+function DashboardRouter() {
+  const authUser = useSelector((st: any) => st.auth.user) as any;
+  const perms = useSelector((st: any) => st.auth.permissions) as any;
+  const isAdmin = authUser?.isSuperAdmin || authUser?.groupCode === 'TENANT_ADMIN';
+  // Reps (no Accounting access, not admin) get the personalized dashboard.
+  const acctLevel = perms?.modules?.['accounting']?.level;
+  const accountingBlocked = acctLevel === 'NA' || acctLevel === 'HI';
+  const isRep = authUser?.groupCode === 'SALES_REP';
+  if (!isAdmin && (isRep || accountingBlocked)) return <RepDashboard />;
+  return <DashboardPage />;
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useSelector((s: RootState) => s.auth.accessToken);
   if (!token) return <Navigate to="/login" replace />;
@@ -125,7 +138,7 @@ export default function App() {
       <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         {/* Core */}
-        <Route path="dashboard"   element={<DashboardPage />} />
+        <Route path="dashboard"   element={<DashboardRouter />} />
         <Route path="users"       element={<UsersPage />} />
         <Route path="user-groups" element={<UserGroupsPage />} />
         <Route path="permissions" element={<PermissionMatrixPage />} />
