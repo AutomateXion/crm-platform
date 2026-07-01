@@ -54,7 +54,7 @@ export default function QuotationsPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    productsApi.getAll({ limit: 100 }).then(r => setProducts(r.data.data || [])).catch(() => {});
+    productsApi.getAll({ limit: 100, stockOnly: true }).then(r => setProducts(r.data.data || [])).catch(() => {});
     api.get('/accounts', { params: { limit: 100 } }).then(r => setAccounts(r.data.data || [])).catch(() => {});
     api.post('/masters/bulk-values', { categoryCodes: ['vat_rates'] })
       .then(r => setVatRates(r.data.vat_rates || [])).catch(() => {});

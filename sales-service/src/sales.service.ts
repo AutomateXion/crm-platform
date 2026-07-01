@@ -87,10 +87,11 @@ export class SalesService {
   }
 
   // ── Products ──────────────────────────────────────────────────
-  async getProducts(tenantId: string, page = 1, limit = 20, search?: string, category?: string) {
+  async getProducts(tenantId: string, page = 1, limit = 20, search?: string, category?: string, stockOnly = false) {
     const qb = this.productRepo.createQueryBuilder('p')
       .where('p.tenantId = :tenantId', { tenantId })
       .andWhere('p.isActive = true');
+    if (stockOnly) qb.andWhere("p.productType = 'STOCK'");
     if (search) {
       const fields = await this.resolveProductSearchFields(tenantId);
       const ors = fields.map((f) => `p.${f} ILIKE :s`).join(' OR ');
@@ -5433,7 +5434,7 @@ Rules:
   // Uses the tenant's configured product search fields.
   async getFieldProductAvailability(tenantId: string, search?: string, limit = 50): Promise<any> {
     const params: any[] = [tenantId];
-    let where = 'p.tenant_id = $1 AND p.is_active = true';
+    let where = "p.tenant_id = $1 AND p.is_active = true AND p.product_type = 'STOCK'";
     if (search) {
       const fields = await this.resolveProductSearchFields(tenantId); // entity props
       // map entity props -> db columns for raw SQL

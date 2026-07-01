@@ -65,7 +65,7 @@ function CheckInDrawer({ open, onClose, onSuccess, accounts, products }: any) {
       try {
         const pApi = (await import('axios')).default.create({ baseURL: '/sales-api' });
         pApi.interceptors.request.use((c:any) => { const tk = localStorage.getItem('accessToken'); if(tk) c.headers.Authorization=`Bearer ${tk}`; return c; });
-        const r = await pApi.get('/sales/products', { params: { limit: 50, search: term || undefined } });
+        const r = await pApi.get('/sales/products', { params: { limit: 50, search: term || undefined, stockOnly: true } });
         setLocalProducts(r.data.data || []);
       } catch { /* keep current list */ }
     }, 300);
@@ -361,7 +361,7 @@ export default function FieldSalesPage() {
     import('axios').then(({default: axios}) => {
       const sApi = axios.create({ baseURL: '/sales-api' });
       sApi.interceptors.request.use((c:any) => { const t = localStorage.getItem('accessToken'); if(t) c.headers.Authorization=`Bearer ${t}`; return c; });
-      sApi.get('/sales/products', { params: { limit: 500 } }).then(r => setProducts(r.data.data || [])).catch(()=>{});
+      sApi.get('/sales/products', { params: { limit: 500, stockOnly: true } }).then(r => setProducts(r.data.data || [])).catch(()=>{});
     });
   }, []);
 

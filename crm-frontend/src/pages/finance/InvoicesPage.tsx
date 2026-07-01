@@ -67,7 +67,7 @@ export default function InvoicesPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    productsApi.getAll({ limit: 100 }).then(r => setProducts(r.data.data || [])).catch(() => {});
+    productsApi.getAll({ limit: 100, stockOnly: true }).then(r => setProducts(r.data.data || [])).catch(() => {});
     quotationsApi.getAll({ limit: 100, excludeConverted: true }).then(r => setQuotations((r.data.data || []).filter((q:any) => q.status !== 'CANCELLED'))).catch(() => {});
     deliveryNotesApi.getAll({ limit: 100, excludeInvoiced: true }).then(r => setDeliveryNotes(r.data.data || [])).catch(() => {});
     api.post('/masters/bulk-values', { categoryCodes: ['vat_rates', 'sales_terms', 'payment_methods'] })

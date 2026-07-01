@@ -133,7 +133,7 @@ export class SalesController {
   // ── Products ──────────────────────────────────────────────────
   @Get('products')
   getProducts(@Request() req: any, @Query() q: any) {
-    return this.svc.getProducts(req.user.tenantId, +q.page || 1, +q.limit || 20, q.search, q.category);
+    return this.svc.getProducts(req.user.tenantId, +q.page || 1, +q.limit || 20, q.search, q.category, q.stockOnly === 'true');
   }
 
   @Get('products/:id')
