@@ -16,6 +16,8 @@ export class User {
 
   @Column({ name: 'user_group_id', nullable: true })
   userGroupId: string;
+  @Column({ name: 'manager_id', nullable: true })
+  managerId: string;
 
   @Column({ length: 255 })
   email: string;

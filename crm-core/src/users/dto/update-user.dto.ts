@@ -6,6 +6,7 @@ export class UpdateUserDto {
   @IsOptional() @IsString() @MaxLength(200) fullName?: string;
   @IsOptional() @IsString() fullNameAr?: string;
   @IsOptional() @IsUUID() userGroupId?: string;
+  @IsOptional() @IsUUID() managerId?: string;
   @IsOptional() @IsString() phone?: string;
   @IsOptional() @IsIn(['en', 'ar']) language?: string;
   @IsOptional() @IsString() timezone?: string;

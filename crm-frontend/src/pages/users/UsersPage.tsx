@@ -336,6 +336,16 @@ export default function UsersPage() {
             </Select>
           </Form.Item>
 
+          <Form.Item name="managerId" label="Reports To (Manager)" extra="Used for data scoping — a manager sees their team's customers (everyone below them in the reporting tree).">
+            <Select placeholder="Select manager (optional)" size="large" allowClear showSearch optionFilterProp="children">
+              {users.filter((u: any) => u.userId !== editUser?.userId).map((u: any) => (
+                <Option key={u.userId} value={u.userId}>
+                  {u.fullName} {u.userGroup?.groupName ? `— ${u.userGroup.groupName}` : ''}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="phone" label="Phone">

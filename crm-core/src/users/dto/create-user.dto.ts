@@ -28,6 +28,7 @@ export class CreateUserDto {
   @ApiProperty({ description: 'UUID of user group to assign' })
   @IsUUID()
   userGroupId: string;
+  @IsOptional() @IsUUID() managerId?: string;
 
   @ApiPropertyOptional({ example: '+96812345678' })
   @IsOptional()
