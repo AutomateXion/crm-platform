@@ -72,22 +72,22 @@ export class SalesController {
   @Get('field/customers/:id/open-invoices')
   async getFieldCustomerOpenInvoices(@Request() req: any, @Param('id') id: string) {
     await this.svc.assertFieldSalesAccess(req.user);
-    return this.svc.getFieldCustomerOpenInvoices(req.user.tenantId, id);
+    return this.svc.getFieldCustomerOpenInvoices(req.user, id);
   }
   @Get('field/collections')
   async getFieldCollections(@Request() req: any, @Query() q: any) {
     await this.svc.assertFieldSalesAccess(req.user);
-    return this.svc.getFieldCollections(req.user.tenantId, q.overdue === 'true', +q.limit || 100);
+    return this.svc.getFieldCollections(req.user, q.overdue === 'true', +q.limit || 100);
   }
   @Get('field/customers')
   async getFieldCustomers(@Request() req: any, @Query() q: any) {
     await this.svc.assertFieldSalesAccess(req.user);
-    return this.svc.getFieldCustomers(req.user.tenantId, q.search, +q.limit || 60);
+    return this.svc.getFieldCustomers(req.user, q.search, +q.limit || 60);
   }
   @Get('field/customers/:id/snapshot')
   async getFieldCustomerSnapshot(@Request() req: any, @Param('id') id: string) {
     await this.svc.assertFieldSalesAccess(req.user);
-    return this.svc.getFieldCustomerSnapshot(req.user.tenantId, id);
+    return this.svc.getFieldCustomerSnapshot(req.user, id);
   }
   @Get('field/rep-dashboard')
   getRepDashboard(@Request() req: any) {

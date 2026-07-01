@@ -5493,9 +5493,13 @@ Rules:
 
     // ── Field Sales: Customer Snapshot ──────────────────────────────────────
   // List customers with outstanding-at-a-glance (show-all for now; rep scoping later).
-  async getFieldCustomers(tenantId: string, search?: string, limit = 60): Promise<any> {
+  async getFieldCustomers(user: any, search?: string, limit = 60): Promise<any> {
+    const tenantId = user.tenantId;
+    const scopedIds = await this.getScopedUserIds(user);
     const params: any[] = [tenantId];
     let where = `a.tenant_id::text = $1::text AND a.is_customer = true`;
+    const sc = this.buildScopeClause(scopedIds, 'a', params.length + 1);
+    if (sc.clause) { where += sc.clause; params.push(...sc.params); }
     if (search) {
       params.push(`%${search}%`);
       where += ` AND a.account_name ILIKE $${params.length}`;
@@ -5531,7 +5535,9 @@ Rules:
   }
 
   // Full snapshot for one customer: credit, outstanding, aging, recent invoices, overdue.
-  async getFieldCustomerSnapshot(tenantId: string, accountId: string): Promise<any> {
+  async getFieldCustomerSnapshot(user: any, accountId: string): Promise<any> {
+    const tenantId = user.tenantId;
+    await this.assertCustomerInScope(user, accountId);
     const accRows = await this.invoiceRepo.query(
       `SELECT a.account_id AS "accountId", a.account_name AS "accountName",
               a.credit_limit AS "creditLimit", a.credit_period_days AS "creditPeriodDays",
@@ -5621,7 +5627,17 @@ Rules:
   }
 
   // ── Field Sales: Collections to chase (outstanding invoices, worst first) ──
-  async getFieldCollections(tenantId: string, onlyOverdue = false, limit = 100): Promise<any> {
+  async getFieldCollections(user: any, onlyOverdue = false, limit = 100): Promise<any> {
+    const tenantId = user.tenantId;
+    const scopedIds = await this.getScopedUserIds(user);
+    const params: any[] = [tenantId];
+    let scopeWhere = '';
+    if (scopedIds !== null) {
+      if (!scopedIds.length) return { items: [], totalOutstanding: 0, totalOverdue: 0, count: 0 };
+      const ph = scopedIds.map((_, i) => `$${params.length + 1 + i}`).join(',');
+      params.push(...scopedIds);
+      scopeWhere = ` AND (EXISTS (SELECT 1 FROM accounts a WHERE (a.account_id::text = i.account_id OR a.account_name = i.customer_name) AND a.tenant_id::text = i.tenant_id::text AND a.salesman_id::text IN (${ph})) OR NOT EXISTS (SELECT 1 FROM accounts a WHERE (a.account_id::text = i.account_id OR a.account_name = i.customer_name) AND a.tenant_id::text = i.tenant_id::text AND a.salesman_id IS NOT NULL AND a.salesman_id::text <> ''))`;
+    }
     const rows = await this.invoiceRepo.query(
       `SELECT i.invoice_number AS "invoiceNumber", i.invoice_date AS "invoiceDate",
               i.due_date AS "dueDate", i.customer_name AS "customerName", i.account_id AS "accountId",
@@ -5631,11 +5647,12 @@ Rules:
        FROM sales_invoices i
        WHERE i.tenant_id::text = $1::text AND i.balance_due > 0
        ${onlyOverdue ? 'AND i.due_date < CURRENT_DATE' : ''}
+       ${scopeWhere}
        ORDER BY (CASE WHEN i.due_date IS NOT NULL AND i.due_date < CURRENT_DATE
                       THEN (CURRENT_DATE - i.due_date) ELSE 0 END) DESC,
                 i.balance_due DESC
        LIMIT ${Number(limit) || 100}`,
-      [tenantId]);
+      params);
     let totalOutstanding = 0, totalOverdue = 0;
     const items = rows.map((r: any) => {
       const bal = Number(r.balanceDue) || 0;
@@ -5652,7 +5669,9 @@ Rules:
   }
 
     // ── Field Sales: open invoices for a customer (to allocate a collection) ──
-  async getFieldCustomerOpenInvoices(tenantId: string, accountId: string): Promise<any> {
+  async getFieldCustomerOpenInvoices(user: any, accountId: string): Promise<any> {
+    const tenantId = user.tenantId;
+    await this.assertCustomerInScope(user, accountId);
     const rows = await this.invoiceRepo.query(
       `SELECT invoice_id AS "invoiceId", invoice_number AS "invoiceNumber",
               invoice_date AS "invoiceDate", due_date AS "dueDate",
@@ -5671,6 +5690,57 @@ Rules:
 
     // ── Field Sales: module-level access check (backend enforcement) ─────────
   private fieldAccessCache = new Map<string, { ok: boolean; ts: number }>();
+  private scopeCache = new Map<string, { ids: string[] | null; ts: number }>();
+  async getScopedUserIds(user: any): Promise<string[] | null> {
+    if (user?.isSuperAdmin) return null;
+    const tenantId = user?.tenantId; const userGroupId = user?.userGroupId; const userId = user?.userId;
+    if (!tenantId || !userId) return [userId].filter(Boolean) as string[];
+    const key = `${tenantId}:${userId}`;
+    const c = this.scopeCache.get(key);
+    if (c && Date.now() - c.ts < 60000) return c.ids;
+    let scope = 'OWN';
+    if (userGroupId) {
+      const r = await this.invoiceRepo.query(
+        `SELECT p.permission_level AS lvl FROM permissions p JOIN fields f ON f.field_id=p.field_id
+         WHERE f.field_code='data_scope' AND p.tenant_id::text=$1::text AND p.user_group_id::text=$2::text LIMIT 1`,
+        [tenantId, userGroupId]);
+      const lvl = r?.[0]?.lvl;
+      if (lvl==='FA') scope='ALL'; else if (lvl==='VO') scope='TEAM'; else scope='OWN';
+    }
+    let ids: string[] | null;
+    if (scope==='ALL') ids = null;
+    else if (scope==='OWN') ids = [userId];
+    else {
+      const r = await this.invoiceRepo.query(
+        `WITH RECURSIVE team AS (
+           SELECT user_id FROM users WHERE user_id=$1::uuid
+           UNION ALL SELECT u.user_id FROM users u JOIN team t ON u.manager_id=t.user_id)
+         SELECT user_id FROM team`, [userId]);
+      ids = r.map((x:any)=>x.user_id); if (!ids.includes(userId)) ids.push(userId);
+    }
+    this.scopeCache.set(key, { ids, ts: Date.now() });
+    return ids;
+  }
+  buildScopeClause(scopedIds: string[] | null, alias='a', startIdx=2): { clause: string; params: any[] } {
+    if (scopedIds === null) return { clause: '', params: [] };
+    if (!scopedIds.length) return { clause: ' AND 1=0', params: [] };
+    const ph = scopedIds.map((_,i)=>`$${startIdx+i}`).join(',');
+    return { clause: ` AND (${alias}.salesman_id::text IN (${ph}) OR ${alias}.salesman_id IS NULL OR ${alias}.salesman_id::text = '')`, params: scopedIds };
+  }
+
+  async assertCustomerInScope(user: any, accountId: string): Promise<void> {
+    const scopedIds = await this.getScopedUserIds(user);
+    if (scopedIds === null) return;
+    const rows = await this.invoiceRepo.query(
+      `SELECT salesman_id FROM accounts WHERE account_id::text = $1::text LIMIT 1`, [accountId]);
+    if (!rows.length) return;
+    const owner = rows[0].salesman_id;
+    if (owner === null || owner === undefined || owner === '') return;
+    if (!scopedIds.map(String).includes(String(owner))) {
+      throw new ForbiddenException('This customer is outside your assigned scope.');
+    }
+  }
+
   async assertFieldSalesAccess(user: any): Promise<void> {
     if (user?.isSuperAdmin) return;
     const tenantId = user?.tenantId;
