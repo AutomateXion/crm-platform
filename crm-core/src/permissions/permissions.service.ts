@@ -24,6 +24,7 @@ export interface SubModulePermission {
 }
 
 export interface PagePermission {
+  route?: string | null;
   level: PermissionLevel;
   fields: Record<string, PermissionLevel>;
 }
