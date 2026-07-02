@@ -138,7 +138,8 @@ export default function PermissionMatrixPage() {
       const r = await permissionsApi.sync();
       const d = r.data || {};
       message.success(`Synced: ${d.pages || 0} new page(s), ${d.modules || 0} module(s) registered`);
-      await load();
+      const hr = await permissionsApi.getModules(); setHierarchy(hr.data);
+      if (selectedGroup) await loadGrid();
     } catch { message.error('Sync failed'); }
     finally { setSyncing(false); }
   };
@@ -151,10 +152,10 @@ export default function PermissionMatrixPage() {
           <Text type="secondary">Configure module, page and field access per user group</Text>
         </div>
         <Space>
+          <Button icon={<ReloadOutlined />} loading={syncing} onClick={handleSync} style={{ borderRadius: 8 }}>
+            Sync Permissions
+          </Button>
           {selectedGroup && (
-            <Button icon={<ReloadOutlined />} loading={syncing} onClick={handleSync} style={{ borderRadius: 8 }}>
-              Sync Permissions
-            </Button>
             <Button icon={<SaveOutlined />} type="primary" loading={saving} onClick={handleSave} style={{ borderRadius: 8 }}>
               Save Permissions
             </Button>
