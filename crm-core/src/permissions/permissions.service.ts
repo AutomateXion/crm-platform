@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PERMISSION_MANIFEST } from './permission-manifest';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
@@ -30,7 +30,11 @@ export interface PagePermission {
 }
 
 @Injectable()
-export class PermissionsService {
+export class PermissionsService implements OnModuleInit {
+  async onModuleInit() {
+    try { await this.syncManifest(); } catch (e) { /* non-fatal: sync can be retried via endpoint */ }
+  }
+
   constructor(
     @InjectRepository(Permission)
     private readonly permissionRepo: Repository<Permission>,

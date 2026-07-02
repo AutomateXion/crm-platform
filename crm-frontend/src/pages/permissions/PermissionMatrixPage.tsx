@@ -53,6 +53,7 @@ export default function PermissionMatrixPage() {
   const [permMap, setPermMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [copyFrom, setCopyFrom] = useState<string>('');
 
   useEffect(() => {
@@ -131,6 +132,16 @@ export default function PermissionMatrixPage() {
 
   const selectedGroupName = groups.find(g => g.userGroupId === selectedGroup)?.groupName;
 
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const r = await permissionsApi.sync();
+      const d = r.data || {};
+      message.success(`Synced: ${d.pages || 0} new page(s), ${d.modules || 0} module(s) registered`);
+      await load();
+    } catch { message.error('Sync failed'); }
+    finally { setSyncing(false); }
+  };
   return (
     <div>
       {/* Header */}
@@ -141,6 +152,9 @@ export default function PermissionMatrixPage() {
         </div>
         <Space>
           {selectedGroup && (
+            <Button icon={<ReloadOutlined />} loading={syncing} onClick={handleSync} style={{ borderRadius: 8 }}>
+              Sync Permissions
+            </Button>
             <Button icon={<SaveOutlined />} type="primary" loading={saving} onClick={handleSave} style={{ borderRadius: 8 }}>
               Save Permissions
             </Button>

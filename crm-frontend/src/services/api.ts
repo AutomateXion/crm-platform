@@ -78,6 +78,7 @@ export const permissionsApi = {
   getGrid: (userGroupId: string) => api.get(`/permissions/grid/${userGroupId}`),
   setPermissions: (data: any) => api.post('/permissions/set', data),
   copyPermissions: (data: any) => api.post('/permissions/copy', data),
+  sync: () => api.post('/permissions/sync', {}),
 };
 
 export const mastersApi = {
