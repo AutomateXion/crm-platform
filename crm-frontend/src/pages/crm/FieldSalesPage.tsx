@@ -368,10 +368,12 @@ export default function FieldSalesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const _sApiC = (await import('axios')).default.create({ baseURL: '/sales-api' });
+      _sApiC.interceptors.request.use((c:any) => { const t = localStorage.getItem('accessToken'); if(t) c.headers.Authorization=`Bearer ${t}`; return c; });
       const [vR, sR, aR] = await Promise.allSettled([
         api.get('/visits', { params: { limit: 100 } }),
         api.get('/visits/stats'),
-        api.get('/accounts', { params: { limit: 500 } }),
+        _sApiC.get('/sales/field/customers', { params: { limit: 1000 } }),
       ]);
       if (vR.status === 'fulfilled') {
         const v = vR.value.data.data || [];
@@ -379,7 +381,7 @@ export default function FieldSalesPage() {
         setActiveVisit(v.find((x:any) => x.status === 'CHECKED_IN' && x.salesmanId === user?.userId));
       }
       if (sR.status === 'fulfilled') setStats(sR.value.data);
-      if (aR.status === 'fulfilled') setAccounts(aR.value.data.data || []);
+      if (aR.status === 'fulfilled') setAccounts(Array.isArray(aR.value.data) ? aR.value.data : (aR.value.data.data || []));
     } catch {} finally { setLoading(false); }
   }, []);
 
