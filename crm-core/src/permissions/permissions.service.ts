@@ -225,8 +225,12 @@ export class PermissionsService {
   // ── Self-registering permission sync: manifest -> DB (idempotent, additive) ──
   // Upserts modules/sub-modules/pages from PERMISSION_MANIFEST. Never deletes.
   // New pages get default-ALLOW (FA) for all existing groups so nothing breaks.
-  async syncManifest(): Promise<{ modules: number; subModules: number; pages: number; grants: number }> {
+  private _syncRunning = false;
+  async syncManifest(): Promise<{ modules: number; subModules: number; pages: number; grants: number; skipped?: boolean }> {
+    if (this._syncRunning) return { modules: 0, subModules: 0, pages: 0, grants: 0, skipped: true };
+    this._syncRunning = true;
     let mCount = 0, smCount = 0, pCount = 0, gCount = 0;
+    try {
     for (const m of PERMISSION_MANIFEST) {
       // Module upsert
       let mod = await this.moduleRepo.findOne({ where: { moduleCode: m.code } });
@@ -272,6 +276,7 @@ export class PermissionsService {
       }
     }
     return { modules: mCount, subModules: smCount, pages: pCount, grants: gCount };
+    } finally { this._syncRunning = false; }
   }
 
 }
