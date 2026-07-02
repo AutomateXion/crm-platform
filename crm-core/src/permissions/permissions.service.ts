@@ -230,10 +230,10 @@ export class PermissionsService implements OnModuleInit {
   // Upserts modules/sub-modules/pages from PERMISSION_MANIFEST. Never deletes.
   // New pages get default-ALLOW (FA) for all existing groups so nothing breaks.
   private _syncRunning = false;
-  async syncManifest(): Promise<{ modules: number; subModules: number; pages: number; grants: number; skipped?: boolean }> {
-    if (this._syncRunning) return { modules: 0, subModules: 0, pages: 0, grants: 0, skipped: true };
+  async syncManifest(): Promise<{ modules: number; subModules: number; pages: number; grants: number; fields?: number; skipped?: boolean }> {
+    if (this._syncRunning) return { modules: 0, subModules: 0, pages: 0, grants: 0, fields: 0, skipped: true };
     this._syncRunning = true;
-    let mCount = 0, smCount = 0, pCount = 0, gCount = 0;
+    let mCount = 0, smCount = 0, pCount = 0, gCount = 0, fCount = 0;
     try {
     for (const m of PERMISSION_MANIFEST) {
       // Module upsert
@@ -276,10 +276,37 @@ export class PermissionsService implements OnModuleInit {
               }
             }
           }
+          // Register manifest fields for this page (idempotent, self-registering)
+          for (const fld of (pg.fields || [])) {
+            let field = await this.fieldRepo.findOne({ where: { pageId: page.pageId, fieldCode: fld.code } });
+            if (!field) {
+              const newField = this.fieldRepo.create({
+                pageId: page.pageId, fieldCode: fld.code, fieldLabel: fld.label,
+                fieldType: fld.type || 'field', sortOrder: fld.sort ?? 0, isSystem: false, isActive: true,
+              } as any) as any;
+              field = await this.fieldRepo.save(newField);
+              fCount++;
+              // default-ALLOW: grant FA to every group for this NEW field
+              const fgroups = await this.userGroupRepo.find();
+              for (const g of fgroups) {
+                const fexists = await this.permissionRepo.findOne({
+                  where: { userGroupId: g.userGroupId, fieldId: field.fieldId } as any,
+                });
+                if (!fexists) {
+                  await this.permissionRepo.save(this.permissionRepo.create({
+                    tenantId: (g as any).tenantId, userGroupId: g.userGroupId,
+                    moduleId: mod.moduleId, subModuleId: sub.subModuleId, pageId: page.pageId, fieldId: field.fieldId,
+                    permissionLevel: 'FA',
+                  } as any));
+                  gCount++;
+                }
+              }
+            }
+          }
         }
       }
     }
-    return { modules: mCount, subModules: smCount, pages: pCount, grants: gCount };
+    return { modules: mCount, subModules: smCount, pages: pCount, grants: gCount, fields: fCount };
     } finally { this._syncRunning = false; }
   }
 

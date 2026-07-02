@@ -3,14 +3,15 @@
 // Add a new module/sub-module/page HERE and it auto-registers on sync.
 // Idempotent: syncing never destroys existing grants.
 // ============================================================================
-export interface ManifestPage   { code: string; name: string; route?: string; sort?: number; }
+export interface ManifestField  { code: string; label: string; type?: string; sort?: number; }
+export interface ManifestPage   { code: string; name: string; route?: string; sort?: number; fields?: ManifestField[]; }
 export interface ManifestSub     { code: string; name: string; sort?: number; pages: ManifestPage[]; }
 export interface ManifestModule  { code: string; name: string; sort?: number; subModules: ManifestSub[]; }
 
 export const PERMISSION_MANIFEST: ManifestModule[] = [
   { code: 'contacts', name: 'Contacts & Accounts', sort: 1, subModules: [
     { code: 'contacts_main', name: 'Contacts & Accounts', pages: [
-      { code: 'customers', name: 'Customers / Accounts', route: '/contacts', sort: 1 },
+      { code: 'customers', name: 'Customers / Accounts', route: '/contacts', sort: 1, fields: [{ code: 'cust_credit_limit_pg', label: 'Credit Limit', type: 'amount' }, { code: 'cust_pricing', label: 'Special Pricing', type: 'amount' }] },
       { code: 'contacts_people', name: 'Contacts (People)', route: '/contacts', sort: 2 },
     ]},
   ]},
@@ -53,7 +54,7 @@ export const PERMISSION_MANIFEST: ManifestModule[] = [
       { code: 'einvoicing', name: 'E-Invoicing (Fawtara)', route: '/einvoice', sort: 8 },
     ]},
     { code: 'sales_documents', name: 'Sales Documents', pages: [
-      { code: 'vch_quotation',     name: 'Quotation',     route: '/finance/quotations',       sort: 1 },
+      { code: 'vch_quotation',     name: 'Quotation',     route: '/finance/quotations',       sort: 1, fields: [{ code: 'quo_cost', label: 'Cost / Purchase Price', type: 'amount' }, { code: 'quo_margin', label: 'Margin / Profit', type: 'amount' }, { code: 'quo_discount', label: 'Discount', type: 'amount' }] },
       { code: 'vch_sales_order',   name: 'Sales Order',   route: '/field/quick-order',        sort: 2 },
       { code: 'vch_delivery_note', name: 'Delivery Note', route: '/inventory/delivery-notes', sort: 3 },
       { code: 'vch_sales_return',  name: 'Sales Return',  route: '/finance/returns',          sort: 4 },
@@ -61,7 +62,7 @@ export const PERMISSION_MANIFEST: ManifestModule[] = [
   ]},
   { code: 'invoicing', name: 'Invoicing', sort: 11, subModules: [
     { code: 'invoicing_documents', name: 'Invoicing Documents', pages: [
-      { code: 'vch_sales_invoice', name: 'Sales Invoice', route: '/finance/invoices', sort: 1 },
+      { code: 'vch_sales_invoice', name: 'Sales Invoice', route: '/finance/invoices', sort: 1, fields: [{ code: 'inv_cost', label: 'Cost / Purchase Price', type: 'amount' }, { code: 'inv_margin', label: 'Margin / Profit', type: 'amount' }, { code: 'inv_discount', label: 'Discount', type: 'amount' }, { code: 'inv_approve', label: 'Approve / Post', type: 'action' }] },
     ]},
   ]},
   { code: 'banking', name: 'Banking & Cash', sort: 12, subModules: [
@@ -72,7 +73,7 @@ export const PERMISSION_MANIFEST: ManifestModule[] = [
     ]},
     { code: 'banking_documents', name: 'Banking Documents', pages: [
       { code: 'vch_receipt',         name: 'Receipt',         route: '/finance/receipts', sort: 1 },
-      { code: 'vch_payment_voucher', name: 'Payment Voucher', route: '/purchase/payments', sort: 2 },
+      { code: 'vch_payment_voucher', name: 'Payment Voucher', route: '/purchase/payments', sort: 2, fields: [{ code: 'pay_approve', label: 'Approve Payment', type: 'action' }] },
     ]},
   ]},
   { code: 'accounting', name: 'Accounting & Finance', sort: 10, subModules: [
@@ -84,7 +85,7 @@ export const PERMISSION_MANIFEST: ManifestModule[] = [
       { code: 'account_ledger',    name: 'Account Ledger',    route: '/reports/account-ledger',    sort: 5 },
     ]},
     { code: 'accounting_documents', name: 'Accounting Documents', pages: [
-      { code: 'vch_journal_voucher', name: 'Journal Voucher', route: '/finance/journal-vouchers', sort: 1 },
+      { code: 'vch_journal_voucher', name: 'Journal Voucher', route: '/finance/journal-vouchers', sort: 1, fields: [{ code: 'jv_approve', label: 'Post Journal', type: 'action' }] },
     ]},
   ]},
   { code: 'purchase', name: 'Purchase', sort: 22, subModules: [
@@ -93,7 +94,7 @@ export const PERMISSION_MANIFEST: ManifestModule[] = [
       { code: 'rfq',       name: 'RFQ / Quotations', route: '/purchase/rfqs',      sort: 2 },
     ]},
     { code: 'purchase_documents', name: 'Purchase Documents', pages: [
-      { code: 'vch_purchase_order',   name: 'Purchase Order',   route: '/purchase/orders',   sort: 1 },
+      { code: 'vch_purchase_order',   name: 'Purchase Order',   route: '/purchase/orders',   sort: 1, fields: [{ code: 'po_approve', label: 'Approve PO', type: 'action' }] },
       { code: 'vch_grn',              name: 'Goods Receipt',    route: '/purchase/grn',      sort: 2 },
       { code: 'vch_purchase_invoice', name: 'Purchase Invoice', route: '/purchase/invoices', sort: 3 },
       { code: 'vch_purchase_return',  name: 'Purchase Return',  route: '/purchase/returns',  sort: 4 },
@@ -102,7 +103,7 @@ export const PERMISSION_MANIFEST: ManifestModule[] = [
   { code: 'inventory', name: 'Inventory & Warehouse', sort: 24, subModules: [
     { code: 'inventory_main', name: 'Inventory', pages: [
       { code: 'inventory_analytics', name: 'Inventory Analytics', route: '/inventory/dashboard', sort: 1 },
-      { code: 'products',            name: 'Products & Services', route: '/inventory/products', sort: 2 },
+      { code: 'products',            name: 'Products & Services', route: '/inventory/products', sort: 2, fields: [{ code: 'prod_cost', label: 'Cost Price', type: 'amount' }, { code: 'prod_margin', label: 'Margin %', type: 'amount' }] },
       { code: 'warehouses',          name: 'Warehouses',          route: '/warehouse/warehouses', sort: 3 },
       { code: 'locations',           name: 'Locations / Bins',    route: '/warehouse/locations', sort: 4 },
     ]},
