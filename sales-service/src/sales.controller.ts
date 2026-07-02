@@ -203,7 +203,8 @@ export class SalesController {
   }
 
   @Post('quotations')
-  createQuotation(@Request() req: any, @Body() dto: any) {
+  async createQuotation(@Request() req: any, @Body() dto: any) {
+    await this.svc.assertVoucherAllowed(req.user, 'vch_quotation', 'a Quotation');
     return this.svc.createQuotation(req.user.tenantId, dto, req.user.userId);
   }
 
@@ -238,7 +239,8 @@ export class SalesController {
   }
 
   @Post('delivery-notes')
-  createDeliveryNote(@Request() req: any, @Body() dto: any) {
+  async createDeliveryNote(@Request() req: any, @Body() dto: any) {
+    await this.svc.assertVoucherAllowed(req.user, 'vch_delivery_note', 'a Delivery Note');
     return this.svc.createDeliveryNote(req.user.tenantId, dto, req.user.userId);
   }
 
@@ -273,7 +275,8 @@ export class SalesController {
   }
 
   @Post('invoices')
-  createInvoice(@Request() req: any, @Body() dto: any) {
+  async createInvoice(@Request() req: any, @Body() dto: any) {
+    await this.svc.assertVoucherAllowed(req.user, 'vch_sales_invoice', 'a Sales Invoice');
     return this.svc.createInvoice(req.user.tenantId, dto, req.user.userId);
   }
 
@@ -298,7 +301,8 @@ export class SalesController {
   }
 
   @Post('receipts')
-  createReceipt(@Request() req: any, @Body() dto: any) {
+  async createReceipt(@Request() req: any, @Body() dto: any) {
+    await this.svc.assertVoucherAllowed(req.user, 'vch_receipt', 'a Receipt');
     return this.svc.createReceipt(req.user.tenantId, dto, req.user.userId);
   }
   @Post('receipts/:id/post')
@@ -327,7 +331,8 @@ export class SalesController {
   }
 
   @Post('returns')
-  createReturn(@Request() req: any, @Body() dto: any) {
+  async createReturn(@Request() req: any, @Body() dto: any) {
+    await this.svc.assertVoucherAllowed(req.user, 'vch_sales_return', 'a Sales Return');
     return this.svc.createReturn(req.user.tenantId, dto, req.user.userId);
   }
 
@@ -415,7 +420,8 @@ export class SalesController {
     return this.svc.getPurchaseOrder(req.user.tenantId, id);
   }
   @Post('purchase-orders')
-  createPurchaseOrder(@Request() req: any, @Body() dto: any) {
+  async createPurchaseOrder(@Request() req: any, @Body() dto: any) {
+    await this.svc.assertVoucherAllowed(req.user, 'vch_purchase_order', 'a Purchase Order');
     return this.svc.createPurchaseOrder(req.user.tenantId, dto, req.user.userId);
   }
   @Put('purchase-orders/:id')
@@ -441,7 +447,8 @@ export class SalesController {
     return this.svc.getGRN(req.user.tenantId, id);
   }
   @Post('grns')
-  createGRN(@Request() req: any, @Body() dto: any) {
+  async createGRN(@Request() req: any, @Body() dto: any) {
+    await this.svc.assertVoucherAllowed(req.user, 'vch_grn', 'a Goods Receipt');
     return this.svc.createGRN(req.user.tenantId, dto, req.user.userId);
   }
   @Put('grns/:id')
@@ -471,7 +478,8 @@ export class SalesController {
     return this.svc.getPurchaseInvoice(req.user.tenantId, id);
   }
   @Post('purchase-invoices')
-  createPurchaseInvoice(@Request() req: any, @Body() dto: any) {
+  async createPurchaseInvoice(@Request() req: any, @Body() dto: any) {
+    await this.svc.assertVoucherAllowed(req.user, 'vch_purchase_invoice', 'a Purchase Invoice');
     return this.svc.createPurchaseInvoice(req.user.tenantId, dto, req.user.userId);
   }
 
@@ -538,7 +546,8 @@ export class SalesController {
     return this.svc.getPaymentVouchers(req.user.tenantId, +q.page||1, +q.limit||20, q.search);
   }
   @Post('payment-vouchers')
-  createPaymentVoucher(@Request() req: any, @Body() dto: any) {
+  async createPaymentVoucher(@Request() req: any, @Body() dto: any) {
+    await this.svc.assertVoucherAllowed(req.user, 'vch_payment_voucher', 'a Payment Voucher');
     return this.svc.createPaymentVoucher(req.user.tenantId, dto, req.user.userId);
   }
   @Get('payment-vouchers/:id')
@@ -637,7 +646,8 @@ export class SalesController {
     return this.svc.getPurchaseReturn(req.user.tenantId, id);
   }
   @Post('purchase-returns')
-  createPurchaseReturn(@Request() req: any, @Body() dto: any) {
+  async createPurchaseReturn(@Request() req: any, @Body() dto: any) {
+    await this.svc.assertVoucherAllowed(req.user, 'vch_purchase_return', 'a Purchase Return');
     return this.svc.createPurchaseReturn(req.user.tenantId, dto, req.user.userId);
   }
   @Put('purchase-returns/:id')
@@ -663,7 +673,8 @@ export class SalesController {
     return this.svc.getJournalVoucher(req.user.tenantId, id);
   }
   @Post('journal-vouchers')
-  createJournalVoucher(@Request() req: any, @Body() dto: any) {
+  async createJournalVoucher(@Request() req: any, @Body() dto: any) {
+    await this.svc.assertVoucherAllowed(req.user, 'vch_journal_voucher', 'a Journal Voucher');
     return this.svc.createJournalVoucher(req.user.tenantId, dto, req.user.userId);
   }
   @Put('journal-vouchers/:id')
@@ -782,7 +793,8 @@ export class SalesController {
     return this.svc.getStockTransfer(req.user.tenantId, id);
   }
   @Post('stock-transfers')
-  createStockTransfer(@Request() req: any, @Body() dto: any) {
+  async createStockTransfer(@Request() req: any, @Body() dto: any) {
+    await this.svc.assertVoucherAllowed(req.user, 'vch_stock_transfer', 'a Stock Transfer');
     return this.svc.createStockTransfer(req.user.tenantId, dto, req.user.userId);
   }
   @Put('stock-transfers/:id')
@@ -808,7 +820,8 @@ export class SalesController {
     return this.svc.getStockAdjustment(req.user.tenantId, id);
   }
   @Post('stock-adjustments')
-  createStockAdjustment(@Request() req: any, @Body() dto: any) {
+  async createStockAdjustment(@Request() req: any, @Body() dto: any) {
+    await this.svc.assertVoucherAllowed(req.user, 'vch_stock_adjustment', 'a Stock Adjustment');
     return this.svc.createStockAdjustment(req.user.tenantId, dto, req.user.userId);
   }
   @Put('stock-adjustments/:id')

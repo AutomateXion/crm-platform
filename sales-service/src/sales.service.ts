@@ -5742,6 +5742,35 @@ Rules:
     }
   }
 
+  // ── Voucher capability check: can this user's group create/edit this voucher? ──
+  // Default-ALLOW: no permission record => allowed. Explicit NA/HI => blocked.
+  private voucherPermCache = new Map<string, { ok: boolean; ts: number }>();
+  async assertVoucherAllowed(user: any, pageCode: string, voucherLabel = 'this document'): Promise<void> {
+    if (user?.isSuperAdmin) return;
+    if (user?.groupCode === 'TENANT_ADMIN') return;
+    const tenantId = user?.tenantId;
+    const userGroupId = user?.userGroupId;
+    if (!tenantId || !userGroupId) return; // can't determine -> allow (default)
+    const key = `${userGroupId}:${pageCode}`;
+    const c = this.voucherPermCache.get(key);
+    if (c && Date.now() - c.ts < 60000) {
+      if (!c.ok) throw new ForbiddenException(`Your role is not permitted to create or edit ${voucherLabel}.`);
+      return;
+    }
+    const rows = await this.invoiceRepo.query(
+      `SELECT p.permission_level AS lvl
+       FROM permissions p JOIN pages pg ON pg.page_id = p.page_id
+       WHERE pg.page_code = $1 AND p.tenant_id::text = $2::text AND p.user_group_id::text = $3::text
+         AND p.field_id IS NULL
+       LIMIT 1`,
+      [pageCode, tenantId, userGroupId]);
+    const lvl = rows?.[0]?.lvl;
+    // default-allow: no record => ok. Blocked only if explicit NA or HI.
+    const ok = !(lvl === 'NA' || lvl === 'HI');
+    this.voucherPermCache.set(key, { ok, ts: Date.now() });
+    if (!ok) throw new ForbiddenException(`Your role is not permitted to create or edit ${voucherLabel}.`);
+  }
+
   async assertFieldSalesAccess(user: any): Promise<void> {
     if (user?.isSuperAdmin) return;
     const tenantId = user?.tenantId;
