@@ -73,4 +73,11 @@ export class PermissionsController {
     );
     return { message: 'Permissions copied successfully' };
   }
+
+  @Post('sync')
+  @ApiOperation({ summary: 'Sync permission manifest (self-registering hierarchy)' })
+  async syncManifest(@CurrentUser() user: User) {
+    return this.permissionsService.syncManifest();
+  }
+
 }

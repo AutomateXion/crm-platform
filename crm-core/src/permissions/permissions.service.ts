@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { PERMISSION_MANIFEST } from './permission-manifest';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
  
@@ -218,4 +219,57 @@ export class PermissionsService {
       await this.invalidatePermissionCache(tenantId, group.userGroupId);
     }
   }
+
+  // ── Self-registering permission sync: manifest -> DB (idempotent, additive) ──
+  // Upserts modules/sub-modules/pages from PERMISSION_MANIFEST. Never deletes.
+  // New pages get default-ALLOW (FA) for all existing groups so nothing breaks.
+  async syncManifest(): Promise<{ modules: number; subModules: number; pages: number; grants: number }> {
+    let mCount = 0, smCount = 0, pCount = 0, gCount = 0;
+    for (const m of PERMISSION_MANIFEST) {
+      // Module upsert
+      let mod = await this.moduleRepo.findOne({ where: { moduleCode: m.code } });
+      if (!mod) {
+        mod = await this.moduleRepo.save(this.moduleRepo.create({
+          moduleCode: m.code, moduleName: m.name, sortOrder: m.sort ?? 0, isActive: true,
+        }));
+        mCount++;
+      }
+      for (const sm of m.subModules) {
+        let sub = await this.subModuleRepo.findOne({ where: { moduleId: mod.moduleId, subModuleCode: sm.code } });
+        if (!sub) {
+          sub = await this.subModuleRepo.save(this.subModuleRepo.create({
+            moduleId: mod.moduleId, subModuleCode: sm.code, subModuleName: sm.name, sortOrder: sm.sort ?? 0, isActive: true,
+          }));
+          smCount++;
+        }
+        for (const pg of sm.pages) {
+          let page = await this.pageRepo.findOne({ where: { subModuleId: sub.subModuleId, pageCode: pg.code } });
+          if (!page) {
+            page = await this.pageRepo.save(this.pageRepo.create({
+              subModuleId: sub.subModuleId, pageCode: pg.code, pageName: pg.name,
+              pageRoute: pg.route ?? null, sortOrder: pg.sort ?? 0, isActive: true,
+            }));
+            pCount++;
+            // default-ALLOW: grant FA to every group for this NEW page (per tenant)
+            const groups = await this.userGroupRepo.find();
+            for (const g of groups) {
+              const exists = await this.permissionRepo.findOne({
+                where: { userGroupId: g.userGroupId, pageId: page.pageId } as any,
+              });
+              if (!exists) {
+                await this.permissionRepo.save(this.permissionRepo.create({
+                  tenantId: (g as any).tenantId, userGroupId: g.userGroupId,
+                  moduleId: mod.moduleId, subModuleId: sub.subModuleId, pageId: page.pageId,
+                  permissionLevel: 'FA',
+                } as any));
+                gCount++;
+              }
+            }
+          }
+        }
+      }
+    }
+    return { modules: mCount, subModules: smCount, pages: pCount, grants: gCount };
+  }
+
 }
