@@ -205,6 +205,7 @@ export class SalesController {
   @Post('quotations')
   async createQuotation(@Request() req: any, @Body() dto: any) {
     await this.svc.assertVoucherAllowed(req.user, 'vch_quotation', 'a Quotation');
+    await this.svc.assertCustomerInScope(req.user, dto.accountId, dto.customerName);
     return this.svc.createQuotation(req.user.tenantId, dto, req.user.userId);
   }
 
@@ -241,6 +242,7 @@ export class SalesController {
   @Post('delivery-notes')
   async createDeliveryNote(@Request() req: any, @Body() dto: any) {
     await this.svc.assertVoucherAllowed(req.user, 'vch_delivery_note', 'a Delivery Note');
+    await this.svc.assertCustomerInScope(req.user, dto.accountId, dto.customerName);
     return this.svc.createDeliveryNote(req.user.tenantId, dto, req.user.userId);
   }
 
@@ -277,6 +279,7 @@ export class SalesController {
   @Post('invoices')
   async createInvoice(@Request() req: any, @Body() dto: any) {
     await this.svc.assertVoucherAllowed(req.user, 'vch_sales_invoice', 'a Sales Invoice');
+    await this.svc.assertCustomerInScope(req.user, dto.accountId, dto.customerName);
     return this.svc.createInvoice(req.user.tenantId, dto, req.user.userId);
   }
 
@@ -303,6 +306,7 @@ export class SalesController {
   @Post('receipts')
   async createReceipt(@Request() req: any, @Body() dto: any) {
     await this.svc.assertVoucherAllowed(req.user, 'vch_receipt', 'a Receipt');
+    await this.svc.assertCustomerInScope(req.user, dto.accountId, dto.customerName);
     return this.svc.createReceipt(req.user.tenantId, dto, req.user.userId);
   }
   @Post('receipts/:id/post')
@@ -333,6 +337,7 @@ export class SalesController {
   @Post('returns')
   async createReturn(@Request() req: any, @Body() dto: any) {
     await this.svc.assertVoucherAllowed(req.user, 'vch_sales_return', 'a Sales Return');
+    await this.svc.assertCustomerInScope(req.user, dto.accountId, dto.customerName);
     return this.svc.createReturn(req.user.tenantId, dto, req.user.userId);
   }
 

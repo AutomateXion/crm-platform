@@ -5729,11 +5729,17 @@ Rules:
     return { clause: ` AND (${alias}.salesman_id::text IN (${ph}) OR ${alias}.salesman_id IS NULL OR ${alias}.salesman_id::text = '')`, params: scopedIds };
   }
 
-  async assertCustomerInScope(user: any, accountId: string): Promise<void> {
+  async assertCustomerInScope(user: any, accountId?: string, customerName?: string): Promise<void> {
     const scopedIds = await this.getScopedUserIds(user);
     if (scopedIds === null) return;
+    if (!accountId && !customerName) return;
     const rows = await this.invoiceRepo.query(
-      `SELECT salesman_id FROM accounts WHERE account_id::text = $1::text LIMIT 1`, [accountId]);
+      `SELECT salesman_id FROM accounts
+       WHERE (($1::text IS NOT NULL AND account_id::text = $1::text)
+              OR ($2::text IS NOT NULL AND account_name = $2::text))
+         AND tenant_id::text = $3::text
+       LIMIT 1`,
+      [accountId || null, customerName || null, user.tenantId]);
     if (!rows.length) return;
     const owner = rows[0].salesman_id;
     if (owner === null || owner === undefined || owner === '') return;
