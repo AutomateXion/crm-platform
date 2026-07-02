@@ -55,7 +55,7 @@ export default function QuotationsPage() {
 
   useEffect(() => {
     productsApi.getAll({ limit: 100, stockOnly: true }).then(r => setProducts(r.data.data || [])).catch(() => {});
-    api.get('/accounts', { params: { limit: 100 } }).then(r => setAccounts(r.data.data || [])).catch(() => {});
+    (async () => { const _scApi2 = (await import('axios')).default.create({ baseURL: '/sales-api' }); _scApi2.interceptors.request.use((cc: any) => { const tk = localStorage.getItem('accessToken'); if (tk) cc.headers.Authorization = `Bearer ${tk}`; return cc; }); _scApi2.get('/sales/field/customers', { params: { limit: 200 } }).then((r: any) => setAccounts(Array.isArray(r.data) ? r.data : (r.data.data || []))).catch(() => {}); })();
     api.post('/masters/bulk-values', { categoryCodes: ['vat_rates'] })
       .then(r => setVatRates(r.data.vat_rates || [])).catch(() => {});
     api.get('/opportunities', { params: { limit: 100, stage: 'CLOSED_WON' } })
@@ -213,8 +213,9 @@ export default function QuotationsPage() {
                   onSearch={async (val) => {
                     if (val.length < 2) return;
                     try {
-                      const r = await api.get('/accounts', { params: { search: val, limit: 20 } });
-                      setAccountOptions((r.data.data || []).map((a: any) => ({
+                      const _scApi = (await import('axios')).default.create({ baseURL: '/sales-api' }); _scApi.interceptors.request.use((cc: any) => { const tk = localStorage.getItem('accessToken'); if (tk) cc.headers.Authorization = `Bearer ${tk}`; return cc; });
+      const r = await _scApi.get('/sales/field/customers', { params: { search: val, limit: 20 } });
+                      setAccountOptions((Array.isArray(r.data) ? r.data : (r.data.data || [])).map((a: any) => ({
                         value: a.accountName,
                         label: (
                           <div>

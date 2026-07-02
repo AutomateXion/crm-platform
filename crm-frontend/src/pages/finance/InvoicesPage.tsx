@@ -83,8 +83,9 @@ export default function InvoicesPage() {
   const handleAccountSearch = async (val: string) => {
     if (val.length < 1) { setAccountOptions([]); return; }
     try {
-      const r = await api.get('/accounts', { params: { search: val, limit: 20 } });
-      setAccountOptions((r.data.data || []).map((a: any) => ({
+      const _scApi = (await import('axios')).default.create({ baseURL: '/sales-api' }); _scApi.interceptors.request.use((cc: any) => { const tk = localStorage.getItem('accessToken'); if (tk) cc.headers.Authorization = `Bearer ${tk}`; return cc; });
+      const r = await _scApi.get('/sales/field/customers', { params: { search: val, limit: 20 } });
+      setAccountOptions((Array.isArray(r.data) ? r.data : (r.data.data || [])).map((a: any) => ({
         value: a.accountName, label: a.accountName, account: a,
       })));
     } catch {}
