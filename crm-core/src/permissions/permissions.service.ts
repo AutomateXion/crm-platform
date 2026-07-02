@@ -100,6 +100,7 @@ export class PermissionsService {
 
           map.modules[mod.moduleCode].subModules[sub.subModuleCode].pages[page.pageCode] = {
             level: pageLevel,
+            route: page.pageRoute || null,
             fields: fieldMap,
           };
         }

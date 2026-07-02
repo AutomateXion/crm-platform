@@ -109,6 +109,35 @@ import AccountingConfigPage   from './pages/admin/AccountingConfigPage';
 import DocumentConfigPage     from './pages/admin/DocumentConfigPage';
 import EmailConfigPage       from './pages/admin/EmailConfigPage';
 
+function RouteGuard({ children }: { children: any }) {
+  const location = useLocation();
+  const authUser = useSelector((st: any) => st.auth.user) as any;
+  const perms = useSelector((st: any) => st.auth.permissions) as any;
+  const isAdmin = authUser?.isSuperAdmin || authUser?.groupCode === 'TENANT_ADMIN';
+  if (isAdmin || !perms?.modules) return children;
+  const path = location.pathname;
+  // Find a registered page whose route matches the current path (longest match wins).
+  let blocked = false; let best = '';
+  for (const mCode of Object.keys(perms.modules)) {
+    const mod = perms.modules[mCode];
+    for (const sCode of Object.keys(mod.subModules || {})) {
+      const sub = mod.subModules[sCode];
+      for (const pCode of Object.keys(sub.pages || {})) {
+        const pg = sub.pages[pCode];
+        const r = pg?.route;
+        if (!r) continue;
+        // match exact or path startsWith route (for detail pages), prefer longest route
+        if ((path === r || path.startsWith(r + '/')) && r.length > best.length) {
+          best = r;
+          blocked = (pg.level === 'NA' || pg.level === 'HI');
+        }
+      }
+    }
+  }
+  if (blocked) return <Navigate to="/dashboard" replace />;
+  return children;
+}
+
 function DashboardRouter() {
   const authUser = useSelector((st: any) => st.auth.user) as any;
   const perms = useSelector((st: any) => st.auth.permissions) as any;
@@ -135,7 +164,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/vendor-quote" element={<VendorQuotePage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+      <Route path="/" element={<ProtectedRoute><RouteGuard><AppLayout /></RouteGuard></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         {/* Core */}
         <Route path="dashboard"   element={<DashboardRouter />} />
